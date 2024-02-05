@@ -1,16 +1,18 @@
 let String = {
+  // Splits a string by a given delimiter
   split: func pure split(value: string?, by: string?) {
     let result = [];
     let current = "";
 
     for i in iter(value) {
-      i == by ? #{
+      i == by || by == "" ? #{
+        by == "" ? current = current + i : #{};
         result + current;
         current = "";
       } : current = current + i;
     }
 
-    result + current;
+    by != "" ? result + current : #{};
 
     print(result);
   }

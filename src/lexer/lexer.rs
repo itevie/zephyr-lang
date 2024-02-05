@@ -157,6 +157,36 @@ pub fn lex(contents: String) -> Result<Vec<Token>, ZephyrError> {
       current_line += 1;
       continue;
     }
+    // Check for // comment
+    else if chars[0] == '/' && chars.len() >= 2 && chars[1] == '/' {
+      // Repeat until \n or eof
+      while chars[0] != '\n' && chars.len() > 0 {
+        eat(&mut chars);
+      }
+      continue;
+    }
+    // Check for /* comment
+    else if chars[0] == '/' && chars.len() >= 2 && chars[1] == '*' {
+      let mut closed = false;
+
+      while chars.len() > 0 {
+        if chars.len() >= 2 && chars[0] == '*' && chars[1] == '/' {
+          eat(&mut chars);
+          eat(&mut chars);
+          closed = true;
+          break;
+        }
+        eat(&mut chars);
+      }
+      // Check if it was closed
+      if !closed {
+        return Err(ZephyrError::lexer(
+          "Multi-line comment not closed".to_string(),
+          Location::no_location(),
+        ));
+      }
+      continue;
+    }
     // Check for string literal
     else if chars[0] == '"' {
       // Remove quote mark

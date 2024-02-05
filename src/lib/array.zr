@@ -1,23 +1,24 @@
 let Array = {
+  // Returns the length of an array
   len: func pure len(value: array?) {
     let res = 0;
     for i in value { res = res + i; };
     res;
   },
 
+  // Joins an array into a string with an optional seperator
   join: func pure join(values: array?, by) {
     let value = "";
 
     for i in values {
       value = value + ("" + i);
-
     }
 
     value;
   },
 
+  // Creates a new array based on another array but calling f with each item
   map: func pure map(value: array?, f: callable?) {
     for i in value { f(i); };
   }
-
 };
