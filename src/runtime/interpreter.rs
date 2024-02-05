@@ -301,6 +301,10 @@ impl Interpreter {
         //let _name = stmt.identifier.symbol;
         let child_scope = self.scope.create_child();
 
+        if stmt.is_pure {
+          *child_scope.pure_functions_only.borrow_mut() = true;
+        }
+
         let function = Function {
           scope: Rc::from(child_scope),
           body: Box::from(stmt.body),
@@ -343,6 +347,7 @@ impl Interpreter {
             (func.func)(&args)
           }
           RuntimeValue::Function(func) => {
+            println!("{}", { *self.scope.pure_functions_only.borrow() });
             if *self.scope.pure_functions_only.borrow() {
               *self.scope.pure_functions_only.borrow_mut() = false;
               // Check if it is pure
@@ -360,6 +365,10 @@ impl Interpreter {
               func.scope.create_child()
             };
             let caller_args = expr2.arguments.clone();
+
+            if func.pure {
+              *scope.pure_functions_only.borrow_mut() = true;
+            }
 
             // Declare the args
             for i in 0..func.arguments.len() {
@@ -390,7 +399,7 @@ impl Interpreter {
               }
             }
             {
-              *self.scope.pure_functions_only.borrow_mut() = false;
+              *self.scope.pure_functions_only.borrow_mut() = func.pure;
             }
             let _ = std::mem::replace(&mut self.scope, prev);
 
@@ -684,6 +693,18 @@ impl Interpreter {
       }
 
       // ----- Statement like expressions -----
+      Expression::IfExpression(expr) => {
+        let test = self.evaluate(*expr.test)?;
+
+        if test.is_truthy() {
+          // Run the success block
+          self.evaluate_block(*expr.success, self.scope.create_child())
+        } else if let Some(alt) = expr.alternate {
+          self.evaluate(*alt)
+        } else {
+          Ok(RuntimeValue::Null(Null {}))
+        }
+      }
       Expression::ForLoop(expr) => {
         let value = self.evaluate(*expr.value_to_iter)?.iterate()?;
         let mut values: Vec<Box<RuntimeValue>> = vec![];

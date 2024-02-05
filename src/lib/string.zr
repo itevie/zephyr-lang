@@ -4,15 +4,22 @@ let String = {
     let result = [];
     let current = "";
 
+    // Loop through the string
     for i in iter(value) {
-      i == by || by == "" ? #{
-        by == "" ? current = current + i : #{};
+      // Check if it has encountered the delimiter
+      if i == by || by == "" {
+        // Check if it should add the current char if the delimiter is ""
+        if by == "" { current = current + i; }
         result + current;
         current = "";
-      } : current = current + i;
+      } else {
+        current = current + i;
+      }
     }
 
-    by != "" ? result + current : #{};
+    if by != "" {
+      result + current;
+    }
 
     print(result);
   }

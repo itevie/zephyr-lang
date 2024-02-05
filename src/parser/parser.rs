@@ -99,6 +99,7 @@ impl Parser {
       nodes::Expression::ForLoop(_) => true,
       nodes::Expression::Block(_) => true,
       nodes::Expression::Program(_) => true,
+      nodes::Expression::IfExpression(_) => true,
       _ => false,
     }
   }
@@ -636,6 +637,7 @@ impl Parser {
         }}),
       TokenType::For => self.parse_for_expression()?,
       TokenType::Function => nodes::Expression::FunctionLiteral(self.parse_function_literal()?),
+      TokenType::If => self.parse_if_expression()?,
       TokenType::OpenParen => {
         self.eat();
         let value = herr!(self.parse_expression());
@@ -686,6 +688,43 @@ impl Parser {
       _ => return Err(parser_error!(format!("Cannot handle this token {:?}", self.at().token_type), self.at().location))
     })
   }}
+
+  pub fn parse_if_expression(&mut self) -> Result<nodes::Expression, ZephyrError> {
+    let token = self.expect(
+      discriminant(&TokenType::If),
+      ZephyrError::parser("Expected if token".to_string(), self.at().location),
+    )?;
+
+    // Get the test
+    let test = self.parse_expression()?;
+
+    // Get the success block
+    let success = self.parse_block()?;
+
+    // Check for alternate
+    let alternate = if matches!(self.at().token_type, TokenType::Else) {
+      self.eat();
+      Some(Box::from(match self.at().token_type {
+        TokenType::If => self.parse_if_expression()?,
+        TokenType::OpenBrace => nodes::Expression::Block(self.parse_block()?),
+        _ => {
+          return Err(ZephyrError::parser(
+            "Cannot use this with else, expected if or a block".to_string(),
+            self.at().location,
+          ))
+        }
+      }))
+    } else {
+      None
+    };
+
+    Ok(nodes::Expression::IfExpression(nodes::IfExpression {
+      test: Box::from(test),
+      success: Box::from(success),
+      alternate,
+      location: token.location,
+    }))
+  }
 
   pub fn parse_for_expression(&mut self) -> Result<nodes::Expression, ZephyrError> {
     let token = self.expect(

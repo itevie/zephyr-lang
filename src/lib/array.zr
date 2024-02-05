@@ -6,6 +6,11 @@ let Array = {
     res;
   },
 
+  // Adds an item to the end of the array
+  push: func pure push(arr: array?, value) {
+    arr + value;
+  },
+
   // Joins an array into a string with an optional seperator
   join: func pure join(values: array?, by) {
     let value = "";

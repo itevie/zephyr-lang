@@ -41,6 +41,9 @@ pub enum TokenType {
   In,
   Typeof,
 
+  If,
+  Else,
+
   For,
   While,
   Until,

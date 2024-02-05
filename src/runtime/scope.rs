@@ -128,7 +128,7 @@ impl Scope {
   pub fn create_child(self: &Rc<Scope>) -> Rc<Scope> {
     Rc::new(Scope {
       parent: Some(self.clone()),
-      pure_functions_only: RefCell::from(false),
+      pure_functions_only: RefCell::from(*self.pure_functions_only.borrow()),
       variables: RefCell::from(HashMap::new()),
     })
   }
