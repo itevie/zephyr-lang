@@ -347,7 +347,6 @@ impl Interpreter {
             (func.func)(&args)
           }
           RuntimeValue::Function(func) => {
-            println!("{}", { *self.scope.pure_functions_only.borrow() });
             if *self.scope.pure_functions_only.borrow() {
               *self.scope.pure_functions_only.borrow_mut() = false;
               // Check if it is pure
