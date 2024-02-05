@@ -1,0 +1,36 @@
+func pure map(value: array?, f: callable?) {
+  for i in value { f(i); };
+}
+
+func pure len(value: array?) {
+  let res = 0;
+  for i in value { res = res + i; };
+  res;
+}
+
+func pure join(values: array?, by) {
+  let value = "";
+
+  for i in values {
+    value = value + ("" + i);
+
+  }
+
+  value;
+}
+
+func pure split(value: string?, by: string?) {
+  let result = [];
+  let current = "";
+
+  for i in iter(value) {
+    i == by ? #{
+      result + current;
+      current = "";
+    } : current = current + i;
+  }
+
+  result + current;
+
+  print(result);
+}

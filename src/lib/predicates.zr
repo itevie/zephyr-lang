@@ -1,0 +1,55 @@
+func pure not_null?(test) {
+  typeof test != "null";
+}
+
+func pure null?(test) {
+  typeof test == "null";
+}
+
+func pure null_or?(test, predicate: callable?) {
+  null?(test) ? true : predicate(test);
+} 
+
+func pure number?(test) { 
+  typeof test == "number";
+};
+
+func pure positive_number?(test) {
+  typeof test == "number" && test > 0;
+}
+
+func pure negative_number?(test) {
+  typeof test == "number" && test < 0;
+}
+
+func pure string?(test) {
+  typeof test == "string";
+}
+
+func pure boolean?(test) {
+  typeof test == "boolean";
+}
+
+func pure function?(test) {
+  typeof test == "function";
+}
+
+func pure native_function?(test) {
+  typeof test == "native_function";
+}
+
+func pure object?(test) {
+  typeof test == "object";
+}
+
+func pure array?(test) {
+  typeof test == "array";
+}
+
+func pure reference?(reference) {
+  typeof test == "reference";
+}
+
+func pure callable?(test) {
+  typeof test == "function" || typeof test == "native_function";
+}
