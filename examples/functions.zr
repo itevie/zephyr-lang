@@ -1,0 +1,65 @@
+// Basic function
+func my_func {
+  // The last value evaluated in the function body
+  // is the returned value, so this function returns `2`
+  2;
+}
+
+// To call it:
+print(my_func());
+
+// Function with parameters, note the () is optional
+// if the function takes in no arguments
+func func_with_params(a) {
+  a + 5;
+}
+
+print(func_with_params(2));
+
+// Functions can also act as literals, by just using them as a value
+let func_var = func { "hello"; };
+print(func_var());
+
+// This allows for things such as:
+print((func { " world!"; })());
+
+// Zephyr doesn't have standard type annotations, but it does
+// have "where" clauses:
+func my_print(what) where what is string? {
+  print(what);
+}
+
+my_print("hello"); // (try running this with not a string, it will produce an error)
+
+// However, the above may be inefficient, so there is the following sugar:
+func my_print_2(what: string?) {
+  print(what);
+}
+
+my_print_2("bye!");
+
+// As you have seen, some function's name end with a "question mark",
+// this means that it is a predicate function and is usually used within
+// where clauses, type annotations or "is" expressions.
+// Predicate functions work mostly the same as normal functions, hoever:
+//  - They can only return booleans
+//  - They must be marked as pure (when used in where clauses)
+func pure _2?(a: number?) {
+  a == 2 ? true : false;
+}
+
+print(2 is _2?);
+print(3 is _2?);
+
+// Functions also have another optional keyword, "pure",
+// marking a function as "pure" means it cannot use any 
+// variables outside of it's scope, meaning given an input
+// it will always return the same output.
+func pure my_pure_func(
+  a: number?, /* You can use number? here as this is declared in the absolute global scope */
+  b: number?  /* However, every globaly declared function will be marked as pure anyway. */
+) {
+  a + b;
+}
+
+print(my_pure_func(5, 6));

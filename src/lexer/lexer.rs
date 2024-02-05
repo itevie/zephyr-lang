@@ -160,7 +160,7 @@ pub fn lex(contents: String) -> Result<Vec<Token>, ZephyrError> {
     // Check for // comment
     else if chars[0] == '/' && chars.len() >= 2 && chars[1] == '/' {
       // Repeat until \n or eof
-      while chars[0] != '\n' && chars.len() > 0 {
+      while chars.len() > 0 && chars[0] != '\n' {
         eat(&mut chars);
       }
       continue;
