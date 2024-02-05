@@ -1,0 +1,23 @@
+let Array = {
+  len: func pure len(value: array?) {
+    let res = 0;
+    for i in value { res = res + i; };
+    res;
+  },
+
+  join: func pure join(values: array?, by) {
+    let value = "";
+
+    for i in values {
+      value = value + ("" + i);
+
+    }
+
+    value;
+  },
+
+  map: func pure map(value: array?, f: callable?) {
+    for i in value { f(i); };
+  }
+
+};

@@ -1,0 +1,17 @@
+let String = {
+  split: func pure split(value: string?, by: string?) {
+    let result = [];
+    let current = "";
+
+    for i in iter(value) {
+      i == by ? #{
+        result + current;
+        current = "";
+      } : current = current + i;
+    }
+
+    result + current;
+
+    print(result);
+  }
+};

@@ -38,7 +38,8 @@ impl Interpreter {
   pub fn new() -> Self {
     let libs: Vec<&str> = vec![
       include_str!("../lib/predicates.zr"),
-      include_str!("../lib/iter.zr"),
+      include_str!("../lib/array.zr"),
+      include_str!("../lib/string.zr"),
     ];
     let scope = &Rc::new(Scope::new());
 
