@@ -3,9 +3,9 @@
 	"extensions": [
 		"cschleiden.vscode-github-actions",
 		"ms-vsliveshare.vsliveshare",
-		"matklad.rust-analyzer",
 		"serayuzgur.crates",
-		"vadimcn.vscode-lldb"
+		"vadimcn.vscode-lldb",
+		"rust-lang.rust-analyzer"
 	],
 	"dockerFile": "Dockerfile",
 	"settings": {

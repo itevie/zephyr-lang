@@ -28,6 +28,7 @@ pub enum Expression {
   // ----- Statement like expressions -----
   ForLoop(ForLoop),
   IfExpression(IfExpression),
+  WhileExpression(WhileExpression),
 
   // ----- Statements -----
   VariableDeclaration(VariableDeclaration),
@@ -65,6 +66,7 @@ impl Expression {
       Expression::AssignmentExpression(x) => x.location.clone(),
       Expression::TernaryExpression(x) => x.location.clone(),
       Expression::IfExpression(x) => x.location.clone(),
+      Expression::WhileExpression(x) => x.location.clone(),
     }
   }
 }
@@ -182,6 +184,13 @@ pub struct IfExpression {
   pub test: Box<Expression>,
   pub success: Box<Block>,
   pub alternate: Option<Box<Expression>>,
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct WhileExpression {
+  pub test: Box<Expression>,
+  pub body: Box<Block>,
   pub location: Location,
 }
 

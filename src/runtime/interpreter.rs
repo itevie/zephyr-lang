@@ -704,6 +704,13 @@ impl Interpreter {
           Ok(RuntimeValue::Null(Null {}))
         }
       }
+      Expression::WhileExpression(expr) => {
+        while self.evaluate(*expr.test.clone())?.is_truthy() {
+          self.evaluate_block(*expr.body.clone(), self.scope.create_child())?;
+        }
+
+        Ok(RuntimeValue::Null(Null {}))
+      }
       Expression::ForLoop(expr) => {
         let value = self.evaluate(*expr.value_to_iter)?.iterate()?;
         let mut values: Vec<Box<RuntimeValue>> = vec![];

@@ -6,6 +6,7 @@ use super::nodes::{
   TypeofStatement, VariableDeclaration,
 };
 use crate::lexer::location::Location;
+use crate::lexer::token::UnaryOperator;
 use crate::{
   errors::{parser_error, ZephyrError},
   lexer::token::{Token, TokenType},
@@ -85,6 +86,26 @@ impl Parser {
     mut e: ZephyrError,
   ) -> Result<Token, ZephyrError> {
     let exists = discriminant(&self.at().token_type) == t;
+    if !exists {
+      e.location = self.at().location.clone();
+      return Err(e);
+    }
+    Ok(self.eat())
+  }
+
+  pub fn expect_one_of(
+    &mut self,
+    t: Vec<Discriminant<TokenType>>,
+    mut e: ZephyrError,
+  ) -> Result<Token, ZephyrError> {
+    let mut exists = false;
+
+    for i in t {
+      if discriminant(&self.at().token_type) == i {
+        exists = true;
+      }
+    }
+
     if !exists {
       e.location = self.at().location.clone();
       return Err(e);
@@ -638,6 +659,9 @@ impl Parser {
       TokenType::For => self.parse_for_expression()?,
       TokenType::Function => nodes::Expression::FunctionLiteral(self.parse_function_literal()?),
       TokenType::If => self.parse_if_expression()?,
+      TokenType::While => self.parse_while_expression()?,
+      TokenType::Loop => self.parse_while_expression()?,
+      TokenType::Until => self.parse_while_expression()?,
       TokenType::OpenParen => {
         self.eat();
         let value = herr!(self.parse_expression());
@@ -687,6 +711,49 @@ impl Parser {
       },
       _ => return Err(parser_error!(format!("Cannot handle this token {:?}", self.at().token_type), self.at().location))
     })
+  }}
+
+  parser_section! {parse_while_expression, self, {
+    let token = self.expect_one_of(
+      vec![
+        discriminant(&TokenType::While),
+        discriminant(&TokenType::Loop),
+        discriminant(&TokenType::Until)
+      ],
+      ZephyrError::parser(
+        "Expected while token".to_string(),
+        self.at().location,
+      )
+    )?;
+    let token_location = token.location;
+
+    // Expect expression
+    let expression = match token.token_type {
+      TokenType::While => self.parse_expression()?,
+      TokenType::Until => {
+        let expr = &self.parse_expression()?;
+        nodes::Expression::UnaryExpression(nodes::UnaryExpression {
+          value: Box::from(expr.clone()),
+          operator: TokenType::UnaryOperator(UnaryOperator::Not),
+          location: expr.clone().get_location(),
+        })
+      },
+      TokenType::Loop => nodes::Expression::NumericLiteral(nodes::NumericLiteral {
+        value: 1.0,
+        location: token_location.clone()
+      }),
+      _ => unreachable!()
+    };
+
+    // Expect body of while
+    let body = self.parse_block()?;
+
+    // Done
+    Ok(nodes::Expression::WhileExpression(nodes::WhileExpression {
+      test: Box::from(expression),
+      body: Box::from(body),
+      location: token_location.clone(),
+    }))
   }}
 
   pub fn parse_if_expression(&mut self) -> Result<nodes::Expression, ZephyrError> {
