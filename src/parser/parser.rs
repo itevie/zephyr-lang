@@ -607,7 +607,8 @@ impl Parser {
     };
 
     while !matches!(self.at().token_type, TokenType::EOF)
-      && matches!(self.at().token_type, TokenType::OpenSquare)
+      && (matches!(self.at().token_type, TokenType::OpenSquare)
+        || matches!(self.at().token_type, TokenType::Dot))
     {
       // Check if it is computed
       if matches!(self.at().token_type, TokenType::OpenSquare) {
@@ -627,9 +628,11 @@ impl Parser {
           is_computed: true,
           location: member_tok.location,
         });
-      } else {
+      } else if matches!(self.at().token_type, TokenType::Dot) {
+        let member_tok = self.eat();
         let ident = if expect_any_ident!(self.at().token_type) {
-          self.create_identifier(self.eat())?
+          let tok = self.eat();
+          self.create_identifier(tok)?
         } else {
           return Err(ZephyrError::parser(
             "Expected an identifier".to_string(),
@@ -639,10 +642,12 @@ impl Parser {
 
         left = nodes::Expression::MemberExpression(nodes::MemberExpression {
           left: Box::from(left),
-          key: Box::from(ident),
-          is_computed: true,
+          key: Box::from(nodes::Expression::Identifier(ident)),
+          is_computed: false,
           location: member_tok.location,
         });
+      } else {
+        unreachable!();
       }
     }
 

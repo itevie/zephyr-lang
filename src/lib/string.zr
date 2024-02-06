@@ -21,6 +21,6 @@ let String = {
       result + current;
     }
 
-    print(result);
+    result;
   }
 };

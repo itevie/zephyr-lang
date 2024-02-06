@@ -101,106 +101,117 @@ impl Interpreter {
     let key_loc = expr.key.get_location();
     let value = self.evaluate(*expr.left)?;
 
-    // Check if it is computed
-    if expr.is_computed {
-      // Get key
-      let key = self.evaluate(*expr.key)?;
+    // Get key
+    let key = if expr.is_computed {
+      Some(self.evaluate((*expr.key).clone())?)
+    } else {
+      None
+    };
 
-      match value {
-        RuntimeValue::ArrayContainer(arr_ref) => {
-          // Get the referenced array
-          let mut arr = match unsafe { crate::MEMORY.get_value(arr_ref.location) }? {
-            RuntimeValue::Array(arr) => arr,
-            _ => unreachable!(),
-          };
-
-          // Can only index via numbers
-          let number = match key {
-            RuntimeValue::Number(num) => num.value as usize,
-            _ => {
-              return Err(errors::ZephyrError::runtime(
-                format!(
-                  "Can only index array with numbers, but got {}",
-                  key.type_name()
-                ),
-                Location::no_location(),
-              ))
-            }
-          };
-
-          // Check if out of bounds
-          if arr.items.len() <= number {
-            // Check if it is assignment
-            if let Some(_) = assign {
-              // Only allow +1
-              if arr.items.len() + 1 < number {
-                return Err(ZephyrError::runtime(
-                  "Index out of bounds".to_string(),
-                  key_loc.clone(),
-                ));
-              } else {
-                // Add dummy item so rust doesn't panic
-                arr.items.push(Box::from(RuntimeValue::Null(Null {})));
-              }
-            } else {
-              return Err(runtime_error!("Index out of bounds".to_string()));
-            };
-          }
-
-          // Check if should assign
-          if let Some(assign_to) = assign.clone() {
-            arr.items[number] = Box::from(assign_to);
-
-            // Update it
-
-            return Ok(RuntimeValue::ArrayContainer(ArrayContainer {
-              location: unsafe {
-                crate::MEMORY.set_value(arr_ref.location, RuntimeValue::Array(arr))?
-              },
-            }));
-          }
-
-          // Return
-          return Ok(*(*&arr.items[number]).clone());
+    match value {
+      RuntimeValue::ArrayContainer(arr_ref) => {
+        // Make sure it is is_computed
+        if !expr.is_computed {
+          return Err(ZephyrError::runtime(
+            "Expected computed expression here".to_string(),
+            key_loc,
+          ));
         }
-        RuntimeValue::ObjectContainer(obj_ref) => {
-          let object = match unsafe { crate::MEMORY.get_value(obj_ref.location) }? {
-            RuntimeValue::Object(obj) => obj,
-            _ => unreachable!(),
-          };
 
-          let string_key = match key {
-            RuntimeValue::StringValue(num) => num.value,
-            _ => {
-              return Err(errors::ZephyrError::runtime(
-                format!(
-                  "Can only index object with strings, but got {}",
-                  key.type_name()
-                ),
-                key_loc.clone(),
-              ))
-            }
-          };
+        // Get the referenced array
+        let mut arr = match unsafe { crate::MEMORY.get_value(arr_ref.location) }? {
+          RuntimeValue::Array(arr) => arr,
+          _ => unreachable!(),
+        };
 
-          // Check if object has the item defined
-          if object.items.contains_key(&string_key) {
-            return Ok((*object.items.get(&string_key).unwrap()).clone());
-          } else {
+        // Can only index via numbers
+        let number = match key {
+          Some(RuntimeValue::Number(num)) => num.value as usize,
+          _ => {
             return Err(errors::ZephyrError::runtime(
-              format!("Object does not contain definition for key {}", string_key),
-              key_loc.clone(),
-            ));
+              format!(
+                "Can only index array with numbers, but got {}",
+                key.unwrap().type_name()
+              ),
+              Location::no_location(),
+            ))
           }
+        };
+
+        // Check if out of bounds
+        if arr.items.len() <= number {
+          // Check if it is assignment
+          if let Some(_) = assign {
+            // Only allow +1
+            if arr.items.len() + 1 < number {
+              return Err(ZephyrError::runtime(
+                "Index out of bounds".to_string(),
+                key_loc.clone(),
+              ));
+            } else {
+              // Add dummy item so rust doesn't panic
+              arr.items.push(Box::from(RuntimeValue::Null(Null {})));
+            }
+          } else {
+            return Err(runtime_error!("Index out of bounds".to_string()));
+          };
         }
-        _ => {
+
+        // Check if should assign
+        if let Some(assign_to) = assign.clone() {
+          arr.items[number] = Box::from(assign_to);
+
+          // Update it
+
+          return Ok(RuntimeValue::ArrayContainer(ArrayContainer {
+            location: unsafe {
+              crate::MEMORY.set_value(arr_ref.location, RuntimeValue::Array(arr))?
+            },
+          }));
+        }
+
+        // Return
+        return Ok(*(*&arr.items[number]).clone());
+      }
+      RuntimeValue::ObjectContainer(obj_ref) => {
+        let object = match unsafe { crate::MEMORY.get_value(obj_ref.location) }? {
+          RuntimeValue::Object(obj) => obj,
+          _ => unreachable!(),
+        };
+
+        let string_key = match key {
+          Some(RuntimeValue::StringValue(num)) => num.value,
+          None => match (*expr.key).clone() {
+            Expression::Identifier(ident) => ident.symbol,
+            _ => unreachable!(),
+          },
+          _ => {
+            return Err(errors::ZephyrError::runtime(
+              format!(
+                "Can only index object with strings, but got {}",
+                key.unwrap().type_name()
+              ),
+              key_loc.clone(),
+            ))
+          }
+        };
+
+        // Check if object has the item defined
+        if object.items.contains_key(&string_key) {
+          return Ok((*object.items.get(&string_key).unwrap()).clone());
+        } else {
           return Err(errors::ZephyrError::runtime(
-            format!("Cannot index a {}", value.type_name()),
-            Location::no_location(),
-          ))
+            format!("Object does not contain definition for key {}", string_key),
+            key_loc.clone(),
+          ));
         }
       }
-    } else {
-      unimplemented!();
+      _ => {
+        return Err(errors::ZephyrError::runtime(
+          format!("Cannot index a {}", value.type_name()),
+          Location::no_location(),
+        ))
+      }
     }
   }
 

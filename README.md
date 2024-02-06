@@ -12,4 +12,4 @@ To run this on any platform (only Linux tested), simply run cargo run, this will
 To run a file run `cargo run -- -f <file name>.zr`
 
 ## Learning
-At the moment, there won't be any tutorials or anything, to see working examples, look in "src/lib", these contain the global variables for every Zephyr application.  
+At the moment, there won't be any tutorials or anything, to see working examples, look in "src/lib" or "examples", these contain the global variables for every Zephyr application.  

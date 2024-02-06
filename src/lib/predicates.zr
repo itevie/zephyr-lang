@@ -43,6 +43,7 @@ func pure object?(test) {
 }
 
 func pure array?(test) {
+  print(test);
   typeof test == "array";
 }
 
