@@ -48,6 +48,8 @@ pub enum TokenType {
   While,
   Until,
   Loop,
+  Break,
+  Continue,
 
   Let,
 

@@ -24,6 +24,8 @@ pub enum Expression {
   IsExpression(IsExpression),
   AssignmentExpression(AssignmentExpression),
   TernaryExpression(TernaryExpression),
+  BreakStatement(BreakStatement),
+  ContinueStatement(ContinueStatement),
 
   // ----- Statement like expressions -----
   ForLoop(ForLoop),
@@ -67,6 +69,8 @@ impl Expression {
       Expression::TernaryExpression(x) => x.location.clone(),
       Expression::IfExpression(x) => x.location.clone(),
       Expression::WhileExpression(x) => x.location.clone(),
+      Expression::BreakStatement(x) => x.location.clone(),
+      Expression::ContinueStatement(x) => x.location.clone(),
     }
   }
 }
@@ -99,6 +103,16 @@ pub struct VariableDeclaration {
 #[derive(Debug, Clone)]
 pub struct TypeofStatement {
   pub value: Box<Expression>,
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct BreakStatement {
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct ContinueStatement {
   pub location: Location,
 }
 

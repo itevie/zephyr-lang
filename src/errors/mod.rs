@@ -14,6 +14,9 @@ pub struct ZephyrError {
 #[derive(Debug)]
 pub enum ErrorType {
   Runtime,
+  Break,
+  Ruturn,
+  Continue,
   Parser,
   Lexer,
 }

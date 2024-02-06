@@ -55,6 +55,8 @@ lazy_static! {
     tok!("let", TokenType::Let);
     tok!("if", TokenType::If);
     tok!("else", TokenType::Else);
+    tok!("break", TokenType::Break);
+    tok!("continue", TokenType::Continue);
     tok!("for", TokenType::For);
     tok!("while", TokenType::While);
     tok!("until", TokenType::Until);

@@ -271,6 +271,12 @@ impl Parser {
     match self.at().token_type {
       TokenType::Let => self.parse_variable_declaration(),
       TokenType::Function => self.parse_function_declaration(),
+      TokenType::Break => Ok(nodes::Expression::BreakStatement(nodes::BreakStatement {
+        location: self.eat().location,
+      })),
+      TokenType::Continue => Ok(nodes::Expression::ContinueStatement(nodes::ContinueStatement {
+        location: self.eat().location,
+      })),
       _ => self.parse_expression()
     }
   }}

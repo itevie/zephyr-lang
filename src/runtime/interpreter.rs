@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-  errors::{self, runtime_error, ZephyrError},
+  errors::{self, runtime_error, ErrorType, ZephyrError},
   lexer::{
     lexer::lex,
     location::Location,
@@ -247,6 +247,16 @@ impl Interpreter {
 
         Ok(RuntimeValue::Null(Null {}))
       }
+      Expression::BreakStatement(stmt) => Err(ZephyrError {
+        error_message: "Cannot break here".to_string(),
+        error_type: ErrorType::Break,
+        location: stmt.location,
+      }),
+      Expression::ContinueStatement(stmt) => Err(ZephyrError {
+        error_message: "Cannot continue here".to_string(),
+        error_type: ErrorType::Continue,
+        location: stmt.location,
+      }),
 
       ///////////////////////////
       // ----- Literals ----- //
@@ -706,7 +716,21 @@ impl Interpreter {
       }
       Expression::WhileExpression(expr) => {
         while self.evaluate(*expr.test.clone())?.is_truthy() {
-          self.evaluate_block(*expr.body.clone(), self.scope.create_child())?;
+          let res = self.evaluate_block(*expr.body.clone(), self.scope.create_child());
+
+          // Check if continue or break
+          match res {
+            Err(err) => match err.error_type {
+              ErrorType::Break => {
+                break;
+              }
+              ErrorType::Continue => {
+                continue;
+              }
+              _ => return Err(err),
+            },
+            Ok(_) => (),
+          }
         }
 
         Ok(RuntimeValue::Null(Null {}))
