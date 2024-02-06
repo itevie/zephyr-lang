@@ -628,6 +628,21 @@ impl Parser {
           location: member_tok.location,
         });
       } else {
+        let ident = if expect_any_ident!(self.at().token_type) {
+          self.create_identifier(self.eat())?
+        } else {
+          return Err(ZephyrError::parser(
+            "Expected an identifier".to_string(),
+            self.at().location,
+          ));
+        };
+
+        left = nodes::Expression::MemberExpression(nodes::MemberExpression {
+          left: Box::from(left),
+          key: Box::from(ident),
+          is_computed: true,
+          location: member_tok.location,
+        });
       }
     }
 
