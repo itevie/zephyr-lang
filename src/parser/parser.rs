@@ -118,6 +118,7 @@ impl Parser {
       nodes::Expression::FunctionLiteral(_) => true,
       nodes::Expression::VariableDeclaration(_) => true,
       nodes::Expression::ForLoop(_) => true,
+      nodes::Expression::WhileExpression(_) => true,
       nodes::Expression::Block(_) => true,
       nodes::Expression::Program(_) => true,
       nodes::Expression::IfExpression(_) => true,

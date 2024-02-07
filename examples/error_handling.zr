@@ -1,0 +1,23 @@
+// The main method of handling errors is using `try`s, the syntax is as follows:
+// try { ... }
+// catch ident { ... }
+// finally { ... }
+// catch and finally are optional.
+let x = try { 1 + ""; /* This will give an error */};
+print(x);
+
+// If you want a value to be returned when there is a error, you can do:
+let y = try { 1 + ""; } catch { 10; };
+print(y); // or:
+let z = try { 1 + ""; } || 10;
+print(y);
+
+// Using the identifier in the catch
+try { 1 + ""; }
+catch err { print(err); };
+
+// If you want to run code regardless of whether or not the try succeeded:
+let a = try { 1 + ""; }
+catch { 10; }
+finally { print("hello!"); };
+print(a);
