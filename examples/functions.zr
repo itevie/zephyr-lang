@@ -23,6 +23,15 @@ print(func_var());
 // This allows for things such as:
 print((func { " world!"; })());
 
+// If you want a function to be able to have infinite arguments, you can use __args__
+// This is turned into an array of all passed args, note: it goes in order, so:
+// you have args: (a, __args__, b) and pass in (1, 2, 3, 4), the args will be:
+// (1, [1, 2, 3, 4], 3, 4) so make sure __args__ is at the end of the list
+func args_test(__args__) {
+  print(__args__);
+}
+args_test(1, 2, 3, 4);
+
 // Zephyr doesn't have standard type annotations, but it does
 // have "where" clauses:
 func my_print(what) where what is string? {
