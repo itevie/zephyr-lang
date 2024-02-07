@@ -21,8 +21,8 @@ use super::{
   memory::MemoryAddress,
   scope::Scope,
   values::{
-    to_array, Array, ArrayContainer, Boolean, Function, Null, Number, Object, ObjectContainer,
-    Reference, RuntimeValue, StringValue,
+    to_array, to_object, Array, ArrayContainer, Boolean, Function, Null, Number, Object,
+    ObjectContainer, Reference, RuntimeValue, StringValue,
   },
 };
 
@@ -665,12 +665,20 @@ impl Interpreter {
         let left = self.evaluate(*expr.left)?;
         let right = self.evaluate(*expr.right)?;
 
-        Ok(RuntimeValue::Boolean(Boolean {
-          value: match expr.operator {
-            LogicalTokenType::And => left.is_truthy() && right.is_truthy(),
-            LogicalTokenType::Or => left.is_truthy() || right.is_truthy(),
-          },
-        }))
+        Ok(match expr.operator {
+          LogicalTokenType::And => RuntimeValue::Boolean(Boolean {
+            value: left.is_truthy() && right.is_truthy(),
+          }),
+          LogicalTokenType::Or => {
+            if left.is_truthy() {
+              left
+            } else if right.is_truthy() {
+              right
+            } else {
+              left
+            }
+          }
+        })
       }
       Expression::TypeofExpression(expr) => Ok(RuntimeValue::StringValue(StringValue {
         value: match self.evaluate(*expr.value) {
@@ -765,6 +773,47 @@ impl Interpreter {
         }
 
         Ok(RuntimeValue::Null(Null {}))
+      }
+      Expression::TryExpression(expr) => {
+        // Run the main block
+        let result = match self.evaluate(Expression::Block(*expr.main)) {
+          Ok(ok) => ok,
+          Err(err) => {
+            // Check if there is a catch block
+            if let Some(catch) = expr.catch {
+              // Check if it defines ident
+              let scope = self.scope.create_child();
+              if let Some(ident) = expr.catch_identifier {
+                let err_obj = to_object(HashMap::from([
+                  (
+                    "message".to_string(),
+                    RuntimeValue::StringValue(StringValue {
+                      value: err.error_message,
+                    }),
+                  ),
+                  (
+                    "type".to_string(),
+                    RuntimeValue::StringValue(StringValue {
+                      value: format!("{:?}", err.error_type),
+                    }),
+                  ),
+                  ("location".to_string(), err.location.to_object()),
+                ]));
+                scope.declare_variable(&ident.symbol, err_obj)?;
+              }
+              self.evaluate_block(*catch, scope)?
+            } else {
+              RuntimeValue::Null(Null {})
+            }
+          }
+        };
+
+        // Check for finally
+        if let Some(finally) = expr.finally {
+          self.evaluate(Expression::Block(*finally))?;
+        }
+
+        Ok(result)
       }
       Expression::ForLoop(expr) => {
         let value = self.evaluate(*expr.value_to_iter)?.iterate()?;

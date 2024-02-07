@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use crate::runtime::values::{to_object, Number, RuntimeValue};
+
 #[derive(Clone, Debug)]
 pub struct Location {
   pub char_start: u32,
@@ -14,5 +18,34 @@ impl Location {
       line: 0,
       location_contents: 0,
     }
+  }
+
+  pub fn to_object(&self) -> RuntimeValue {
+    to_object(HashMap::from([
+      (
+        "char_start".to_string(),
+        RuntimeValue::Number(Number {
+          value: self.char_start as f64,
+        }),
+      ),
+      (
+        "char_end".to_string(),
+        RuntimeValue::Number(Number {
+          value: self.char_end as f64,
+        }),
+      ),
+      (
+        "line".to_string(),
+        RuntimeValue::Number(Number {
+          value: self.line as f64,
+        }),
+      ),
+      (
+        "contents_id".to_string(),
+        RuntimeValue::Number(Number {
+          value: self.location_contents as f64,
+        }),
+      ),
+    ]))
   }
 }

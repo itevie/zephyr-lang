@@ -688,6 +688,7 @@ impl Parser {
       TokenType::While => self.parse_while_expression()?,
       TokenType::Loop => self.parse_while_expression()?,
       TokenType::Until => self.parse_while_expression()?,
+      TokenType::Try => self.parse_try_expression()?,
       TokenType::OpenParen => {
         self.eat();
         let value = herr!(self.parse_expression());
@@ -737,6 +738,46 @@ impl Parser {
       },
       _ => return Err(parser_error!(format!("Cannot handle this token {:?}", self.at().token_type), self.at().location))
     })
+  }}
+
+  parser_section! {parse_try_expression, self, {
+    let token = self.expect(
+      discriminant(&TokenType::Try),
+      ZephyrError::parser(
+        "Expected try token".to_string(),
+        self.at().location
+      )
+    )?;
+
+    // Get try block
+    let block = self.parse_block()?;
+
+    // Get catch block
+    let mut catch_ident: Option<Identifier> = None;
+    let catch = if matches!(self.at().token_type, TokenType::Catch) {
+      self.eat();
+
+      // Check if it defines a ident
+      if matches!(self.at().token_type, TokenType::Identifier) {
+        let tok = self.eat();
+        catch_ident = Some(self.create_identifier(tok)?);
+      }
+
+        Some(Box::from(self.parse_block()?))
+    } else { None };
+
+    let finally = if matches!(self.at().token_type, TokenType::Finally) {
+      self.eat();
+      Some(Box::from(self.parse_block()?))
+    } else { None };
+
+    Ok(nodes::Expression::TryExpression(nodes::TryExpression {
+      main: Box::from(block),
+      catch_identifier: catch_ident,
+      catch,
+      location: token.location,
+      finally
+    }))
   }}
 
   parser_section! {parse_while_expression, self, {

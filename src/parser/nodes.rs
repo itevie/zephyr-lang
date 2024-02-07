@@ -26,6 +26,7 @@ pub enum Expression {
   TernaryExpression(TernaryExpression),
   BreakStatement(BreakStatement),
   ContinueStatement(ContinueStatement),
+  TryExpression(TryExpression),
 
   // ----- Statement like expressions -----
   ForLoop(ForLoop),
@@ -71,6 +72,7 @@ impl Expression {
       Expression::WhileExpression(x) => x.location.clone(),
       Expression::BreakStatement(x) => x.location.clone(),
       Expression::ContinueStatement(x) => x.location.clone(),
+      Expression::TryExpression(x) => x.location.clone(),
     }
   }
 }
@@ -207,6 +209,15 @@ pub struct WhileExpression {
   pub test: Box<Expression>,
   pub body: Box<Block>,
   pub none: Option<Box<Block>>,
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct TryExpression {
+  pub main: Box<Block>,
+  pub catch: Option<Box<Block>>,
+  pub catch_identifier: Option<Identifier>,
+  pub finally: Option<Box<Block>>,
   pub location: Location,
 }
 

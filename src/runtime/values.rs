@@ -182,6 +182,14 @@ pub fn to_array(values: Vec<Box<RuntimeValue>>) -> RuntimeValue {
   })
 }
 
+pub fn to_object(values: HashMap<String, RuntimeValue>) -> RuntimeValue {
+  let object = RuntimeValue::Object(Object { items: values });
+
+  RuntimeValue::ObjectContainer(ObjectContainer {
+    location: unsafe { crate::MEMORY.add_value(object) },
+  })
+}
+
 // ----- Actual Values -----
 #[derive(Clone, Debug)]
 pub struct Number {

@@ -44,6 +44,10 @@ pub enum TokenType {
   If,
   Else,
 
+  Try,
+  Catch,
+  Finally,
+
   For,
   While,
   Until,
