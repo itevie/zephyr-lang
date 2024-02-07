@@ -1,0 +1,36 @@
+let Math = {
+  // ----- Constants -----
+  pi: 314159 / 100000,
+
+  min: func (a: number?, b: number?) {
+    let min = null;
+
+    for i in __args__ {
+      if typeof min == "null" { min = i; }
+      else {
+        if i > min { min = i; }
+      }
+    }
+
+    min;
+  },
+
+  max: func (__args__: array_of?(number?)) {
+    let max = null;
+
+    for i in __args__ {
+      if typeof max == "null" { max = i; }
+      else {
+        if i > max { max = i; }
+      }
+    }
+
+    max;
+  },
+
+  sum: func (__args__: array_of?(number?)) {
+    let sum = 0;
+    for i in __args__ { sum = sum + i; }
+    sum;
+  },
+};

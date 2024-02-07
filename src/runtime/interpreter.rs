@@ -40,6 +40,7 @@ impl Interpreter {
       include_str!("../lib/predicates.zr"),
       include_str!("../lib/array.zr"),
       include_str!("../lib/string.zr"),
+      include_str!("../lib/math.zr"),
     ];
     let scope = &Rc::new(Scope::new());
 
@@ -390,11 +391,20 @@ impl Interpreter {
               *scope.pure_functions_only.borrow_mut() = true;
             }
 
+            let mut evalled_args: Vec<Box<RuntimeValue>> = vec![];
+            for i in caller_args {
+              evalled_args.push(Box::from(self.evaluate(*i)?));
+            }
+
             // Declare the args
             for i in 0..func.arguments.len() {
+              // Check if it is __args__
+              if func.arguments[i].symbol == "__args__" {
+                scope.declare_variable("__args__", to_array(evalled_args.clone()))?;
+                continue;
+              }
               let assigned = if expr.arguments.len() >= func.arguments.len() {
-                let arg = caller_args.get(i).unwrap().clone();
-                self.evaluate(*arg)?
+                *evalled_args.get(i).unwrap().clone()
               } else {
                 RuntimeValue::Null(Null {})
               };
@@ -822,7 +832,15 @@ impl Interpreter {
         for i in value {
           let scope = self.scope.create_child();
           scope.declare_variable(&expr.identifier.symbol, *i.clone())?;
-          values.push(Box::from(self.evaluate_block(expr.body.clone(), scope)?));
+          let res = match self.evaluate_block(expr.body.clone(), scope) {
+            Ok(ok) => ok,
+            Err(err) => match err.error_type {
+              ErrorType::Break => break,
+              ErrorType::Continue => continue,
+              _ => return Err(err),
+            },
+          };
+          values.push(Box::from(res));
         }
 
         // Check for else

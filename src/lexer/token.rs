@@ -17,6 +17,7 @@ pub enum TokenType {
   Colon,
   QuestionMark,
   Dot,
+  Spread,
   Semicolon,
   EOF,
 

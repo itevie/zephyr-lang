@@ -27,6 +27,7 @@ pub enum Expression {
   BreakStatement(BreakStatement),
   ContinueStatement(ContinueStatement),
   TryExpression(TryExpression),
+  SpreadExpression(SpreadExpression),
 
   // ----- Statement like expressions -----
   ForLoop(ForLoop),
@@ -73,6 +74,7 @@ impl Expression {
       Expression::BreakStatement(x) => x.location.clone(),
       Expression::ContinueStatement(x) => x.location.clone(),
       Expression::TryExpression(x) => x.location.clone(),
+      Expression::SpreadExpression(x) => x.location.clone(),
     }
   }
 }
@@ -185,6 +187,12 @@ pub struct ForLoop {
 pub struct AssignmentExpression {
   pub left: Box<Expression>,
   pub right: Box<Expression>,
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct SpreadExpression {
+  pub expression: Box<Expression>,
   pub location: Location,
 }
 

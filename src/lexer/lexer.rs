@@ -78,6 +78,7 @@ lazy_static! {
     tok!("]", TokenType::CloseSquare);
     tok!(",", TokenType::Comma);
     tok!(".", TokenType::Dot);
+    tok!("...", TokenType::Spread);
     tok!(":", TokenType::Colon);
     tok!("?", TokenType::QuestionMark);
     tok!("#", TokenType::BlockPrefix);

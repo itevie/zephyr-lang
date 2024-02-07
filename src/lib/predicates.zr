@@ -43,8 +43,17 @@ func pure object?(test) {
 }
 
 func pure array?(test) {
-  print(test);
   typeof test == "array";
+}
+
+func pure array_of?(test: array?, f: callable?) {
+  let valid = true;
+  for i in test {
+    valid = f(i);
+    if !valid { break; }
+  }
+
+  valid;
 }
 
 func pure reference?(reference) {
