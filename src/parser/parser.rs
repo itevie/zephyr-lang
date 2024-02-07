@@ -774,11 +774,19 @@ impl Parser {
     // Expect body of while
     let body = self.parse_block()?;
 
+    let else_none = if matches!(self.at().token_type, TokenType::Else) {
+      self.eat();
+      Some(Box::from(self.parse_block()?))
+    } else {
+      None
+    };
+
     // Done
     Ok(nodes::Expression::WhileExpression(nodes::WhileExpression {
       test: Box::from(expression),
       body: Box::from(body),
       location: token_location.clone(),
+      none: else_none
     }))
   }}
 
@@ -841,12 +849,20 @@ impl Parser {
     let expr = self.parse_expression()?;
     let block = self.parse_block()?;
 
+    let else_none = if matches!(self.at().token_type, TokenType::Else) {
+      self.eat();
+      Some(Box::from(self.parse_block()?))
+    } else {
+      None
+    };
+
     // Done
     return Ok(nodes::Expression::ForLoop(nodes::ForLoop {
       identifier: self.create_identifier(ident)?,
       value_to_iter: Box::from(expr),
       body: block,
       location: token.location,
+      none: else_none,
     }));
   }
 

@@ -408,7 +408,16 @@ impl Interpreter {
               *self.scope.pure_functions_only.borrow_mut() = true;
             }
             for clause in func.where_clause.tests {
-              let res = self.evaluate((**&clause).clone())?;
+              let res = match self.evaluate((**&clause).clone()) {
+                Ok(ok) => ok,
+                Err(err) => {
+                  // Cleanup
+                  {
+                    *self.scope.pure_functions_only.borrow_mut() = func.pure;
+                  }
+                  return Err(err);
+                }
+              };
 
               // Check if it succeeded
               if !res.is_truthy() {
@@ -726,7 +735,11 @@ impl Interpreter {
         }
       }
       Expression::WhileExpression(expr) => {
+        // Should while loops return everything they did like for loops?
+        // give your answer!!!!!!!!!!
+        let mut iters = 0;
         while self.evaluate(*expr.test.clone())?.is_truthy() {
+          iters += 1;
           let res = self.evaluate_block(*expr.body.clone(), self.scope.create_child());
 
           // Check if continue or break
@@ -744,6 +757,13 @@ impl Interpreter {
           }
         }
 
+        // Check if should run else
+        if let Some(el) = expr.none {
+          if iters == 0 {
+            self.evaluate(Expression::Block(*el))?;
+          }
+        }
+
         Ok(RuntimeValue::Null(Null {}))
       }
       Expression::ForLoop(expr) => {
@@ -754,6 +774,13 @@ impl Interpreter {
           let scope = self.scope.create_child();
           scope.declare_variable(&expr.identifier.symbol, *i.clone())?;
           values.push(Box::from(self.evaluate_block(expr.body.clone(), scope)?));
+        }
+
+        // Check for else
+        if values.len() == 0 {
+          if let Some(el) = expr.none {
+            return Ok(self.evaluate(Expression::Block(*el)))?;
+          }
         }
 
         return Ok(to_array(values));
@@ -779,3 +806,23 @@ impl Interpreter {
     }
   }
 }
+
+/*
+⠀⢸⠂⠀⠀⠀⠘⣧⠀⠀⣟⠛⠲⢤⡀⠀⠀⣰⠏⠀⠀⠀⠀⠀⢹⡀
+⠀⡿⠀⠀⠀⠀⠀⠈⢷⡀⢻⡀⠀⠀⠙⢦⣰⠏⠀⠀⠀⠀⠀⠀⢸⠀
+⠀⡇⠀⠀⠀⠀⠀⠀⢀⣻⠞⠛⠀⠀⠀⠀⠻⠀⠀⠀⠀⠀⠀⠀⢸⠀
+⠀⡇⠀⠀⠀⠀⠀⠀⠛⠓⠒⠓⠓⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⠀
+⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⠀
+⠀⢿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣀⣀⣀⠀⠀⢀⡟⠀
+⠀⠘⣇⠀⠘⣿⠋⢹⠛⣿⡇⠀⠀⠀⠀⣿⣿⡇⠀⢳⠉⠀⣠⡾⠁⠀
+⣦⣤⣽⣆⢀⡇⠀⢸⡇⣾⡇⠀⠀⠀⠀⣿⣿⡷⠀⢸⡇⠐⠛⠛⣿⠀
+⠹⣦⠀⠀⠸⡇⠀⠸⣿⡿⠁⢀⡀⠀⠀⠿⠿⠃⠀⢸⠇⠀⢀⡾⠁⠀
+⠀⠈⡿⢠⢶⣡⡄⠀⠀⠀⠀⠉⠁⠀⠀⠀⠀⠀⣴⣧⠆⠀⢻⡄⠀⠀
+⠀⢸⠃⠀⠘⠉⠀⠀⠀⠠⣄⡴⠲⠶⠴⠃⠀⠀⠀⠉⡀⠀⠀⢻⡄⠀
+⠀⠘⠒⠒⠻⢦⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣤⠞⠛⠒⠛⠋⠁⠀
+⠀⠀⠀⠀⠀⠀⠸⣟⠓⠒⠂⠀⠀⠀⠀⠀⠈⢷⡀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠙⣦⠀⠀⠀⠀⠀⠀⠀⠀⠈⢷⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⣼⣃⡀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣆⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠉⣹⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡆⠀⠀⠀⠀⠀
+*/

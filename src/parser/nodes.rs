@@ -176,6 +176,7 @@ pub struct ForLoop {
   pub identifier: Identifier,
   pub body: Block,
   pub location: Location,
+  pub none: Option<Box<Block>>,
 }
 
 #[derive(Debug, Clone)]
@@ -205,6 +206,7 @@ pub struct IfExpression {
 pub struct WhileExpression {
   pub test: Box<Expression>,
   pub body: Box<Block>,
+  pub none: Option<Box<Block>>,
   pub location: Location,
 }
 
