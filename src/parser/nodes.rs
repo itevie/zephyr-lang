@@ -38,6 +38,8 @@ pub enum Expression {
   VariableDeclaration(VariableDeclaration),
   FunctionLiteral(FunctionLiteral),
   TypeofExpression(TypeofStatement),
+  ExportStatement(ExportStatement),
+  ImportStatement(ImportStatement),
 
   // ----- Special -----
   Program(Program),
@@ -75,6 +77,8 @@ impl Expression {
       Expression::ContinueStatement(x) => x.location.clone(),
       Expression::TryExpression(x) => x.location.clone(),
       Expression::SpreadExpression(x) => x.location.clone(),
+      Expression::ExportStatement(x) => x.location.clone(),
+      Expression::ImportStatement(x) => x.location.clone(),
     }
   }
 }
@@ -117,6 +121,20 @@ pub struct BreakStatement {
 
 #[derive(Debug, Clone)]
 pub struct ContinueStatement {
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExportStatement {
+  pub to_export: Box<Expression>,
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportStatement {
+  pub from: StringLiteral,
+  // Vec<(what, as)>
+  pub import: Vec<(Identifier, Identifier)>,
   pub location: Location,
 }
 

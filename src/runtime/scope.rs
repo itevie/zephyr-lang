@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use super::memory::MemoryAddress;
 use super::native_functions::{http_get, iter, print, reverse};
-use super::values::{to_object, Boolean, NativeFunction, Null, RuntimeValue};
+use super::values::{to_object, Boolean, NativeFunction, Null, RuntimeValue, StringValue};
 use crate::errors::ZephyrError;
 use crate::{
   errors::{self, runtime_error},
@@ -14,17 +14,26 @@ use crate::{
 #[derive(Debug)]
 pub struct Scope {
   pub variables: RefCell<HashMap<String, MemoryAddress>>,
-  parent: Option<Rc<Scope>>,
+  pub exports: RefCell<HashMap<String, MemoryAddress>>,
+  pub can_export: RefCell<bool>,
+  pub parent: Option<Rc<Scope>>,
   pub pure_functions_only: RefCell<bool>,
+  pub directory: RefCell<String>,
 }
 
 impl Scope {
-  pub fn new() -> Scope {
+  pub fn new(directory: String) -> Scope {
     let values: HashMap<String, MemoryAddress> = HashMap::from([
       // Basic values
       ("null", RuntimeValue::Null(Null {})),
       ("true", RuntimeValue::Boolean(Boolean { value: true })),
       ("false", RuntimeValue::Boolean(Boolean { value: false })),
+      (
+        "__dirname",
+        RuntimeValue::StringValue(StringValue {
+          value: directory.clone(),
+        }),
+      ),
       // Global functions
       (
         "print",
@@ -56,19 +65,14 @@ impl Scope {
     let x = {
       Scope {
         variables: RefCell::from(values),
+        exports: RefCell::new(HashMap::new()),
+        can_export: RefCell::from(false),
         pure_functions_only: RefCell::from(false),
         parent: None,
+        directory: RefCell::from(directory.clone()),
       }
     };
     x
-  }
-
-  pub fn new_with_parent(parent: &Rc<Scope>) -> Scope {
-    Scope {
-      variables: RefCell::from(HashMap::from([])),
-      parent: Some(parent.clone()),
-      pure_functions_only: RefCell::from(false),
-    }
   }
 
   pub fn declare_variable(
@@ -132,11 +136,37 @@ impl Scope {
     Ok(*self.variables.borrow().get(name).unwrap())
   }
 
+  pub fn export(&self, name: String, address: MemoryAddress) -> Result<(), ZephyrError> {
+    // Check if current scope can export
+    if *self.can_export.borrow() {
+      self.exports.borrow_mut().insert(name.clone(), address);
+      crate::debug(
+        &format!("Exported {} with memory address {}", name.clone(), address),
+        "scope",
+      );
+    } else {
+      // Check if has parent
+      if let Some(parent) = &self.parent {
+        parent.export(name, address)?;
+      } else {
+        return Err(ZephyrError::runtime(
+          "Cannot export here".to_string(),
+          Location::no_location(),
+        ));
+      }
+    }
+
+    Ok(())
+  }
+
   pub fn create_child(self: &Rc<Scope>) -> Rc<Scope> {
     Rc::new(Scope {
       parent: Some(self.clone()),
       pure_functions_only: RefCell::from(*self.pure_functions_only.borrow()),
       variables: RefCell::from(HashMap::new()),
+      exports: RefCell::new(HashMap::new()),
+      can_export: RefCell::from(false),
+      directory: RefCell::from(self.directory.clone()),
     })
   }
 }

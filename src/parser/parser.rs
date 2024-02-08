@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::mem::{discriminant, Discriminant};
 
 use super::nodes::{
-  self, ArithmeticExpression, ComparisonExpression, FunctionLiteral, Identifier, LogicalExpression,
-  TypeofStatement, VariableDeclaration,
+  self, ArithmeticExpression, ComparisonExpression, Expression, FunctionLiteral, Identifier,
+  LogicalExpression, TypeofStatement, VariableDeclaration,
 };
 use crate::lexer::location::Location;
 use crate::lexer::token::UnaryOperator;
@@ -272,6 +272,8 @@ impl Parser {
     match self.at().token_type {
       TokenType::Let => self.parse_variable_declaration(),
       TokenType::Function => self.parse_function_declaration(),
+      TokenType::Export => self.parse_export_statement(),
+      TokenType::From => self.parse_import_statement(),
       TokenType::Break => Ok(nodes::Expression::BreakStatement(nodes::BreakStatement {
         location: self.eat().location,
       })),
@@ -289,7 +291,7 @@ impl Parser {
     if let None = func.identifier {
       return Err(ZephyrError::parser(
         "A function must have a name when used as a statement".to_string(),
-        Location::no_location()
+        self.at().location
       ));
     }
 
@@ -325,6 +327,94 @@ impl Parser {
         _ => unreachable!()
       },
       value: Box::from(value),
+    }))
+  }}
+
+  parser_section! {parse_import_statement, self, {
+    let token = self.expect(
+      discriminant(&TokenType::From),
+      ZephyrError::parser(
+        "Expected from token".to_string(),
+        self.at().location
+      )
+    )?;
+
+    let to_import = self.expect(
+      discriminant(&TokenType::String),
+      ZephyrError::parser(
+        "Expected string literal to import".to_string(),
+        self.at().location
+      )
+    )?;
+
+    self.expect(
+      discriminant(&TokenType::Import),
+      ZephyrError::parser(
+        "Expected import token".to_string(),
+        self.at().location
+      )
+    )?;
+
+    let mut import_as: Vec<(Identifier, Identifier)> = vec![];
+
+    while matches!(self.at().token_type, TokenType::Identifier) {
+      let tok = self.eat();
+      let ident = self.create_identifier(tok)?;
+
+      // Check if as
+      let as_ = if matches!(self.at().token_type, TokenType::As) {
+        self.eat();
+        let tok = self.expect(
+          discriminant(&TokenType::Identifier),
+          ZephyrError::parser(
+            "Expected identifier".to_string(),
+            self.at().location
+          )
+        )?;
+        self.create_identifier(tok)?
+      } else {
+        ident.clone()
+      };
+
+      import_as.push((ident, as_));
+
+      if !matches!(self.at().token_type, TokenType::Comma) { break }
+      else { self.eat(); }
+    }
+
+    Ok(nodes::Expression::ImportStatement(nodes::ImportStatement {
+      from: nodes::StringLiteral {
+        value: to_import.value,
+        location: to_import.location
+      },
+      import: import_as,
+      location: token.location,
+    }))
+  }}
+
+  parser_section! {parse_export_statement, self, {
+    let token = self.expect(
+      discriminant(&TokenType::Export),
+      ZephyrError::parser(
+        "Expected export token".to_string(),
+        self.at().location
+      )
+    )?;
+
+    let statement = self.parse_statement()?;
+    match statement {
+      Expression::Identifier(_) => (),
+      Expression::ObjectLiteral(_) => (),
+      Expression::VariableDeclaration(_) => (),
+      _ => return Err(ZephyrError::parser(
+        "Cannot use this with an export".to_string(),
+        statement.get_location()
+      ))
+    };
+
+    Ok(nodes::Expression::ExportStatement(nodes::ExportStatement {
+      to_export: Box::from(statement),
+      location: token.location
     }))
   }}
 

@@ -1,8 +1,9 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
   errors::{self, runtime_error, ErrorType, ZephyrError},
   lexer::{
+    self,
     lexer::lex,
     location::Location,
     token::{
@@ -11,6 +12,7 @@ use crate::{
     },
   },
   parser::{
+    self,
     nodes::{Block, Expression, MemberExpression},
     parser::Parser,
   },
@@ -32,17 +34,18 @@ pub mod handlers;
 pub struct Interpreter {
   pub scope: Rc<Scope>,
   pub global_scope: Rc<Scope>,
+  pub import_cache: RefCell<HashMap<String, Rc<Scope>>>,
 }
 
 impl Interpreter {
-  pub fn new() -> Self {
+  pub fn new(directory: String) -> Self {
     let libs: Vec<&str> = vec![
       include_str!("../lib/predicates.zr"),
       include_str!("../lib/array.zr"),
       include_str!("../lib/string.zr"),
       include_str!("../lib/math.zr"),
     ];
-    let scope = &Rc::new(Scope::new());
+    let scope = &Rc::new(Scope::new(directory));
 
     // Load libs
     for i in libs {
@@ -50,6 +53,7 @@ impl Interpreter {
       let mut lib_interpreter = Interpreter {
         scope: lib_scope.clone(),
         global_scope: scope.clone(),
+        import_cache: RefCell::from(HashMap::new()),
       };
       lib_interpreter
         .evaluate(Expression::Program(
@@ -65,9 +69,13 @@ impl Interpreter {
       }
     }
 
+    let s = scope.create_child();
+    *s.can_export.borrow_mut() = true;
+
     Interpreter {
       global_scope: scope.clone(),
-      scope: scope.create_child(),
+      scope: s,
+      import_cache: RefCell::from(HashMap::new()),
     }
   }
 
@@ -269,6 +277,127 @@ impl Interpreter {
         error_type: ErrorType::Continue,
         location: stmt.location,
       }),
+      Expression::ImportStatement(stmt) => {
+        // Create path
+        let mut path = std::path::PathBuf::new();
+        path.push(self.scope.directory.borrow().clone());
+        path.push(stmt.from.value.clone());
+
+        crate::debug(
+          &format!("Importing {}", path.display().to_string()),
+          "import",
+        );
+
+        // Check if it exists
+        if path.exists() == false {
+          return Err(ZephyrError::runtime(
+            format!(
+              "Failed to import {} because the file does not exist",
+              path.display().to_string()
+            ),
+            stmt.from.location.clone(),
+          ));
+        }
+
+        // Check if it is file
+        if path.is_file() == false {
+          return Err(ZephyrError::runtime(
+            format!(
+              "Failed to import {} because the path is not a file",
+              path.display().to_string()
+            ),
+            stmt.from.location.clone(),
+          ));
+        }
+
+        // Read it
+        let file_contents = match std::fs::read_to_string(path.display().to_string()) {
+          Ok(ok) => ok,
+          Err(err) => {
+            return Err(ZephyrError::runtime(
+              format!("Failed to read file: {}", err.to_string()),
+              stmt.from.location.clone(),
+            ));
+          }
+        };
+
+        // Check if cache has it
+        let scope = if self
+          .import_cache
+          .borrow()
+          .contains_key(&path.display().to_string())
+        {
+          crate::debug(
+            &format!("Importing from cache {}", path.display().to_string()),
+            "import",
+          );
+          self
+            .import_cache
+            .borrow()
+            .get(&path.display().to_string())
+            .unwrap()
+            .clone()
+        } else {
+          crate::debug(
+            &format!("Importing {}", path.display().to_string()),
+            "import",
+          );
+
+          // Lex & Parse
+          let result = lexer::lexer::lex(file_contents)?;
+          let mut parser = parser::parser::Parser::new(result);
+          let ast = parser.produce_ast()?;
+
+          // Create scope
+          let path_pre_pop = path.display().to_string();
+          path.pop();
+          let scope = &self.global_scope.create_child();
+          *scope.directory.borrow_mut() = path.display().to_string();
+          *scope.can_export.borrow_mut() = true;
+
+          // Evaluate it
+          let prev = std::mem::replace(&mut self.scope, scope.clone());
+          self.evaluate(Expression::Program(ast))?;
+          let _ = std::mem::replace(&mut self.scope, prev);
+
+          // Set cache
+          self
+            .import_cache
+            .borrow_mut()
+            .insert(path_pre_pop, scope.clone());
+          scope.clone()
+        };
+
+        for i in stmt.import {
+          let to_import = i.0.symbol;
+          let import_as = i.1.symbol;
+
+          // Check if scope contains it
+          if !scope.has_variable(&to_import) {
+            return Err(ZephyrError::runtime(
+              format!("The import does not contain a definition for {}", to_import),
+              i.0.location,
+            ));
+          }
+
+          // Define it
+          self
+            .scope
+            .declare_variable(&import_as, scope.get_variable(&to_import)?)?;
+        }
+
+        Ok(RuntimeValue::Null(Null {}))
+      }
+      Expression::ExportStatement(stmt) => {
+        match *stmt.to_export {
+          Expression::Identifier(ident) => {
+            let value = self.scope.get_variable_address(&ident.symbol)?;
+            self.scope.export(ident.symbol, value)?;
+          }
+          _ => unimplemented!(),
+        }
+        Ok(RuntimeValue::Null(Null {}))
+      }
 
       ///////////////////////////
       // ----- Literals ----- //

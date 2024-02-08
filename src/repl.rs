@@ -2,8 +2,8 @@ use std::io::Write;
 
 use crate::{lexer, parser, runtime::interpreter::Interpreter};
 
-pub fn repl(_args: crate::Args) {
-  let mut interpreter = Interpreter::new();
+pub fn repl(_args: crate::Args, directory: String) {
+  let mut interpreter = Interpreter::new(directory);
   loop {
     // Get input
     print!("> ");

@@ -15,7 +15,7 @@ pub mod parser;
 pub mod runtime;
 pub mod util;
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, Clone)]
 pub struct Args {
   #[structopt(
     long = "file",
@@ -31,16 +31,61 @@ pub struct Args {
     conflicts_with = "file-flag"
   )]
   pub file_pos: Option<String>,
+
+  #[structopt(
+    long = "directory",
+    empty_values = false,
+    short = "dir",
+    value_name = "WORKING_DIRECTORY"
+  )]
+  pub directory: Option<String>,
+
+  #[structopt(long = "debug", value_name = "DEBUG_MODE")]
+  pub debug_mode: Option<bool>,
 }
 
 static mut MEMORY: Lazy<Memory> = Lazy::new(|| Memory::new());
+static ARGS: Lazy<Args> = Lazy::new(|| Args::from_args());
+
+pub fn debug(contents: &str, what: &str) {
+  if let Some(debug_mode) = ARGS.debug_mode {
+    if debug_mode {
+      println!("[DEBUG:{}]: {}", what, contents);
+    }
+  }
+}
 
 fn main() {
-  let args = Args::from_args();
+  let args = ARGS.clone();
+
+  // Get the directory to run in
+  let dir = if let Some(directory) = args.directory.clone() {
+    let mut path = std::path::PathBuf::new();
+    path.push(&directory);
+    path
+  } else {
+    std::env::current_dir().unwrap()
+  };
+
+  // Check if the provided dir exists
+  if dir.exists() == false {
+    return die(format!(
+      "The directory ({}) provided with --directory does not exist",
+      dir.display()
+    ));
+  }
+
+  debug(
+    &format!(
+      "The current directory is set to: {}",
+      dir.display().to_string()
+    ),
+    "main",
+  );
 
   // Check if should run in repl mode
   if matches!(args.file_flag, None) && matches!(args.file_pos, None) {
-    repl::repl(args);
+    repl::repl(args, dir.display().to_string());
   } else {
     // Collect the file
     let file_name = &if let Some(f) = args.file_flag {
@@ -61,7 +106,7 @@ fn main() {
         })
       }
     };
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Interpreter::new(dir.display().to_string());
 
     let result = match lexer::lexer::lex(input) {
       Ok(val) => val,

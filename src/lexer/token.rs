@@ -58,6 +58,11 @@ pub enum TokenType {
 
   Let,
 
+  Export,
+  Import,
+  As,
+  From,
+
   Function,
   Pure,
   Where,

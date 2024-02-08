@@ -66,6 +66,10 @@ lazy_static! {
     tok!("loop", TokenType::Loop);
     tok!("where", TokenType::Where);
     tok!("typeof", TokenType::Typeof);
+    tok!("export", TokenType::Export);
+    tok!("import", TokenType::Import);
+    tok!("from", TokenType::From);
+    tok!("as", TokenType::As);
     tok!("func", TokenType::Function);
     tok!("pure", TokenType::Pure);
 
