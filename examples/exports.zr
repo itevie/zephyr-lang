@@ -1,0 +1,13 @@
+let my_var = 20;
+export my_var;
+
+func set_my_var(to: number?) {
+  my_var = to;
+}
+
+func get_my_var() {
+  my_var;
+}
+
+export set_my_var;
+export get_my_var;

@@ -1,0 +1,21 @@
+// To import things, the synax is
+// from "file_path" import x, x, x as x, x as x; 
+from "./exports.zr" import my_var, set_my_var, get_my_var;
+
+// Note that my_var will NOT change hen using the functions,
+// because it is copied by value, not reference
+print(my_var);
+
+// We will set the value here
+set_my_var(40);
+
+// As you can see, my_var does not change
+print(my_var);
+
+// But we can run get_my_var which will update it
+print(get_my_var());
+
+// Also, when importing the same file twice, it does not re-evaluate it,
+// it simply returns the created scope
+from "./exports.zr" import get_my_var as gmv;
+print(gmv()); // Notice how it is not 20, it is 40
