@@ -12,7 +12,7 @@ pub fn repl(_args: crate::Args, directory: String) {
     let _ = std::io::stdin().read_line(&mut input);
 
     if input.starts_with(".mem") {
-      println!("{:#?}", unsafe { crate::MEMORY.clone() });
+      println!("{:#?}", crate::MEMORY.clone());
       continue;
     }
 

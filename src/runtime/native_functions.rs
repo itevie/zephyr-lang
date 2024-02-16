@@ -1,47 +1,52 @@
-use std::collections::HashMap;
+//use std::collections::HashMap;
 
 use crate::{errors::ZephyrError, lexer::location::Location};
 
-use super::values::{to_array, to_object, Null, Number, RuntimeValue, StringValue};
+use super::values::{to_array, Null, RuntimeValue};
 
 type R = Result<RuntimeValue, ZephyrError>;
 
-pub fn print(args: &[RuntimeValue]) -> R {
-  for i in args {
+pub struct CallOptions<'a> {
+  pub args: &'a [RuntimeValue],
+  pub location: Location,
+}
+
+pub fn print(options: CallOptions) -> R {
+  for i in options.args {
     print!("{} ", i.stringify(true, true));
   }
   print!("\n");
   Ok(RuntimeValue::Null(Null {}))
 }
 
-pub fn iter(args: &[RuntimeValue]) -> R {
-  if args.len() == 1 {
-    Ok(to_array(args[0].iterate()?))
+pub fn iter(options: CallOptions) -> R {
+  if options.args.len() == 1 {
+    Ok(to_array(options.args[0].iterate()?))
   } else {
     Err(ZephyrError::runtime(
       "Cannot iter provided args".to_string(),
-      Location::no_location(),
+      options.location,
     ))
   }
 }
 
-pub fn reverse(args: &[RuntimeValue]) -> R {
-  if args.len() == 1 {
+pub fn reverse(options: CallOptions) -> R {
+  if options.args.len() == 1 {
     Ok(to_array({
-      let mut args = args[0].iterate()?;
+      let mut args = options.args[0].iterate()?;
       args.reverse();
       args
     }))
   } else {
     Err(ZephyrError::runtime(
       "Cannot reverse provided args".to_string(),
-      Location::no_location(),
+      options.location
     ))
   }
 }
 
 // ----- Network -----
-pub fn response_to_object(result: reqwest::blocking::Response) -> R {
+/*pub fn response_to_object(result: reqwest::blocking::Response) -> R {
   let result_status = result.status().as_u16();
 
   Ok(to_object(HashMap::from([
@@ -87,3 +92,4 @@ pub fn http_get(args: &[RuntimeValue]) -> R {
     )),
   }
 }
+*/

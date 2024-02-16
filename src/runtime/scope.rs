@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::memory::MemoryAddress;
-use super::native_functions::{http_get, iter, print, reverse};
-use super::values::{to_object, Boolean, NativeFunction, Null, RuntimeValue, StringValue};
+use super::native_functions::{iter, print, reverse};
+use super::values::{Boolean, NativeFunction, Null, RuntimeValue, StringValue};
 use crate::errors::ZephyrError;
 use crate::{
   errors::{self, runtime_error},
@@ -47,19 +47,10 @@ impl Scope {
         "reverse",
         RuntimeValue::NativeFunction(NativeFunction { func: &reverse }),
       ),
-      (
-        "http",
-        to_object(HashMap::from([(
-          "get".to_string(),
-          RuntimeValue::NativeFunction(NativeFunction { func: &http_get }),
-        )])),
-      ),
     ])
     .iter()
     .map(|(key, val)| {
-      (String::from(*key), unsafe {
-        crate::MEMORY.add_value((*val).clone())
-      })
+      (String::from(*key), crate::MEMORY.lock().unwrap().add_value((*val).clone()))
     })
     .collect();
     let x = {
@@ -91,9 +82,7 @@ impl Scope {
     self
       .variables
       .borrow_mut()
-      .insert(String::from(name), unsafe {
-        crate::MEMORY.add_value(value)
-      });
+      .insert(String::from(name), crate::MEMORY.lock().unwrap().add_value(value));
     Ok(())
   }
 
@@ -103,7 +92,7 @@ impl Scope {
     new_value: RuntimeValue,
   ) -> Result<RuntimeValue, errors::ZephyrError> {
     let value = self.get_variable_address(name)?;
-    unsafe { crate::MEMORY.set_value(value, new_value.clone())? };
+    crate::MEMORY.lock().unwrap().set_value(value, new_value.clone())?;
     Ok(new_value.clone())
   }
 
@@ -114,7 +103,7 @@ impl Scope {
   pub fn get_variable(&self, name: &str) -> Result<RuntimeValue, errors::ZephyrError> {
     let addr = self.get_variable_address(name);
     match addr {
-      Ok(val) => unsafe { crate::MEMORY.get_value(val) },
+      Ok(val) => crate::MEMORY.lock().unwrap().get_value(val),
       Err(err) => Err(err),
     }
   }

@@ -21,6 +21,7 @@ use crate::{
 
 use super::{
   memory::MemoryAddress,
+  native_functions::CallOptions,
   scope::Scope,
   values::{
     to_array, to_object, Array, ArrayContainer, Boolean, Function, Null, Number, Object,
@@ -128,7 +129,7 @@ impl Interpreter {
         }
 
         // Get the referenced array
-        let mut arr = match unsafe { crate::MEMORY.get_value(arr_ref.location) }? {
+        let mut arr = match crate::MEMORY.lock().unwrap().get_value(arr_ref.location)? {
           RuntimeValue::Array(arr) => arr,
           _ => unreachable!(),
         };
@@ -173,9 +174,10 @@ impl Interpreter {
           // Update it
 
           return Ok(RuntimeValue::ArrayContainer(ArrayContainer {
-            location: unsafe {
-              crate::MEMORY.set_value(arr_ref.location, RuntimeValue::Array(arr))?
-            },
+            location: crate::MEMORY
+              .lock()
+              .unwrap()
+              .set_value(arr_ref.location, RuntimeValue::Array(arr))?,
           }));
         }
 
@@ -183,7 +185,7 @@ impl Interpreter {
         return Ok(*(*&arr.items[number]).clone());
       }
       RuntimeValue::ObjectContainer(obj_ref) => {
-        let object = match unsafe { crate::MEMORY.get_value(obj_ref.location) }? {
+        let object = match crate::MEMORY.lock().unwrap().get_value(obj_ref.location)? {
           RuntimeValue::Object(obj) => obj,
           _ => unreachable!(),
         };
@@ -425,7 +427,10 @@ impl Interpreter {
         }
 
         // Assign to memory
-        let address = unsafe { crate::MEMORY.add_value(RuntimeValue::Object(object)) };
+        let address = crate::MEMORY
+          .lock()
+          .unwrap()
+          .add_value(RuntimeValue::Object(object));
 
         // Finish
         Ok(RuntimeValue::ObjectContainer(ObjectContainer {
@@ -441,7 +446,10 @@ impl Interpreter {
         }
 
         // Add to memory
-        let address = unsafe { crate::MEMORY.add_value(RuntimeValue::Array(array)) };
+        let address = crate::MEMORY
+          .lock()
+          .unwrap()
+          .add_value(RuntimeValue::Array(array));
 
         // Finish
         Ok(RuntimeValue::ArrayContainer(ArrayContainer {
@@ -495,7 +503,10 @@ impl Interpreter {
               .map(|e| self.evaluate(*e.clone()))
               .collect::<Result<Vec<_>, _>>()?;
 
-            (func.func)(&args)
+            (func.func)(CallOptions {
+              args: &args,
+              location: expr2.location,
+            })
           }
           RuntimeValue::Function(func) => {
             if *self.scope.pure_functions_only.borrow() {
@@ -673,7 +684,11 @@ impl Interpreter {
               }
             }
             RuntimeValue::ArrayContainer(ref container) => {
-              let mut array = match unsafe { crate::MEMORY.get_value(container.location)? } {
+              let mut array = match crate::MEMORY
+                .lock()
+                .unwrap()
+                .get_value(container.location)?
+              {
                 RuntimeValue::Array(arr) => arr,
                 _ => unreachable!(),
               };
@@ -681,7 +696,10 @@ impl Interpreter {
               array.items.push(Box::from(right.clone()));
 
               // Modify the value
-              unsafe { crate::MEMORY.set_value(container.location, RuntimeValue::Array(array))? };
+              crate::MEMORY
+                .lock()
+                .unwrap()
+                .set_value(container.location, RuntimeValue::Array(array))?;
               Some(RuntimeValue::ArrayContainer(container.clone()))
             }
             _ => None,
@@ -835,11 +853,14 @@ impl Interpreter {
             value: !value.is_truthy(),
           })),
           TokenType::UnaryOperator(UnaryOperator::Dereference) => match value {
-            RuntimeValue::Reference(refer) => unsafe { crate::MEMORY.get_value(refer.value) },
-            RuntimeValue::Number(num) => unsafe {
-              crate::MEMORY.get_value(num.value as MemoryAddress)
-            },
-            RuntimeValue::ArrayContainer(arr) => unsafe { crate::MEMORY.get_value(arr.location) },
+            RuntimeValue::Reference(refer) => crate::MEMORY.lock().unwrap().get_value(refer.value),
+            RuntimeValue::Number(num) => crate::MEMORY
+              .lock()
+              .unwrap()
+              .get_value(num.value as MemoryAddress),
+            RuntimeValue::ArrayContainer(arr) => {
+              crate::MEMORY.lock().unwrap().get_value(arr.location)
+            }
             _ => Err(ZephyrError::runtime(
               format!("Cannot derference a {:?}", value.type_name()),
               Location::no_location(),

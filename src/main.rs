@@ -1,4 +1,7 @@
-use std::io::ErrorKind;
+use std::{
+  io::ErrorKind,
+  sync::{Arc, Mutex},
+};
 
 use once_cell::sync::Lazy;
 use runtime::{interpreter::Interpreter, memory::Memory};
@@ -21,6 +24,7 @@ pub struct Args {
     long = "file",
     empty_values = false,
     short = "f",
+    help = "The index file to run",
     value_name = "PATH_FLAG"
   )]
   pub file_flag: Option<String>,
@@ -35,16 +39,20 @@ pub struct Args {
   #[structopt(
     long = "directory",
     empty_values = false,
-    short = "dir",
+    help = "The directory to run the project in",
     value_name = "WORKING_DIRECTORY"
   )]
   pub directory: Option<String>,
 
-  #[structopt(long = "debug", value_name = "DEBUG_MODE")]
+  #[structopt(
+    long = "debug",
+    value_name = "DEBUG_MODE",
+    help = "Whether or not to log special debug logs"
+  )]
   pub debug_mode: Option<bool>,
 }
 
-static mut MEMORY: Lazy<Memory> = Lazy::new(|| Memory::new());
+static MEMORY: Lazy<Arc<Mutex<Memory>>> = Lazy::new(|| Arc::from(Mutex::from(Memory::new())));
 static ARGS: Lazy<Args> = Lazy::new(|| Args::from_args());
 
 pub fn debug(contents: &str, what: &str) {

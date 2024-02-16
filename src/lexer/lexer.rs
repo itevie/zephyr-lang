@@ -4,7 +4,10 @@ use crate::{
 };
 use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
+use std::{
+  collections::HashMap,
+  sync::{Arc, Mutex},
+};
 
 use super::{
   location::Location,
@@ -92,12 +95,12 @@ lazy_static! {
   };
 }
 
-static mut LOCATION_CONTENTS: Lazy<HashMap<u128, String>> = Lazy::new(|| {
+static LOCATION_CONTENTS: Lazy<Arc<Mutex<HashMap<u128, String>>>> = Lazy::new(|| {
   let mut hash = HashMap::new();
   hash.insert(0 as u128, "No Location Contents".to_string());
-  hash
+  Arc::from(Mutex::from(hash))
 });
-static mut CURRENT_CONTENTS: u128 = 1;
+static CURRENT_CONTENTS: Lazy<Arc<Mutex<u128>>> = Lazy::new(|| Arc::from(Mutex::from(0)));
 
 pub fn get_token(_t: &TokenType) -> String {
   OPERATORS
@@ -108,15 +111,16 @@ pub fn get_token(_t: &TokenType) -> String {
 }
 
 pub fn get_location_contents(id: u128) -> String {
-  unsafe { String::from(LOCATION_CONTENTS.get(&id).unwrap()) }
+  String::from(LOCATION_CONTENTS.lock().unwrap().get(&id).unwrap())
 }
 
 pub fn lex(contents: String) -> Result<Vec<Token>, ZephyrError> {
-  let id = unsafe { CURRENT_CONTENTS };
-  unsafe {
-    CURRENT_CONTENTS += 1;
-    LOCATION_CONTENTS.insert(id, contents.clone());
-  };
+  let id = { *CURRENT_CONTENTS.lock().unwrap() };
+  *CURRENT_CONTENTS.lock().unwrap() += 1;
+  LOCATION_CONTENTS
+    .lock()
+    .unwrap()
+    .insert(id, contents.clone());
 
   let mut operator_keys: Vec<&&str> = OPERATORS.keys().clone().collect();
   operator_keys.sort_by(|a, b| b.len().cmp(&a.len()));

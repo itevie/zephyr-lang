@@ -6,7 +6,7 @@ use crate::{
   parser::nodes::{Block, Identifier, WhereClause},
 };
 
-use super::{memory::MemoryAddress, scope::Scope};
+use super::{memory::MemoryAddress, native_functions::CallOptions, scope::Scope};
 
 // ----- Base -----
 #[derive(Clone, Debug)]
@@ -23,6 +23,9 @@ pub enum RuntimeValue {
   Object(Object),
   ObjectContainer(ObjectContainer),
 }
+
+unsafe impl Send for RuntimeValue {}
+unsafe impl Sync for RuntimeValue {}
 
 impl RuntimeValue {
   pub fn type_name(&self) -> &str {
@@ -52,14 +55,14 @@ impl RuntimeValue {
           }))
         })
         .collect::<Vec<Box<RuntimeValue>>>(),
-      RuntimeValue::ArrayContainer(arr) => unsafe {
-        match crate::MEMORY.get_value(arr.location)? {
+      RuntimeValue::ArrayContainer(arr) => {
+        match crate::MEMORY.lock().unwrap().get_value(arr.location)? {
           RuntimeValue::Array(a) => a.items,
           _ => unreachable!(),
         }
-      },
-      RuntimeValue::ObjectContainer(obj) => unsafe {
-        match crate::MEMORY.get_value(obj.location)? {
+      }
+      RuntimeValue::ObjectContainer(obj) => {
+        match crate::MEMORY.lock().unwrap().get_value(obj.location)? {
           RuntimeValue::Object(o) => o
             .items
             .keys()
@@ -71,7 +74,7 @@ impl RuntimeValue {
             .collect::<Vec<Box<RuntimeValue>>>(),
           _ => unreachable!(),
         }
-      },
+      }
       _ => {
         return Err(ZephyrError::runtime(
           format!("Cannot iter provided {}", self.type_name()),
@@ -98,30 +101,38 @@ impl RuntimeValue {
       RuntimeValue::Reference(refer) => format!("&{}", refer.value),
       RuntimeValue::Array(_) => "array".to_string(),
       RuntimeValue::ArrayContainer(arr) => {
-        unsafe {
-          let mut res = String::from("[");
-          let array = match crate::MEMORY.get_value(arr.location).unwrap() {
-            RuntimeValue::Array(arr) => arr,
-            _ => unreachable!(),
-          };
+        let mut res = String::from("[");
+        let array = match crate::MEMORY
+          .lock()
+          .unwrap()
+          .get_value(arr.location)
+          .unwrap()
+        {
+          RuntimeValue::Array(arr) => arr,
+          _ => unreachable!(),
+        };
 
-          for i in 0..array.items.len() {
-            res.push_str(&format!("{}", array.items[i].stringify(false, pretty)));
+        for i in 0..array.items.len() {
+          res.push_str(&format!("{}", array.items[i].stringify(false, pretty)));
 
-            // Check if should add comma
-            if i < array.items.len() - 1 {
-              res.push_str(", ");
-            }
+          // Check if should add comma
+          if i < array.items.len() - 1 {
+            res.push_str(", ");
           }
-
-          res.push_str("]");
-
-          res
         }
+
+        res.push_str("]");
+
+        res
       }
-      RuntimeValue::ObjectContainer(obj) => unsafe {
+      RuntimeValue::ObjectContainer(obj) => {
         let mut res = String::from("{");
-        let object = match crate::MEMORY.get_value(obj.location).unwrap() {
+        let object = match crate::MEMORY
+          .lock()
+          .unwrap()
+          .get_value(obj.location)
+          .unwrap()
+        {
           RuntimeValue::Object(arr) => arr,
           _ => unreachable!(),
         };
@@ -149,7 +160,7 @@ impl RuntimeValue {
         res.push_str("}");
 
         res
-      },
+      }
       RuntimeValue::Object(_) => "object".to_string(),
       RuntimeValue::Function(_) => "function".to_string(),
       RuntimeValue::NativeFunction(_) => "native_function".to_string(),
@@ -178,7 +189,7 @@ pub fn to_array(values: Vec<Box<RuntimeValue>>) -> RuntimeValue {
   let array = RuntimeValue::Array(Array { items: values });
 
   RuntimeValue::ArrayContainer(ArrayContainer {
-    location: unsafe { crate::MEMORY.add_value(array) },
+    location: crate::MEMORY.lock().unwrap().add_value(array),
   })
 }
 
@@ -186,7 +197,7 @@ pub fn to_object(values: HashMap<String, RuntimeValue>) -> RuntimeValue {
   let object = RuntimeValue::Object(Object { items: values });
 
   RuntimeValue::ObjectContainer(ObjectContainer {
-    location: unsafe { crate::MEMORY.add_value(object) },
+    location: crate::MEMORY.lock().unwrap().add_value(object),
   })
 }
 
@@ -246,7 +257,7 @@ pub struct Function {
 
 #[derive(Clone)]
 pub struct NativeFunction {
-  pub func: &'static dyn Fn(&[RuntimeValue]) -> Result<RuntimeValue, ZephyrError>,
+  pub func: &'static dyn Fn(CallOptions) -> Result<RuntimeValue, ZephyrError>,
 }
 
 impl fmt::Debug for NativeFunction {
