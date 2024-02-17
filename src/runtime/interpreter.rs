@@ -13,7 +13,7 @@ use crate::{
   },
   parser::{
     self,
-    nodes::{Block, Expression, MemberExpression},
+    nodes::{Block, Expression, Identifier, MemberExpression},
     parser::Parser,
   },
   util,
@@ -54,6 +54,7 @@ impl Interpreter {
       include_lib!("../lib/math.zr"),
       include_lib!("../lib/console.zr"),
       include_lib!("../lib/iter.zr"),
+      include_lib!("../lib/time.zr"),
     ];
     let scope = &Rc::new(Scope::new(directory));
 
@@ -84,6 +85,30 @@ impl Interpreter {
             "reverse".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::reverse,
+            }),
+          ),
+          (
+            "clear_console".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::clear_console,
+            }),
+          ),
+          (
+            "get_time_nanos".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::get_time_nanos,
+            }),
+          ),
+          (
+            "floor".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::floor,
+            }),
+          ),
+          (
+            "ceil".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::ceil,
             }),
           ),
         ]),
@@ -130,9 +155,6 @@ impl Interpreter {
 
       // Add defined variables to global
       for (key, value) in lib_scope.clone().exports.borrow().iter() {
-        if *key == "__native".to_string() {
-          continue;
-        }
         scope.variables.borrow_mut().insert((key).clone(), *value);
       }
     }
@@ -170,13 +192,148 @@ impl Interpreter {
     }
   }
 
+  pub fn evaluate_zephyr_function(
+    &mut self,
+    func: Function,
+    arguments: Vec<Box<Expression>>,
+    location: Location,
+  ) -> Result<RuntimeValue, ZephyrError> {
+    if *self.scope.pure_functions_only.borrow() {
+      *self.scope.pure_functions_only.borrow_mut() = false;
+      // Check if it is pure
+      if !func.pure {
+        return Err(ZephyrError::parser(
+          "Called a non pure function, but the current scope is in pure mode".to_string(),
+          location.clone(),
+        ));
+      }
+    }
+    // Get the scope
+    let scope = if func.pure {
+      self.global_scope.create_child()
+    } else {
+      func.scope.create_child()
+    };
+    let caller_args = arguments.clone();
+
+    if func.pure {
+      *scope.pure_functions_only.borrow_mut() = true;
+    }
+
+    let mut evalled_args: Vec<Box<RuntimeValue>> = vec![];
+    for i in caller_args {
+      evalled_args.push(Box::from(self.evaluate(*i)?));
+    }
+
+    // Declare the args
+    for i in 0..func.arguments.len() {
+      // Check if it is __args__
+      if func.arguments[i].symbol == "__args__" {
+        scope.declare_variable("__args__", to_array(evalled_args.clone()))?;
+        continue;
+      }
+      let assigned = if i < arguments.len() {
+        *evalled_args.get(i).unwrap().clone()
+      } else {
+        RuntimeValue::Null(Null {})
+      };
+
+      scope.declare_variable(&func.arguments.get(i).unwrap().clone().symbol, assigned)?;
+    }
+
+    // Check where clauses
+    let prev = std::mem::replace(&mut self.scope, scope.clone());
+    {
+      *self.scope.pure_functions_only.borrow_mut() = true;
+    }
+    for clause in func.where_clause.tests {
+      let res = match self.evaluate((**&clause).clone()) {
+        Ok(ok) => ok,
+        Err(err) => {
+          // Cleanup
+          {
+            *self.scope.pure_functions_only.borrow_mut() = func.pure;
+          }
+          return Err(err);
+        }
+      };
+
+      // Check if it succeeded
+      if !res.is_truthy() {
+        return Err(ZephyrError::runtime(
+          format!("Call failed to pass where clauses, received: {}", res),
+          clause.clone().get_location().clone(),
+        ));
+      }
+    }
+    {
+      *self.scope.pure_functions_only.borrow_mut() = func.pure;
+    }
+    let _ = std::mem::replace(&mut self.scope, prev);
+
+    let return_value = self.evaluate_block(*func.body, scope)?;
+
+    // Check if it is predicate
+    if let Some(f) = func.name {
+      // Check endswith ?
+      if f.ends_with("?") {
+        // Check for boolean
+        if !matches!(return_value, RuntimeValue::Boolean(_)) {
+          return Err(ZephyrError::runtime(
+            "Predicate function can only return booleans".to_string(),
+            Location::no_location(),
+          ));
+        }
+      }
+    }
+
+    Ok(return_value)
+  }
+
+  pub fn evaluate_identifier(
+    &mut self,
+    ident: Identifier,
+    skip_getter: bool,
+  ) -> Result<RuntimeValue, ZephyrError> {
+    let variable = self.scope.get_variable(&ident.symbol)?;
+
+    // Check if object & has __get
+    if !skip_getter {
+      if let RuntimeValue::ObjectContainer(obj) = variable.clone() {
+        let obj = match crate::MEMORY.lock().unwrap().get_value(obj.location)? {
+          RuntimeValue::Object(obj) => obj,
+          _ => unreachable!(),
+        };
+
+        // Check if it has __get
+        if obj.items.contains_key("__get") {
+          let func = match obj.items.get_key_value("__get").unwrap().1 {
+            RuntimeValue::Function(func) => func,
+            _ => {
+              return Err(ZephyrError::runtime(
+                "Expected function for __get".to_string(),
+                ident.location,
+              ))
+            }
+          };
+          return self.evaluate_zephyr_function(func.clone(), vec![], ident.location);
+        }
+      }
+    }
+
+    Ok(variable.clone())
+  }
+
   pub fn evaluate_member_expression(
     &mut self,
     expr: MemberExpression,
     assign: &Option<RuntimeValue>,
   ) -> Result<RuntimeValue, errors::ZephyrError> {
     let key_loc = expr.key.get_location();
-    let value = self.evaluate(*expr.left)?;
+    let value = match *expr.left {
+      Expression::Identifier(ident) => self.evaluate_identifier(ident, true),
+      _ => self.evaluate(*expr.left),
+    }?;
 
     // Get key
     let key = if expr.is_computed {
@@ -480,13 +637,7 @@ impl Interpreter {
       Expression::NumericLiteral(literal) => Ok(RuntimeValue::Number(Number {
         value: literal.value,
       })),
-      Expression::Identifier(ident) => {
-        let variable = self.scope.get_variable(&ident.symbol);
-        match variable {
-          Ok(ok) => Ok(ok),
-          Err(err) => Err(err),
-        }
-      }
+      Expression::Identifier(ident) => self.evaluate_identifier(ident, false),
       Expression::StringLiteral(literal) => Ok(RuntimeValue::StringValue(StringValue {
         value: literal.value,
       })),
@@ -582,96 +733,7 @@ impl Interpreter {
             })
           }
           RuntimeValue::Function(func) => {
-            if *self.scope.pure_functions_only.borrow() {
-              *self.scope.pure_functions_only.borrow_mut() = false;
-              // Check if it is pure
-              if !func.pure {
-                return Err(ZephyrError::parser(
-                  "Called a non pure function, but the current scope is in pure mode".to_string(),
-                  expr2.clone().left.get_location(),
-                ));
-              }
-            }
-            // Get the scope
-            let scope = if func.pure {
-              self.global_scope.create_child()
-            } else {
-              func.scope.create_child()
-            };
-            let caller_args = expr2.arguments.clone();
-
-            if func.pure {
-              *scope.pure_functions_only.borrow_mut() = true;
-            }
-
-            let mut evalled_args: Vec<Box<RuntimeValue>> = vec![];
-            for i in caller_args {
-              evalled_args.push(Box::from(self.evaluate(*i)?));
-            }
-
-            // Declare the args
-            for i in 0..func.arguments.len() {
-              // Check if it is __args__
-              if func.arguments[i].symbol == "__args__" {
-                scope.declare_variable("__args__", to_array(evalled_args.clone()))?;
-                continue;
-              }
-              let assigned = if i < expr.arguments.len() {
-                *evalled_args.get(i).unwrap().clone()
-              } else {
-                RuntimeValue::Null(Null {})
-              };
-
-              scope.declare_variable(&func.arguments.get(i).unwrap().clone().symbol, assigned)?;
-            }
-
-            // Check where clauses
-            let prev = std::mem::replace(&mut self.scope, scope.clone());
-            {
-              *self.scope.pure_functions_only.borrow_mut() = true;
-            }
-            for clause in func.where_clause.tests {
-              let res = match self.evaluate((**&clause).clone()) {
-                Ok(ok) => ok,
-                Err(err) => {
-                  // Cleanup
-                  {
-                    *self.scope.pure_functions_only.borrow_mut() = func.pure;
-                  }
-                  return Err(err);
-                }
-              };
-
-              // Check if it succeeded
-              if !res.is_truthy() {
-                return Err(ZephyrError::runtime(
-                  format!("Call failed to pass where clauses, received: {}", res),
-                  clause.clone().get_location().clone(),
-                ));
-              }
-            }
-            {
-              *self.scope.pure_functions_only.borrow_mut() = func.pure;
-            }
-            let _ = std::mem::replace(&mut self.scope, prev);
-
-            let return_value = self.evaluate_block(*func.body, scope)?;
-
-            // Check if it is predicate
-            if let Some(f) = func.name {
-              // Check endswith ?
-              if f.ends_with("?") {
-                // Check for boolean
-                if !matches!(return_value, RuntimeValue::Boolean(_)) {
-                  return Err(ZephyrError::runtime(
-                    "Predicate function can only return booleans".to_string(),
-                    Location::no_location(),
-                  ));
-                }
-              }
-            }
-
-            Ok(return_value)
+            self.evaluate_zephyr_function(func, expr2.arguments, expr2.left.get_location())
           }
           _ => Err(runtime_error!("Expected a function to call".to_string())),
         }

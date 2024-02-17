@@ -1,0 +1,35 @@
+export let Time = .{
+  units: .{
+    ms: 1,
+    second: 100,
+    minute: 100 * 60,
+    hour: 100 * 60 * 60,
+  },
+
+  get_nanos: func get_nanos {
+    __zephyr_native.get_time_nanos();
+  },
+
+  now: func now {
+    Time.create_time_from_milliseconds(__zephyr_native.get_time_nanos() / 1000 / 1000);
+  },
+
+  get_from: func get_from(time: number?) {
+    Time.create_time_from_milliseconds(time);
+  },
+
+  create_time_from_milliseconds: func create_time_from_milliseconds(time: number?) {
+    time = Math.floor(time);
+    .{
+      __get: func {
+        time;
+      },
+
+      get_ms: func {
+        time;
+      },
+
+      // TODO: Add other functions later
+    };
+  }
+};

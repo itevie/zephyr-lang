@@ -60,6 +60,11 @@ impl Scope {
     name: &str,
     value: RuntimeValue,
   ) -> Result<(), errors::ZephyrError> {
+    // Check if disregard
+    if name == "_" {
+      return Ok(());
+    }
+
     // Check if the variable already exists
     if self.has_variable(name) {
       return Err(runtime_error!(format!(

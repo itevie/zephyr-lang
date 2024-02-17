@@ -2,7 +2,15 @@ export let Math = .{
   // ----- Constants -----
   pi: 314159 / 100000,
 
-  min: func (a: number?, b: number?) {
+  floor: func pure floor(number: number?) {
+    __zephyr_native.floor(number);
+  },
+
+  ceil: func pure floor(number: number?) {
+    __zephyr_native.ceil(number);
+  },
+
+  min: func pure min (a: number?, b: number?) {
     let min = null;
 
     for i in __args__ {
@@ -15,7 +23,7 @@ export let Math = .{
     min;
   },
 
-  max: func (__args__: array_of?(number?)) {
+  max: func pure max(__args__: array_of?(number?)) {
     let max = null;
 
     for i in __args__ {
@@ -28,7 +36,7 @@ export let Math = .{
     max;
   },
 
-  sum: func (__args__: array_of?(number?)) {
+  sum: func pure sum(__args__: array_of?(number?)) {
     let sum = 0;
     for i in __args__ { sum = sum + i; }
     sum;

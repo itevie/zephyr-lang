@@ -2,7 +2,7 @@
 
 use crate::{errors::ZephyrError, lexer::location::Location};
 
-use super::values::{to_array, Null, RuntimeValue};
+use super::values::{to_array, Null, Number, RuntimeValue};
 
 type R = Result<RuntimeValue, ZephyrError>;
 
@@ -29,6 +29,11 @@ pub fn write(options: CallOptions) -> R {
   Ok(RuntimeValue::Null(Null {}))
 }
 
+pub fn clear_console(_: CallOptions) -> R {
+  print!("\x1B[2J\x1B[1;1H");
+  Ok(RuntimeValue::Null(Null {}))
+}
+
 pub fn iter(options: CallOptions) -> R {
   if options.args.len() == 1 {
     Ok(to_array(options.args[0].iterate()?))
@@ -52,6 +57,42 @@ pub fn reverse(options: CallOptions) -> R {
       "Cannot reverse provided args".to_string(),
       options.location,
     ))
+  }
+}
+
+// ----- Time & Date -----
+pub fn get_time_nanos(_: CallOptions) -> R {
+  let time = std::time::SystemTime::now();
+  Ok(RuntimeValue::Number(Number {
+    value: time
+      .duration_since(std::time::UNIX_EPOCH)
+      .unwrap()
+      .as_nanos() as f64,
+  }))
+}
+
+// ----- Math -----
+pub fn floor(options: CallOptions) -> R {
+  match options.args {
+    [RuntimeValue::Number(num)] => Ok(RuntimeValue::Number(Number {
+      value: num.value.floor(),
+    })),
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
+  }
+}
+
+pub fn ceil(options: CallOptions) -> R {
+  match options.args {
+    [RuntimeValue::Number(num)] => Ok(RuntimeValue::Number(Number {
+      value: num.value.ceil(),
+    })),
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
   }
 }
 

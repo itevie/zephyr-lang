@@ -1,5 +1,5 @@
 export let Console = .{
-  print: func print(__args__) {
+  write_line: func print(__args__) {
     for i in __args__ {
       __zephyr_native.print(i);
     }
@@ -9,6 +9,11 @@ export let Console = .{
 
   write: func write(str: string?) {
     __zephyr_native.write(str);
+    null;
+  },
+
+  clear: func clear() {
+    __zephyr_native.clear_console();
     null;
   }
 };
