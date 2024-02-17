@@ -21,11 +21,12 @@ use crate::{
 
 use super::{
   memory::MemoryAddress,
+  native_functions,
   native_functions::CallOptions,
   scope::Scope,
   values::{
-    to_array, to_object, Array, ArrayContainer, Boolean, Function, Null, Number, Object,
-    ObjectContainer, Reference, RuntimeValue, StringValue,
+    to_array, to_object, Array, ArrayContainer, Boolean, Function, NativeFunction, Null, Number,
+    Object, ObjectContainer, Reference, RuntimeValue, StringValue,
   },
 };
 
@@ -38,34 +39,100 @@ pub struct Interpreter {
   pub import_cache: RefCell<HashMap<String, Rc<Scope>>>,
 }
 
+macro_rules! include_lib {
+  ($what:expr) => {
+    (include_str!($what), $what)
+  };
+}
+
 impl Interpreter {
   pub fn new(directory: String) -> Self {
-    let libs: Vec<&str> = vec![
-      include_str!("../lib/predicates.zr"),
-      include_str!("../lib/array.zr"),
-      include_str!("../lib/string.zr"),
-      include_str!("../lib/math.zr"),
+    let libs: Vec<(&str, &str)> = vec![
+      include_lib!("../lib/predicates.zr"),
+      include_lib!("../lib/array.zr"),
+      include_lib!("../lib/string.zr"),
+      include_lib!("../lib/math.zr"),
+      include_lib!("../lib/console.zr"),
+      include_lib!("../lib/iter.zr"),
     ];
     let scope = &Rc::new(Scope::new(directory));
+
+    let native_address = crate::MEMORY
+      .lock()
+      .unwrap()
+      .add_value(RuntimeValue::Object(Object {
+        items: HashMap::from([
+          (
+            "print".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::print,
+            }),
+          ),
+          (
+            "write".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::write,
+            }),
+          ),
+          (
+            "iter".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::iter,
+            }),
+          ),
+          (
+            "reverse".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::reverse,
+            }),
+          ),
+        ]),
+      }));
+
+    scope
+      .declare_variable(
+        "__zephyr_native",
+        RuntimeValue::ObjectContainer(ObjectContainer {
+          location: native_address,
+        }),
+      )
+      .unwrap();
 
     // Load libs
     for i in libs {
       let lib_scope = scope.clone().create_child();
+      *lib_scope.can_export.borrow_mut() = true;
       let mut lib_interpreter = Interpreter {
         scope: lib_scope.clone(),
         global_scope: scope.clone(),
         import_cache: RefCell::from(HashMap::new()),
       };
-      lib_interpreter
-        .evaluate(Expression::Program(
-          Parser::new(lex(String::from(i)).unwrap())
-            .produce_ast()
-            .unwrap(),
-        ))
-        .unwrap();
+      match lib_interpreter.evaluate(Expression::Program(
+        match Parser::new(lex(String::from(i.0)).unwrap()).produce_ast() {
+          Ok(ok) => ok,
+          Err(err) => {
+            println!(
+              "ERROR WHILE PARSEING LIB (PARSER): {}\n\n{}",
+              i.1,
+              err.visualise(false)
+            );
+            panic!()
+          }
+        },
+      )) {
+        Ok(_) => (),
+        Err(err) => println!(
+          "ERROR WHILE PARSEING LIB (RUNTIME): {}\n\n{}",
+          i.1,
+          err.visualise(false)
+        ),
+      };
 
       // Add defined variables to global
-      for (key, value) in lib_scope.clone().variables.borrow().iter() {
+      for (key, value) in lib_scope.clone().exports.borrow().iter() {
+        if *key == "__native".to_string() {
+          continue;
+        }
         scope.variables.borrow_mut().insert((key).clone(), *value);
       }
     }
@@ -396,6 +463,12 @@ impl Interpreter {
             let value = self.scope.get_variable_address(&ident.symbol)?;
             self.scope.export(ident.symbol, value)?;
           }
+          Expression::VariableDeclaration(declaration) => {
+            let ident = declaration.identifier.symbol.clone();
+            self.evaluate(Expression::VariableDeclaration(declaration))?;
+            let address = self.scope.get_variable_address(&ident)?;
+            self.scope.export(ident, address)?;
+          }
           _ => unimplemented!(),
         }
         Ok(RuntimeValue::Null(Null {}))
@@ -514,7 +587,7 @@ impl Interpreter {
               // Check if it is pure
               if !func.pure {
                 return Err(ZephyrError::parser(
-                  "Expected pure function here".to_string(),
+                  "Called a non pure function, but the current scope is in pure mode".to_string(),
                   expr2.clone().left.get_location(),
                 ));
               }
@@ -543,7 +616,7 @@ impl Interpreter {
                 scope.declare_variable("__args__", to_array(evalled_args.clone()))?;
                 continue;
               }
-              let assigned = if expr.arguments.len() >= func.arguments.len() {
+              let assigned = if i < expr.arguments.len() {
                 *evalled_args.get(i).unwrap().clone()
               } else {
                 RuntimeValue::Null(Null {})

@@ -1,4 +1,4 @@
-let Math = {
+export let Math = .{
   // ----- Constants -----
   pi: 314159 / 100000,
 

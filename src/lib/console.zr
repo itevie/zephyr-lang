@@ -1,0 +1,14 @@
+export let Console = .{
+  print: func print(__args__) {
+    for i in __args__ {
+      __zephyr_native.print(i);
+    }
+
+    null;
+  },
+
+  write: func write(str: string?) {
+    __zephyr_native.write(str);
+    null;
+  }
+};

@@ -71,6 +71,7 @@ impl ZephyrError {
       result += &format!(" line {}]\n\n", location.line);
 
       result += (&get_location_contents(location.location_contents))
+        .replace("\t", " ")
         .split("\n")
         .collect::<Vec<&str>>()[location.line as usize];
       result += "\n";
@@ -85,7 +86,7 @@ impl ZephyrError {
     result += &("^".repeat(arrow_length as usize));
 
     // Done
-    return result;
+    result
   }
 }
 

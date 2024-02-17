@@ -1,52 +1,52 @@
-func pure not_null?(test) {
+export func pure not_null?(test) {
   typeof test != "null";
 }
 
-func pure null?(test) {
+export func pure null?(test) {
   typeof test == "null";
 }
 
-func pure null_or?(test, predicate: callable?) {
+export func pure null_or?(test, predicate: callable?) {
   null?(test) ? true : predicate(test);
 } 
 
-func pure number?(test) { 
+export func pure number?(test) { 
   typeof test == "number";
 };
 
-func pure positive_number?(test) {
+export func pure positive_number?(test) {
   typeof test == "number" && test > 0;
 }
 
-func pure negative_number?(test) {
+export func pure negative_number?(test) {
   typeof test == "number" && test < 0;
 }
 
-func pure string?(test) {
+export func pure string?(test) {
   typeof test == "string";
 }
 
-func pure boolean?(test) {
+export func pure boolean?(test) {
   typeof test == "boolean";
 }
 
-func pure function?(test) {
+export func pure function?(test) {
   typeof test == "function";
 }
 
-func pure native_function?(test) {
+export func pure native_function?(test) {
   typeof test == "native_function";
 }
 
-func pure object?(test) {
+export func pure object?(test) {
   typeof test == "object";
 }
 
-func pure array?(test) {
+export func pure array?(test) {
   typeof test == "array";
 }
 
-func pure array_of?(test: array?, f: callable?) {
+export func pure array_of?(test: array?, f: callable?) {
   let valid = true;
   for i in test {
     valid = f(i);
@@ -56,10 +56,14 @@ func pure array_of?(test: array?, f: callable?) {
   valid;
 }
 
-func pure reference?(reference) {
+export func pure reference?(reference) {
   typeof test == "reference";
 }
 
-func pure callable?(test) {
+export func pure callable?(test) {
   typeof test == "function" || typeof test == "native_function";
+}
+
+export func pure iterable?(what) {
+  typeof what == "array" || typeof what == "string" || typeof what == "object";
 }

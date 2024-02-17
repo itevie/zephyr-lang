@@ -19,6 +19,16 @@ pub fn print(options: CallOptions) -> R {
   Ok(RuntimeValue::Null(Null {}))
 }
 
+pub fn write(options: CallOptions) -> R {
+  match options.args {
+    [RuntimeValue::StringValue(str)] => {
+      print!("{}", str.value);
+    }
+    _ => unreachable!(),
+  }
+  Ok(RuntimeValue::Null(Null {}))
+}
+
 pub fn iter(options: CallOptions) -> R {
   if options.args.len() == 1 {
     Ok(to_array(options.args[0].iterate()?))
@@ -40,7 +50,7 @@ pub fn reverse(options: CallOptions) -> R {
   } else {
     Err(ZephyrError::runtime(
       "Cannot reverse provided args".to_string(),
-      options.location
+      options.location,
     ))
   }
 }

@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::memory::MemoryAddress;
-use super::native_functions::{iter, print, reverse};
-use super::values::{Boolean, NativeFunction, Null, RuntimeValue, StringValue};
+use super::values::{Boolean, Null, RuntimeValue, StringValue};
 use crate::errors::ZephyrError;
 use crate::{
   errors::{self, runtime_error},
@@ -34,23 +33,13 @@ impl Scope {
           value: directory.clone(),
         }),
       ),
-      // Global functions
-      (
-        "print",
-        RuntimeValue::NativeFunction(NativeFunction { func: &print }),
-      ),
-      (
-        "iter",
-        RuntimeValue::NativeFunction(NativeFunction { func: &iter }),
-      ),
-      (
-        "reverse",
-        RuntimeValue::NativeFunction(NativeFunction { func: &reverse }),
-      ),
     ])
     .iter()
     .map(|(key, val)| {
-      (String::from(*key), crate::MEMORY.lock().unwrap().add_value((*val).clone()))
+      (
+        String::from(*key),
+        crate::MEMORY.lock().unwrap().add_value((*val).clone()),
+      )
     })
     .collect();
     let x = {
@@ -79,10 +68,10 @@ impl Scope {
       )));
     }
 
-    self
-      .variables
-      .borrow_mut()
-      .insert(String::from(name), crate::MEMORY.lock().unwrap().add_value(value));
+    self.variables.borrow_mut().insert(
+      String::from(name),
+      crate::MEMORY.lock().unwrap().add_value(value),
+    );
     Ok(())
   }
 
@@ -92,7 +81,10 @@ impl Scope {
     new_value: RuntimeValue,
   ) -> Result<RuntimeValue, errors::ZephyrError> {
     let value = self.get_variable_address(name)?;
-    crate::MEMORY.lock().unwrap().set_value(value, new_value.clone())?;
+    crate::MEMORY
+      .lock()
+      .unwrap()
+      .set_value(value, new_value.clone())?;
     Ok(new_value.clone())
   }
 

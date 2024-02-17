@@ -1,4 +1,4 @@
-let String = {
+export let String = .{
   // Splits a string by a given delimiter
   split: func pure split(value: string?, by: string?) {
     let result = [];
@@ -22,5 +22,9 @@ let String = {
     }
 
     result;
+  },
+
+  reverse: func pure reverse(value: string?) {
+    __zephyr_native.reverse(value);
   }
 };

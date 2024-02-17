@@ -1,8 +1,8 @@
-let Array = {
+export let Array = .{
   // Returns the length of an array
   len: func pure len(value: array?) {
     let res = 0;
-    for i in value { res = res + i; };
+    for i in value { res = res + 1; };
     res;
   },
 
@@ -12,11 +12,12 @@ let Array = {
   },
 
   // Joins an array into a string with an optional seperator
-  join: func pure join(values: array?, by) {
+  join: func pure join(values: array?, by: null_or?(string?)) {
     let value = "";
 
     for i in values {
-      value = value + ("" + i);
+      __zephyr_native.print(by || "");
+      value = value + ("" + i) + (by is null? ? "" : by);
     }
 
     value;

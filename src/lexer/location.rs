@@ -20,6 +20,15 @@ impl Location {
     }
   }
 
+  pub fn combine_with(&self, location: Location) -> Location {
+    Location {
+      char_start: self.char_start,
+      char_end: location.char_end,
+      line: self.line,
+      location_contents: self.location_contents,
+    }
+  }
+
   pub fn to_object(&self) -> RuntimeValue {
     to_object(HashMap::from([
       (

@@ -122,6 +122,7 @@ impl Parser {
       nodes::Expression::Block(_) => true,
       nodes::Expression::Program(_) => true,
       nodes::Expression::IfExpression(_) => true,
+      nodes::Expression::ExportStatement(_) => true,
       _ => false,
     }
   }
@@ -696,6 +697,7 @@ impl Parser {
     } else {
       self.parse_primary_expression()?
     };
+    let left_location = left.get_location();
 
     while !matches!(self.at().token_type, TokenType::EOF)
       && (matches!(self.at().token_type, TokenType::OpenSquare)
@@ -703,8 +705,9 @@ impl Parser {
     {
       // Check if it is computed
       if matches!(self.at().token_type, TokenType::OpenSquare) {
-        let member_tok = self.eat();
+        self.eat();
         let expr = self.parse_expression()?;
+        let expr_location = expr.get_location();
         self.expect(
           discriminant(&TokenType::CloseSquare),
           ZephyrError::parser(
@@ -717,12 +720,14 @@ impl Parser {
           left: Box::from(left),
           key: Box::from(expr),
           is_computed: true,
-          location: member_tok.location,
+          location: left_location.combine_with(expr_location),
         });
       } else if matches!(self.at().token_type, TokenType::Dot) {
-        let member_tok = self.eat();
+        self.eat();
+        let ident_location;
         let ident = if expect_any_ident!(self.at().token_type) {
           let tok = self.eat();
+          ident_location = tok.clone().location;
           self.create_identifier(tok)?
         } else {
           return Err(ZephyrError::parser(
@@ -735,7 +740,7 @@ impl Parser {
           left: Box::from(left),
           key: Box::from(nodes::Expression::Identifier(ident)),
           is_computed: false,
-          location: member_tok.location,
+          location: left_location.combine_with(ident_location),
         });
       } else {
         unreachable!();
@@ -789,7 +794,7 @@ impl Parser {
         )));
         value
       },
-      TokenType::OpenBrace => {
+      TokenType::Dot => {
         self.parse_object_literal()?
       },
       TokenType::OpenSquare => {
@@ -822,8 +827,8 @@ impl Parser {
           items
         }));
       },
-      TokenType::BlockPrefix => {
-        self.eat();
+      TokenType::OpenBrace => {
+        //self.eat();
         let block = hoerr!(self.parse_block(), nodes::Block);
         nodes::Expression::Block(block)
       },
@@ -999,6 +1004,15 @@ impl Parser {
   }
 
   pub fn parse_object_literal(&mut self) -> Result<nodes::Expression, ZephyrError> {
+    // Expect .
+    self.expect(
+      discriminant(&TokenType::Dot),
+      ZephyrError::parser(
+        "Expected dot for obejct literal".to_string(),
+        self.at().location,
+      ),
+    )?;
+
     // Expect "{"
     let object_token = self.expect(
       discriminant(&TokenType::OpenBrace),
