@@ -16,7 +16,6 @@ export let Array = .{
     let value = "";
 
     for i in values {
-      __zephyr_native.print(by || "");
       value = value + ("" + i) + (by is null? ? "" : by);
     }
 
@@ -26,5 +25,29 @@ export let Array = .{
   // Creates a new array based on another array but calling f with each item
   map: func pure map(value: array?, f: callable?) {
     for i in value { f(i); };
+  },
+
+  // Checks if two arrays contain the exact same elements, this is because
+  // arrays are references so [1, 2, 3] == [1, 2, 3] is false because
+  // they are two different references.
+  same_as: func pure same_as(what: array?, compare_to: array?) {
+    // Check lengths
+    if Array.len(what) != Array.len(compare_to) {
+      return false;
+    }
+
+    for i in 0.<Array.len(what) {
+      // Check types
+      if typeof what[i] != typeof compare_to[i] {
+        return false;
+      }
+
+      // Check values
+      if what[i] != compare_to[i] {
+        return false;
+      }
+    }
+
+    true;
   }
 };

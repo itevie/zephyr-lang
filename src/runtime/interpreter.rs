@@ -271,7 +271,13 @@ impl Interpreter {
     }
     let _ = std::mem::replace(&mut self.scope, prev);
 
-    let return_value = self.evaluate_block(*func.body, scope)?;
+    let return_value = match self.evaluate_block(*func.body, scope) {
+      Ok(ok) => ok,
+      Err(err) => match err.error_type {
+        ErrorType::Return(val) => *val,
+        _ => return Err(err),
+      },
+    };
 
     // Check if it is predicate
     if let Some(f) = func.name {
@@ -501,6 +507,15 @@ impl Interpreter {
       Expression::ContinueStatement(stmt) => Err(ZephyrError {
         error_message: "Cannot continue here".to_string(),
         error_type: ErrorType::Continue,
+        location: stmt.location,
+      }),
+      Expression::ReturnStatement(stmt) => Err(ZephyrError {
+        error_message: "Cannot return here".to_string(),
+        error_type: ErrorType::Return(Box::from(if let Some(ret) = stmt.value {
+          Box::from(self.evaluate(*ret)?)
+        } else {
+          Box::from(RuntimeValue::Null(Null {}))
+        })),
         location: stmt.location,
       }),
       Expression::ImportStatement(stmt) => {
@@ -750,6 +765,80 @@ impl Interpreter {
         }
       }
       Expression::MemberExpression(expr) => self.evaluate_member_expression(expr, &None),
+      Expression::RangeExpression(expr) => {
+        let mut array: Vec<Box<RuntimeValue>> = vec![];
+
+        let start = match self.evaluate(*expr.clone().from)? {
+          RuntimeValue::Number(num) => num.value,
+          _ => {
+            return Err(ZephyrError::runtime(
+              "Expected number for from in range".to_string(),
+              expr.from.get_location(),
+            ))
+          }
+        };
+
+        let end = match self.evaluate(*expr.clone().to)? {
+          RuntimeValue::Number(num) => num.value,
+          _ => {
+            return Err(ZephyrError::runtime(
+              "Expected number for to in range".to_string(),
+              expr.to.get_location(),
+            ))
+          }
+        };
+
+        let step_expr = if let Some(step) = expr.clone().step {
+          Some(match self.evaluate(*step.clone())? {
+            RuntimeValue::Number(num) => num.value,
+            _ => {
+              return Err(ZephyrError::runtime(
+                "Expected number for step in range".to_string(),
+                step.get_location(),
+              ))
+            }
+          })
+        } else {
+          None
+        };
+
+        let step = if let Some(s) = step_expr {
+          s
+        } else {
+          if start > end {
+            -1.0
+          } else {
+            1.0
+          }
+        };
+
+        let one_step = start + step;
+
+        // Check if inf loop
+        if (start > one_step) && (start < end) {
+          return Err(ZephyrError::parser(
+            "This range will result in an infinite loop".to_string(),
+            expr.location,
+          ));
+        }
+
+        let mut st = start;
+        let en = end;
+
+        if st < end {
+          while st < end + ((if expr.uninclusive { 0 } else { 1 }) as f64) {
+            array.push(Box::from(RuntimeValue::Number(Number { value: st })));
+            st += step;
+          }
+        } else {
+          while st > end - ((if expr.uninclusive { 0 } else { 1 }) as f64) {
+            array.push(Box::from(RuntimeValue::Number(Number { value: st })));
+            st += step;
+          }
+        }
+
+        Ok(to_array(array))
+      }
       Expression::ArithmeticOperator(expr) => {
         // Collect values
         let left = self.evaluate(*expr.left)?;
@@ -924,6 +1013,36 @@ impl Interpreter {
             };
 
             if left_bool.value == right_bool.value {
+              result = true;
+            }
+          }
+          // Arrays
+          else if matches!(left, RuntimeValue::ArrayContainer(_)) {
+            let left_bool = match left {
+              RuntimeValue::ArrayContainer(arr) => arr,
+              _ => unreachable!(),
+            };
+            let right_bool = match right {
+              RuntimeValue::ArrayContainer(arr) => arr,
+              _ => unreachable!(),
+            };
+
+            if left_bool.location == right_bool.location {
+              result = true;
+            }
+          }
+          // Object
+          else if matches!(left, RuntimeValue::ObjectContainer(_)) {
+            let left_bool = match left {
+              RuntimeValue::ObjectContainer(obj) => obj,
+              _ => unreachable!(),
+            };
+            let right_bool = match right {
+              RuntimeValue::ObjectContainer(obj) => obj,
+              _ => unreachable!(),
+            };
+
+            if left_bool.location == right_bool.location {
               result = true;
             }
           }

@@ -12,6 +12,10 @@ pub enum TokenType {
   OpenSquare,
   CloseSquare,
 
+  Range,
+  RangeUninclusive,
+  Step,
+
   BlockPrefix,
   Comma,
   Colon,
@@ -55,6 +59,7 @@ pub enum TokenType {
   Loop,
   Break,
   Continue,
+  Return,
 
   Let,
 

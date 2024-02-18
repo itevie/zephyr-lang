@@ -75,6 +75,8 @@ lazy_static! {
     tok!("as", TokenType::As);
     tok!("func", TokenType::Function);
     tok!("pure", TokenType::Pure);
+    tok!("step", TokenType::Step);
+    tok!("return", TokenType::Return);
 
     // Basic Syntax
     tok!("(", TokenType::OpenParen);
@@ -86,6 +88,8 @@ lazy_static! {
     tok!(",", TokenType::Comma);
     tok!(".", TokenType::Dot);
     tok!("...", TokenType::Spread);
+    tok!("..", TokenType::Range);
+    tok!(".<", TokenType::RangeUninclusive);
     tok!(":", TokenType::Colon);
     tok!("?", TokenType::QuestionMark);
     tok!("#", TokenType::BlockPrefix);

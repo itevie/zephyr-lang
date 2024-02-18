@@ -24,10 +24,9 @@ pub enum Expression {
   IsExpression(IsExpression),
   AssignmentExpression(AssignmentExpression),
   TernaryExpression(TernaryExpression),
-  BreakStatement(BreakStatement),
-  ContinueStatement(ContinueStatement),
   TryExpression(TryExpression),
   SpreadExpression(SpreadExpression),
+  RangeExpression(RangeExpression),
 
   // ----- Statement like expressions -----
   ForLoop(ForLoop),
@@ -40,6 +39,9 @@ pub enum Expression {
   TypeofExpression(TypeofStatement),
   ExportStatement(ExportStatement),
   ImportStatement(ImportStatement),
+  BreakStatement(BreakStatement),
+  ContinueStatement(ContinueStatement),
+  ReturnStatement(ReturnStatement),
 
   // ----- Special -----
   Program(Program),
@@ -75,10 +77,12 @@ impl Expression {
       Expression::WhileExpression(x) => x.location.clone(),
       Expression::BreakStatement(x) => x.location.clone(),
       Expression::ContinueStatement(x) => x.location.clone(),
+      Expression::ReturnStatement(x) => x.location.clone(),
       Expression::TryExpression(x) => x.location.clone(),
       Expression::SpreadExpression(x) => x.location.clone(),
       Expression::ExportStatement(x) => x.location.clone(),
       Expression::ImportStatement(x) => x.location.clone(),
+      Expression::RangeExpression(x) => x.location.clone(),
     }
   }
 }
@@ -125,6 +129,12 @@ pub struct ContinueStatement {
 }
 
 #[derive(Debug, Clone)]
+pub struct ReturnStatement {
+  pub value: Option<Box<Expression>>,
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
 pub struct ExportStatement {
   pub to_export: Box<Expression>,
   pub location: Location,
@@ -151,6 +161,15 @@ pub struct MemberExpression {
 pub struct CallExpression {
   pub left: Box<Expression>,
   pub arguments: Vec<Box<Expression>>,
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct RangeExpression {
+  pub from: Box<Expression>,
+  pub to: Box<Expression>,
+  pub uninclusive: bool,
+  pub step: Option<Box<Expression>>,
   pub location: Location,
 }
 

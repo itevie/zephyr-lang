@@ -281,6 +281,14 @@ impl Parser {
       TokenType::Continue => Ok(nodes::Expression::ContinueStatement(nodes::ContinueStatement {
         location: self.eat().location,
       })),
+      TokenType::Return => Ok(nodes::Expression::ReturnStatement(nodes::ReturnStatement {
+        location: self.eat().location,
+        value: if matches!(self.at().token_type, TokenType::Semicolon) {
+          None
+        } else {
+          Some(Box::from(self.parse_expression()?))
+        },
+      })),
       _ => self.parse_expression()
     }
   }}
@@ -563,7 +571,7 @@ impl Parser {
   parser_section! {parse_typeof_statement, self, {
     if matches!(self.at().token_type, TokenType::Typeof) {
       let typeof_token = self.eat();
-      let value = herr!(self.parse_additive_expression());
+      let value = herr!(self.parse_range_expression());
 
       return Ok(nodes::Expression::TypeofExpression(TypeofStatement {
         location: typeof_token.location,
@@ -571,7 +579,35 @@ impl Parser {
       }));
     }
 
-    Ok(herr!(self.parse_additive_expression()))
+    Ok(herr!(self.parse_range_expression()))
+  }}
+
+  parser_section! {parse_range_expression, self, {
+    let from = self.parse_additive_expression()?;
+
+    if matches!(self.at().token_type, TokenType::Range) || matches!(self.at().token_type, TokenType::RangeUninclusive) {
+      let uninclusive = matches!(self.at().token_type, TokenType::RangeUninclusive);
+      let token = self.eat();
+
+      let to = self.parse_additive_expression()?;
+
+      let step = if matches!(self.at().token_type, TokenType::Step) {
+        self.eat();
+        Some(Box::from(self.parse_additive_expression()?))
+      } else {
+        None
+      };
+
+      return Ok(nodes::Expression::RangeExpression(nodes::RangeExpression {
+        from: Box::from(from),
+        to: Box::from(to),
+        step,
+        uninclusive,
+        location: token.location,
+      }));
+    }
+
+    Ok(from)
   }}
 
   parser_section! {parse_additive_expression, self, {

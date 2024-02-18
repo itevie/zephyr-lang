@@ -1,6 +1,9 @@
 use std::cmp::max;
 
-use crate::lexer::{lexer::get_location_contents, location::Location};
+use crate::{
+  lexer::{lexer::get_location_contents, location::Location},
+  runtime::values::RuntimeValue,
+};
 
 const REPL_OFFSET: usize = 2;
 
@@ -15,7 +18,7 @@ pub struct ZephyrError {
 pub enum ErrorType {
   Runtime,
   Break,
-  Ruturn,
+  Return(Box<RuntimeValue>),
   Continue,
   Parser,
   Lexer,
