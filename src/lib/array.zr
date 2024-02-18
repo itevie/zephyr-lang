@@ -27,6 +27,20 @@ export let Array = .{
     for i in value { f(i); };
   },
 
+  // Reverses the items in an array
+  reverse: func pure reverse(array: array?) {
+    // Check if empty array
+    if Array.len(array) == 0 { return array; }
+
+    let new_array = [];
+
+    for i in Array.len(array)-1..0 {
+      new_array + array[i];
+    }
+
+    new_array;
+  },
+
   // Checks if two arrays contain the exact same elements, this is because
   // arrays are references so [1, 2, 3] == [1, 2, 3] is false because
   // they are two different references.

@@ -22,6 +22,7 @@ pub enum Expression {
   MemberExpression(MemberExpression),
   CallExpression(CallExpression),
   IsExpression(IsExpression),
+  InExpression(InExpression),
   AssignmentExpression(AssignmentExpression),
   TernaryExpression(TernaryExpression),
   TryExpression(TryExpression),
@@ -63,6 +64,7 @@ impl Expression {
       Expression::MemberExpression(x) => x.location.clone(),
       Expression::CallExpression(x) => x.location.clone(),
       Expression::IsExpression(x) => x.location.clone(),
+      Expression::InExpression(x) => x.location.clone(),
       Expression::VariableDeclaration(x) => x.location.clone(),
       Expression::FunctionLiteral(x) => x.location.clone(),
       Expression::TypeofExpression(x) => x.location.clone(),
@@ -175,6 +177,13 @@ pub struct RangeExpression {
 
 #[derive(Debug, Clone)]
 pub struct IsExpression {
+  pub left: Box<Expression>,
+  pub right: Box<Expression>,
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct InExpression {
   pub left: Box<Expression>,
   pub right: Box<Expression>,
   pub location: Location,

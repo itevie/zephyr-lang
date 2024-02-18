@@ -3,7 +3,7 @@ use std::mem::{discriminant, Discriminant};
 
 use super::nodes::{
   self, ArithmeticExpression, ComparisonExpression, Expression, FunctionLiteral, Identifier,
-  LogicalExpression, TypeofStatement, VariableDeclaration,
+  InExpression, LogicalExpression, TypeofStatement, VariableDeclaration,
 };
 use crate::lexer::location::Location;
 use crate::lexer::token::UnaryOperator;
@@ -571,7 +571,7 @@ impl Parser {
   parser_section! {parse_typeof_statement, self, {
     if matches!(self.at().token_type, TokenType::Typeof) {
       let typeof_token = self.eat();
-      let value = herr!(self.parse_range_expression());
+      let value = herr!(self.parse_in_expression());
 
       return Ok(nodes::Expression::TypeofExpression(TypeofStatement {
         location: typeof_token.location,
@@ -579,7 +579,24 @@ impl Parser {
       }));
     }
 
-    Ok(herr!(self.parse_range_expression()))
+    Ok(herr!(self.parse_in_expression()))
+  }}
+
+  parser_section! {parse_in_expression, self, {
+    let left = self.parse_range_expression()?;
+
+    if matches!(self.at().token_type, TokenType::In) {
+      let token = self.eat();
+      let right = self.parse_range_expression()?;
+
+      return Ok(nodes::Expression::InExpression(InExpression {
+        left: Box::from(left),
+        right: Box::from(right),
+        location: token.location
+      }));
+    }
+
+    Ok(left)
   }}
 
   parser_section! {parse_range_expression, self, {

@@ -55,6 +55,7 @@ impl Interpreter {
       include_lib!("../lib/console.zr"),
       include_lib!("../lib/iter.zr"),
       include_lib!("../lib/time.zr"),
+      include_lib!("../lib/object.zr"),
     ];
     let scope = &Rc::new(Scope::new(directory));
 
@@ -730,6 +731,42 @@ impl Interpreter {
           self.evaluate(*expr.alternate)
         }
       }
+      Expression::InExpression(expr) => {
+        let left = self.evaluate(*expr.left.clone())?;
+        let right = self.evaluate(*expr.right.clone())?;
+
+        Ok(RuntimeValue::Boolean(Boolean {
+          value: match right {
+            RuntimeValue::ObjectContainer(obj) => {
+              let obj = match crate::MEMORY.lock().unwrap().get_value(obj.location)? {
+                RuntimeValue::Object(obj) => obj,
+                _ => unreachable!(),
+              };
+              match left {
+                RuntimeValue::StringValue(str) => {
+                  if obj.items.contains_key(&str.value) {
+                    true
+                  } else {
+                    false
+                  }
+                }
+                _ => {
+                  return Err(ZephyrError::runtime(
+                    format!("Cannot check if object has {}", left.type_name()),
+                    expr.left.get_location(),
+                  ))
+                }
+              }
+            }
+            _ => {
+              return Err(ZephyrError::runtime(
+                format!("Cannot use in with {}", right.type_name()),
+                expr.right.get_location(),
+              ))
+            }
+          },
+        }))
+      }
       Expression::CallExpression(expr) => {
         let expr2 = expr.clone();
         let callee = self.evaluate(*expr.left)?;
@@ -823,7 +860,6 @@ impl Interpreter {
         }
 
         let mut st = start;
-        let en = end;
 
         if st < end {
           while st < end + ((if expr.uninclusive { 0 } else { 1 }) as f64) {

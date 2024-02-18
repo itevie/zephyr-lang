@@ -1,7 +1,7 @@
-func pure iter(what) {
+export func pure iter(what) {
   __zephyr_native.iter(what);
 }
 
-func pure len(what: iterable?) {
+export func pure len(what: iterable?) {
   Array.len(iter(what));
 }

@@ -1,0 +1,15 @@
+export let Object = .{
+  keys: func pure keys(obj: object?) {
+    iter(obj);
+  },
+
+  values: func pure values(obj: object?) {
+    let values = [];
+
+    for i in Object.keys(obj) {
+      values + obj[i];
+    }
+
+    values;
+  }
+};
