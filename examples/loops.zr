@@ -9,30 +9,30 @@ let i = 0; loop {
     // continue means skip the current loop iteration
     continue;
   }
-  print("loop", i);
+  Console.write_line("loop", i);
   i = i + 1;
 }
 
 // While loop which keeps running until the expression evaluates to false
 i = 0; while i != 5 {
-  print("while", i);
+  Console.write_line("while", i);
   i = i + 1;
 }
 
 // Until loops: (exact same as while !expr {})
 i = 0; until i == 10 {
-  print("until", i);
+  Console.write_line("until", i);
   i = i + 1;
 }
 
 // For in loops, these iterate over every element in an array
 // and sets the wanted name to the current value
 for i in [1, 2, 3] {
-  print("for", i);
+  Console.write_line("for", i);
 }
 
 // The value can be any iterable type as the for loop will automatically
 // iterate over them:
 for i in "hello world" {
-  print("for", i);
+  Console.write_line("for", i);
 }

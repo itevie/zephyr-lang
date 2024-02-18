@@ -6,7 +6,7 @@ func my_func {
 }
 
 // To call it:
-print(my_func());
+Console.write_line(my_func());
 
 // Function with parameters, note the () is optional
 // if the function takes in no arguments
@@ -14,38 +14,38 @@ func func_with_params(a) {
   a + 5;
 }
 
-print(func_with_params(2));
+Console.write_line(func_with_params(2));
 
 // Functions can also act as literals, by just using them as a value
 let func_var = func { "hello"; };
-print(func_var());
+Console.write_line(func_var());
 
 // This allows for things such as:
-print((func { " world!"; })());
+Console.write_line((func { " world!"; })());
 
 // If you want a function to be able to have infinite arguments, you can use __args__
 // This is turned into an array of all passed args, note: it goes in order, so:
 // you have args: (a, __args__, b) and pass in (1, 2, 3, 4), the args will be:
 // (1, [1, 2, 3, 4], 3, 4) so make sure __args__ is at the end of the list
 func args_test(__args__) {
-  print(__args__);
+  Console.write_line(__args__);
 }
 args_test(1, 2, 3, 4);
 
 // Zephyr doesn't have standard type annotations, but it does
 // have "where" clauses:
-func my_print(what) where what is string? {
-  print(what);
+func my_Console.write_line(what) where what is string? {
+  Console.write_line(what);
 }
 
-my_print("hello"); // (try running this with not a string, it will produce an error)
+my_Console.write_line("hello"); // (try running this with not a string, it will produce an error)
 
 // However, the above may be inefficient, so there is the following sugar:
-func my_print_2(what: string?) {
-  print(what);
+func my_Console.write_line_2(what: string?) {
+  Console.write_line(what);
 }
 
-my_print_2("bye!");
+my_Console.write_line_2("bye!");
 
 // As you have seen, some function's name end with a "question mark",
 // this means that it is a predicate function and is usually used within
@@ -57,8 +57,8 @@ func pure _2?(a: number?) {
   a == 2 ? true : false;
 }
 
-print(2 is _2?);
-print(3 is _2?);
+Console.write_line(2 is _2?);
+Console.write_line(3 is _2?);
 
 // Functions also have another optional keyword, "pure",
 // marking a function as "pure" means it cannot use any 
@@ -71,4 +71,4 @@ func pure my_pure_func(
   a + b;
 }
 
-print(my_pure_func(5, 6));
+Console.write_line(my_pure_func(5, 6));
