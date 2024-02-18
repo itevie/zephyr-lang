@@ -34,18 +34,18 @@ args_test(1, 2, 3, 4);
 
 // Zephyr doesn't have standard type annotations, but it does
 // have "where" clauses:
-func my_Console.write_line(what) where what is string? {
+func my_print(what) where what is string? {
   Console.write_line(what);
 }
 
-my_Console.write_line("hello"); // (try running this with not a string, it will produce an error)
+my_print("hello"); // (try running this with not a string, it will produce an error)
 
 // However, the above may be inefficient, so there is the following sugar:
-func my_Console.write_line_2(what: string?) {
+func my_print_2(what: string?) {
   Console.write_line(what);
 }
 
-my_Console.write_line_2("bye!");
+my_print_2("bye!");
 
 // As you have seen, some function's name end with a "question mark",
 // this means that it is a predicate function and is usually used within
