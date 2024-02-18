@@ -47,13 +47,11 @@ export func pure array?(test) {
 }
 
 export func pure array_of?(test: array?, f: callable?) {
-  let valid = true;
   for i in test {
-    valid = f(i);
-    if !valid { break; }
+    if !f(i) { return false; }
   }
 
-  valid;
+  true;
 }
 
 export func pure reference?(reference) {

@@ -1175,6 +1175,9 @@ impl Interpreter {
               },
             }))
           }
+          TokenType::UnaryOperator(UnaryOperator::LengthOf) => Ok(RuntimeValue::Number(Number {
+            value: value.iterate()?.len() as f64,
+          })),
           _ => unimplemented!(),
         }
       }

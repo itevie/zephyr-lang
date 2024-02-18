@@ -94,6 +94,7 @@ lazy_static! {
     tok!("?", TokenType::QuestionMark);
     tok!("#", TokenType::BlockPrefix);
     tok!(";", TokenType::Semicolon);
+    tok!("$", TokenType::UnaryOperator(UnaryOperator::LengthOf));
 
     operators
   };

@@ -108,6 +108,7 @@ pub enum UnaryOperator {
   Not,
   Reference,
   Dereference,
+  LengthOf,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

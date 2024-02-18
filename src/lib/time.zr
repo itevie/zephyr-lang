@@ -1,23 +1,46 @@
 export let Time = .{
+  // List of time units
   units: .{
     ms: 1,
     second: 100,
     minute: 100 * 60,
-    hour: 100 * 60 * 60,
+    hour: 3600000,
   },
 
+  // Gets the current nanoseconds from epoch
   get_nanos: func get_nanos {
     __zephyr_native.get_time_nanos();
   },
 
+  // Converts a given amount of nanoseconds into the wanted unit
+  // The unit is one of the values in Time.units
+  nanos_to: func nanos_to(nanos: number?, unit: number?) {
+    nanos / (unit * 1000 * 1000);
+  },
+
+  to_nanos: func to_nanos(what: number?, what_unit: number?) {
+    what * (what_unit * 1000 * 1000);
+  },
+
+  ms_to: func ms_to(ms: number?, unit: number?) {
+    ms / unit;
+  },
+
+  to_ms: func to_ms(ms: number?, unit: number?) {
+    ms * unit;
+  },
+
+  // Returns an object with functions using the current time
   now: func now {
     Time.create_time_from_milliseconds(__zephyr_native.get_time_nanos() / 1000 / 1000);
   },
 
+  // Returns a time from given milliseconds
   get_from: func get_from(time: number?) {
     Time.create_time_from_milliseconds(time);
   },
 
+  // Internal use, does same as get_from
   create_time_from_milliseconds: func create_time_from_milliseconds(time: number?) {
     time = Math.floor(time);
     .{
