@@ -201,4 +201,5 @@ fn main() {
 
 fn die(err: String) -> () {
   println!("Fatal Error: {}", err);
+  std::process::exit(1);
 }

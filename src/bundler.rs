@@ -230,7 +230,7 @@ pub fn bundle(input: String, file_name: String) -> String {
 }
 
 // idk why i made this i was bored
-pub fn bundle_executable(input: String, file_name: String, _out_file: String) -> String {
+pub fn bundle_executable(input: String, file_name: String, _out_file: String) -> () {
   // Bundle
   let contents = bundle(input, file_name);
 
@@ -238,25 +238,41 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
   if PathBuf::from("./bundler_executable_temp").exists() {
     fs::remove_dir_all("./bundler_executable_temp").unwrap();
   }
-  fs::create_dir("bundler_executable_temp").unwrap();
+  match fs::create_dir("bundler_executable_temp") {
+    Ok(_) => (),
+    Err(err) => {
+      return crate::die(format!(
+        "Failed to create temporary directory: {}",
+        err.to_string()
+      ))
+    }
+  };
 
   // Git clone
   crate::debug("Attempting to clone GitHub repository...", "bundler");
-  let _command = std::process::Command::new("git")
+  match std::process::Command::new("git")
     .args([
       "clone",
       "https://github.com/itevie/zephyr-lang",
       "bundler_executable_temp",
     ])
     .output()
-    .expect("Failed to run git clone!");
+  {
+    Ok(_) => (),
+    Err(err) => {
+      return crate::die(format!(
+        "Failed to run git, is git installed?: {}",
+        err.to_string()
+      ))
+    }
+  };
 
   // Expect file to exist
   let index_rs = PathBuf::from("./bundler_executable_temp/src/main.rs");
 
   // Check if it exists
   if !index_rs.exists() {
-    panic!("Failed to git clone, is git installed?");
+    return crate::die("Failed to clone GitHub repository, is git installed?".to_string());
   }
 
   crate::debug(
@@ -274,15 +290,24 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
   std::thread::sleep(Duration::from_secs(3));
 
   // Read index
-  let mut index_contents = fs::read_to_string(index_rs.clone()).unwrap();
+  let mut index_contents = match fs::read_to_string(index_rs.clone()) {
+    Ok(ok) => ok,
+    Err(err) => return crate::die(format!("Failed to read index.rs: {}", err.to_string())),
+  };
   index_contents = index_contents.replace(
     "let bundled_data = \"\";",
     &format!("let bundled_data = r#\"{}\"#;", contents.replace("\n", "")),
   );
 
   // Write the file
-  let mut f = OpenOptions::new().write(true).open(index_rs).unwrap();
-  f.write_all(index_contents.as_bytes()).unwrap();
+  let mut f = match OpenOptions::new().write(true).open(index_rs) {
+    Ok(ok) => ok,
+    Err(err) => return crate::die(format!("Failed to open index.rs: {}", err.to_string())),
+  };
+  match f.write_all(index_contents.as_bytes()) {
+    Ok(_) => (),
+    Err(err) => return crate::die(format!("Failed to write index.rs: {}", err.to_string())),
+  };
 
   crate::debug(
     "Successfully modified index.rs, now attempting to compile...",
@@ -290,7 +315,7 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
   );
 
   // Try to run cargo build
-  std::process::Command::new("cargo")
+  match std::process::Command::new("cargo")
     .args([
       "build",
       "--release",
@@ -298,14 +323,22 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
     ])
     .stdout(std::process::Stdio::piped())
     .output()
-    .expect("Failed to run cargo");
+  {
+    Ok(_) => (),
+    Err(err) => {
+      return crate::die(format!(
+        "Failed to run cargo, is cargo installed?: {}",
+        err.to_string()
+      ))
+    }
+  }
 
   let path = if cfg!(windows) {
     PathBuf::from("./bundler_executable_temp/target/release/rust-zephyr.exe")
   } else if cfg!(unix) {
     PathBuf::from("./bundler_executable_temp/target/release/rust-zephyr")
   } else {
-    panic!("invalid os.");
+    return crate::die("Cannot bundle on this OS!".to_string());
   };
 
   // Check if it exists
@@ -320,7 +353,4 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
 
   crate::debug("Done, cleaning up", "bundler");
   fs::remove_dir_all("./bundler_executable_temp").unwrap();
-
-  println!("{:#?}", _command.stdout);
-  "".to_string()
 }
