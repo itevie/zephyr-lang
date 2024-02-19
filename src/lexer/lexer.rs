@@ -302,15 +302,33 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
       let mut value: String = eat(&mut chars);
 
       // Loop until not a number
-      while chars.len() > 0 && (chars[0].is_numeric() || (value.len() == 1 && chars[0] == 'x')) {
-        value.push_str(&eat(&mut chars));
+      let mut allowed_chars = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        .iter()
+        .map(|v| v.to_string().chars().nth(0).unwrap())
+        .collect::<Vec<char>>();
+      while chars.len() > 0
+        && (allowed_chars.contains(&chars[0]) || (value.len() == 1 && chars[0] == 'x'))
+      {
+        let c = &eat(&mut chars);
+        value.push_str(c);
+
+        // Check if should modify allowed
+        match c.as_str() {
+          "x" => allowed_chars = "abcdef0123456789".to_string().chars().collect(),
+          _ => (),
+        }
       }
 
       // Check if the first number is 0, if it is then try other bases
       if value.starts_with("0") && value.len() > 1 {
         // Check the base
         let base = value.chars().nth(1).unwrap();
+        let mut actual_number_chars = value.chars();
+        actual_number_chars.next();
+        actual_number_chars.next();
+        let actual_number = actual_number_chars.as_str();
         match base {
+          'x' => ,
           _ => unimplemented!(),
         }
       }
