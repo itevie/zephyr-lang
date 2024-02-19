@@ -133,8 +133,8 @@ pub fn get_location_contents(id: u128) -> LocationContents {
 }
 
 pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrError> {
-  let id = { *CURRENT_CONTENTS.lock().unwrap() };
   *CURRENT_CONTENTS.lock().unwrap() += 1;
+  let id = { *CURRENT_CONTENTS.lock().unwrap() };
   LOCATION_CONTENTS.lock().unwrap().insert(
     id,
     LocationContents {

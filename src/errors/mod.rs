@@ -113,6 +113,7 @@ impl ZephyrError {
     let mut result = String::new();
 
     // Add file name and things
+    println!("{}", location.location_contents);
     let location_contents = &get_location_contents(location.location_contents);
     result += &(util::colors::fg_cyan()
       + &format!(
