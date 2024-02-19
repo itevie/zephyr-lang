@@ -12,6 +12,10 @@ export let Console = .{
     null;
   },
 
+  read_line: func read_line(str: null_or?(string?)) {
+    __zephyr_native.read_line(str);
+  },
+
   clear: func clear() {
     __zephyr_native.clear_console();
     null;

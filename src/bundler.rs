@@ -250,7 +250,7 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
 
   // Git clone
   crate::debug("Attempting to clone GitHub repository...", "bundler");
-  match std::process::Command::new("gitdasd")
+  match std::process::Command::new("git")
     .args([
       "clone",
       "https://github.com/itevie/zephyr-lang",

@@ -77,6 +77,12 @@ impl Interpreter {
             }),
           ),
           (
+            "read_line".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::read_line,
+            }),
+          ),
+          (
             "iter".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::iter,

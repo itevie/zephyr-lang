@@ -1,4 +1,5 @@
 //use std::collections::HashMap;
+use std::io::Write;
 
 use crate::{errors::ZephyrError, lexer::location::Location};
 
@@ -59,6 +60,24 @@ pub fn print(options: CallOptions) -> R {
   }
   print!("\n");
   Ok(RuntimeValue::Null(Null {}))
+}
+
+pub fn read_line(options: CallOptions) -> R {
+  let question = match options.args {
+    [RuntimeValue::StringValue(ref str)] => str.value.clone(),
+    _ => "".to_string(),
+  };
+
+  // Do stuff
+  print!("{}", question);
+  std::io::stdout().flush().unwrap();
+  let mut input = String::new();
+  let _ = std::io::stdin().read_line(&mut input);
+
+  // Return answer
+  Ok(RuntimeValue::StringValue(StringValue {
+    value: input.replace("\n", "").replace("\r", ""),
+  }))
 }
 
 pub fn write(options: CallOptions) -> R {
