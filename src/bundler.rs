@@ -1,8 +1,9 @@
 use std::{
   collections::HashMap,
-  fs::{self, File},
+  fs::{self, File, OpenOptions},
   io::{ErrorKind, Write},
   path::PathBuf,
+  time::Duration,
 };
 
 use crate::{
@@ -268,12 +269,15 @@ pub fn bundle_executable(input: String, file_name: String, out_file: String) -> 
     "bundler",
   );
 
+  crate::debug("Waiting few seconds...", "bundler");
+  std::thread::sleep(Duration::from_secs(10));
+
   // Read index
   let mut index_contents = fs::read_to_string(index_rs.clone()).unwrap();
   index_contents = index_contents.replace("let bundled_data = \"\";", &contents);
 
   // Write the file
-  let mut f = File::open(out_file).unwrap();
+  let mut f = OpenOptions::new().write(true).open(index_rs).unwrap();
   f.write_all(index_contents.as_bytes()).unwrap();
 
   crate::debug(
