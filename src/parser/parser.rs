@@ -275,6 +275,10 @@ impl Parser {
       TokenType::Function => self.parse_function_declaration(),
       TokenType::Export => self.parse_export_statement(),
       TokenType::From => self.parse_import_statement(),
+      TokenType::Assert => Ok(nodes::Expression::AssertStatement(nodes::AssertStatement {
+        location: self.eat().location,
+        value: Box::from(self.parse_expression()?),
+      })),
       TokenType::Break => Ok(nodes::Expression::BreakStatement(nodes::BreakStatement {
         location: self.eat().location,
       })),

@@ -77,6 +77,7 @@ lazy_static! {
     tok!("pure", TokenType::Pure);
     tok!("step", TokenType::Step);
     tok!("return", TokenType::Return);
+    tok!("assert", TokenType::Assert);
 
     // Basic Syntax
     tok!("(", TokenType::OpenParen);

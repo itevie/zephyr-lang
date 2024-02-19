@@ -519,6 +519,17 @@ impl Interpreter {
         })),
         location: stmt.location,
       }),
+      Expression::AssertStatement(stmt) => {
+        let value = self.evaluate(*stmt.value)?;
+        if !value.is_truthy() {
+          return Err(ZephyrError::runtime(
+            "Expression did not pass assertion, expected truthy value".to_string(),
+            stmt.location
+          ));
+        }
+
+        Ok(RuntimeValue::Null(Null {}))
+      }
       Expression::ImportStatement(stmt) => {
         // Create path
         let mut path = std::path::PathBuf::new();

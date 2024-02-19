@@ -59,7 +59,8 @@ pub enum TokenType {
   Loop,
   Break,
   Continue,
-  Return,
+  
+  Assert,
 
   Let,
 
@@ -71,6 +72,7 @@ pub enum TokenType {
   Function,
   Pure,
   Where,
+  Return,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

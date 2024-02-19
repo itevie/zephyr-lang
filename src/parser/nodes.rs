@@ -43,6 +43,7 @@ pub enum Expression {
   BreakStatement(BreakStatement),
   ContinueStatement(ContinueStatement),
   ReturnStatement(ReturnStatement),
+  AssertStatement(AssertStatement),
 
   // ----- Special -----
   Program(Program),
@@ -85,6 +86,7 @@ impl Expression {
       Expression::ExportStatement(x) => x.location.clone(),
       Expression::ImportStatement(x) => x.location.clone(),
       Expression::RangeExpression(x) => x.location.clone(),
+      Expression::AssertStatement(x) => x.location.clone(),
     }
   }
 }
@@ -133,6 +135,12 @@ pub struct ContinueStatement {
 #[derive(Debug, Clone)]
 pub struct ReturnStatement {
   pub value: Option<Box<Expression>>,
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct AssertStatement {
+  pub value: Box<Expression>,
   pub location: Location,
 }
 
