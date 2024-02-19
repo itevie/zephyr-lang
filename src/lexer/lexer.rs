@@ -139,7 +139,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
     id,
     LocationContents {
       contents: contents.clone(),
-      file_name,
+      file_name: file_name.clone(),
     },
   );
 
@@ -233,7 +233,59 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
 
       // Repeat until end of quote, found new line or EOF
       while chars[0] != '"' && chars[0] != '\n' && chars.len() > 0 {
-        value.push_str(&eat(&mut chars));
+        let char = eat(&mut chars);
+
+        // Check if escape
+        match char.as_str() {
+          // It is escaping
+          "\\" => {
+            // Check if there is a character to escape
+            if chars.len() > 0 {
+              let next_char = eat(&mut chars);
+              match next_char.as_str() {
+                // Basic ones
+                "n" => value.push_str("\n"),
+                "r" => value.push_str("\r"),
+                "t" => value.push_str("\t"),
+                "\"" => value.push_str("\""),
+                // Hex sequences, like x1b[31m, god knows how this work
+                // chatgpt did it
+                "x" => {
+                  // Expect 2 more
+                  if chars.len() < 2 {
+                    return Err(ZephyrError::lexer(
+                      "Invalid hexadecimal escape sequence".to_string(),
+                      location.clone(),
+                    ));
+                  }
+
+                  let hex_digits: String = eat(&mut chars) + &eat(&mut chars);
+                  if let Ok(v) = u8::from_str_radix(&hex_digits, 16) {
+                    value.push_str(String::from(v as char).as_str())
+                  } else {
+                    value.push_str(String::from("\\x".to_string() + &hex_digits).as_str())
+                  }
+                }
+                // Cannot escape given character
+                _ => {
+                  return Err(ZephyrError::lexer(
+                    format!("Cannot escape the given character: {}", next_char),
+                    location.clone(),
+                  ))
+                }
+              };
+            } else {
+              return Err(ZephyrError::lexer(
+                "Expected character to escape".to_string(),
+                location.clone(),
+              ));
+            }
+          }
+          // It is not, so just push the val
+          _ => {
+            value.push_str(&char);
+          }
+        };
       }
 
       // Make sure current character is a "
