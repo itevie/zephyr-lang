@@ -200,6 +200,11 @@ fn main() {
 }
 
 fn die(err: String) -> () {
-  println!("Fatal Error: {}", err);
+  println!(
+    "{}Fatal Error: {}{}",
+    util::colors::fg_red(),
+    err,
+    util::colors::reset()
+  );
   std::process::exit(1);
 }

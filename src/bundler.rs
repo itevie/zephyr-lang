@@ -185,8 +185,8 @@ pub fn bundle(input: String, file_name: String) -> String {
   let _result = match lexer::lexer::lex(input.clone(), file_name.clone()) {
     Ok(val) => val,
     Err(err) => {
-      println!("{}", err.visualise(false));
-      panic!();
+      crate::die(format!("{}", err.visualise(false)));
+      return "".to_string();
     }
   };
 
@@ -250,7 +250,7 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
 
   // Git clone
   crate::debug("Attempting to clone GitHub repository...", "bundler");
-  match std::process::Command::new("git")
+  match std::process::Command::new("gitdasd")
     .args([
       "clone",
       "https://github.com/itevie/zephyr-lang",
