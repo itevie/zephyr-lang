@@ -1,6 +1,6 @@
 use std::{
   collections::HashMap,
-  fs::{self, File, OpenOptions},
+  fs::{self, OpenOptions},
   io::{ErrorKind, Write},
   path::PathBuf,
   time::Duration,
@@ -229,7 +229,7 @@ pub fn bundle(input: String, file_name: String) -> String {
   result.clone()
 }
 
-pub fn bundle_executable(input: String, file_name: String, out_file: String) -> String {
+pub fn bundle_executable(input: String, file_name: String, _out_file: String) -> String {
   // Bundle
   let contents = bundle(input, file_name);
 
@@ -270,11 +270,14 @@ pub fn bundle_executable(input: String, file_name: String, out_file: String) -> 
   );
 
   crate::debug("Waiting few seconds...", "bundler");
-  std::thread::sleep(Duration::from_secs(10));
+  std::thread::sleep(Duration::from_secs(3));
 
   // Read index
   let mut index_contents = fs::read_to_string(index_rs.clone()).unwrap();
-  index_contents = index_contents.replace("let bundled_data = \"\";", &contents);
+  index_contents = index_contents.replace(
+    "let bundled_data = \"\";",
+    &format!("let bundled_data = r#\"{}\"#;", contents.replace("\n", "")),
+  );
 
   // Write the file
   let mut f = OpenOptions::new().write(true).open(index_rs).unwrap();
@@ -290,10 +293,32 @@ pub fn bundle_executable(input: String, file_name: String, out_file: String) -> 
     .args([
       "build",
       "--release",
-      "--manifest-file=./bundler_executable_temp/Cargo.toml",
+      "--manifest-path=./bundler_executable_temp/Cargo.toml",
     ])
+    .stdout(std::process::Stdio::piped())
     .output()
     .expect("Failed to run cargo");
+
+  let path = if cfg!(windows) {
+    PathBuf::from("./bundler_executable_temp/target/release/rust-zephyr.exe")
+  } else if cfg!(unix) {
+    PathBuf::from("./bundler_executable_temp/target/release/rust-zephyr")
+  } else {
+    panic!("invalid os.");
+  };
+
+  // Check if it exists
+  if path.exists() == false {
+    panic!("Failed to compile, is cargo installed?");
+  }
+
+  // Copy
+  crate::debug("Copying outputted executable to out file...", "bundler");
+
+  fs::copy(path, _out_file).unwrap();
+
+  crate::debug("Done, cleaning up", "bundler");
+  fs::remove_dir_all("./bundler_executable_temp").unwrap();
 
   println!("{:#?}", _command.stdout);
   "".to_string()

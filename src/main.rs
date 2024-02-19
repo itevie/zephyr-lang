@@ -109,6 +109,7 @@ fn main() {
       std::env::current_exe().unwrap().display().to_string(),
       std::env::current_dir().unwrap(),
     );
+    return ();
   }
 
   // Check if the provided dir exists
