@@ -229,6 +229,7 @@ pub fn bundle(input: String, file_name: String) -> String {
   result.clone()
 }
 
+// idk why i made this i was bored
 pub fn bundle_executable(input: String, file_name: String, _out_file: String) -> String {
   // Bundle
   let contents = bundle(input, file_name);
