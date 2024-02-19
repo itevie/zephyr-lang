@@ -224,6 +224,29 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
       }
       continue;
     }
+    // Check for raw string literals
+    else if chars[0] == '`' {
+      // Remove quote mark
+      eat(&mut chars);
+
+      let mut value = String::from("");
+
+      while chars.len() > 0 && chars[0] != '`' && chars[0] != '\n' {
+        value.push_str(&eat(&mut chars));
+      }
+
+      // Make sure current character is a `
+      if chars[0] != '`' {
+        return Err(ZephyrError::lexer(
+          "Unexpected end of string".to_string(),
+          location,
+        ));
+      }
+
+      eat(&mut chars);
+
+      set_token(value, TokenType::String);
+    }
     // Check for string literal
     else if chars[0] == '"' {
       // Remove quote mark
@@ -248,6 +271,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
                 "r" => value.push_str("\r"),
                 "t" => value.push_str("\t"),
                 "\"" => value.push_str("\""),
+                "\\" => value.push_str("\\"),
                 // Hex sequences, like x1b[31m, god knows how this work
                 // chatgpt did it
                 "x" => {

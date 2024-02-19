@@ -1,3 +1,0 @@
-export func a() {
-    Console.write_line(2);
-}

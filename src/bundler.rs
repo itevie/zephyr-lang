@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, io::ErrorKind, path::PathBuf};
+use std::{collections::HashMap, fs, io::ErrorKind};
 
 use crate::{
   die,
@@ -14,6 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub struct ExtractionResult {
   pub imports: Vec<(String, String)>,
+  pub contents: String,
 }
 
 pub fn extract(file_name: String) -> ExtractionResult {
@@ -45,17 +46,17 @@ pub fn extract(file_name: String) -> ExtractionResult {
   };
 
   let mut imports: Vec<(String, String)> = vec![];
+  let mut processed: Vec<String> = vec![];
   let mut i: usize = 0;
   let mut new_tokens: Vec<Token> = vec![];
   // Loop through them, trying to find `from`
   while i != tokens.len() - 1 {
     let tok = &tokens[i];
     if tok.token_type == TokenType::From {
-      crate::debug(&format!("Found from: {:#?}", i), "bundler");
+      crate::debug(&format!("Found from: {:#?}", tokens[i]), "bundler");
 
       // Parse a import using the parser
       let old = tokens[i..].len();
-      println!("{:#?}", tokens[i..].to_vec());
       let mut parser = parser::Parser::new(tokens[i..].to_vec());
       let import = match parser.parse_import_statement() {
         Ok(ok) => match ok {
@@ -72,6 +73,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
       let mut path = proper_file_name.clone();
       path.pop();
       path.push(import.from.value);
+      let path_whole = fs::canonicalize(path.clone()).unwrap();
 
       // Check if it exists
       if !path.exists() {
@@ -80,11 +82,6 @@ pub fn extract(file_name: String) -> ExtractionResult {
           path.display().to_string()
         ));
         panic!();
-      }
-
-      let path_whole = fs::canonicalize(path).unwrap();
-      if !imports.contains(&path_whole.display().to_string()) {
-        imports.push(path_whole.display().to_string());
       }
 
       // Check how many tokens were removed
@@ -104,7 +101,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
         new_tokens.push(Token {
           token_type: TokenType::Identifier,
           value: format!(
-            "let {} = (__imports[\"{}\"]())[\"{}\"];",
+            "let {} = (__imports[`{}`]())[`{}`];",
             i.1.symbol,
             path_whole.display().to_string(),
             i.0.symbol
@@ -112,6 +109,59 @@ pub fn extract(file_name: String) -> ExtractionResult {
           location: Location::no_location(),
         });
       }
+
+      if !processed.contains(&path_whole.display().to_string()) {
+        // Extract the import
+        let data = extract(path_whole.display().to_string());
+
+        // Check if it had any imports
+        for i in data.imports {
+          if !processed.contains(&i.0) {
+            imports.push((i.0, i.1));
+          }
+        }
+
+        imports.push((path_whole.display().to_string(), data.contents));
+        processed.push(path_whole.display().to_string());
+      }
+    } else if tok.token_type == TokenType::Export {
+      crate::debug("Found export token.. attempting to convert", "bundler");
+
+      // Try to parse the export
+      let old = tokens[i..].len();
+      let mut parser = parser::Parser::new(tokens[i..].to_vec());
+      let export = match parser.parse_export_statement() {
+        Ok(ok) => match ok {
+          Expression::ExportStatement(imp) => imp,
+          _ => unreachable!(),
+        },
+        Err(err) => {
+          println!("{}", err.visualise(false));
+          panic!();
+        }
+      };
+
+      // Check what was exported
+      match *export.to_export {
+        Expression::VariableDeclaration(dec) => new_tokens.push(Token {
+          value: format!("__mod_exports[`{}`] = ", dec.identifier.symbol),
+          token_type: TokenType::Identifier,
+          location: Location::no_location(),
+        }),
+        _ => panic!("This cannot be used to export"),
+      };
+
+      // We need to add semicolon at end of this
+      let removed = old - parser.tokens.len();
+      for _ in 1..removed {
+        i += 1;
+        new_tokens.push(tokens[i].clone());
+      }
+      new_tokens.push(Token {
+        value: String::from(";"),
+        token_type: TokenType::Semicolon,
+        location: Location::no_location(),
+      });
     } else {
       new_tokens.push(tok.clone());
     }
@@ -120,7 +170,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
 
   ExtractionResult {
     imports,
-    contents: compress_tokens(new_tokens),
+    contents: compress_tokens(new_tokens.clone()),
   }
 }
 
@@ -137,31 +187,38 @@ pub fn bundle(input: String, file_name: String) -> String {
   let mut files: HashMap<String, String> = HashMap::new();
 
   let data = extract(file_name.clone());
-  println!("{:#?}", data);
+  let mut imports = data.imports.clone();
+  imports.push((
+    fs::canonicalize(file_name.clone())
+      .unwrap()
+      .display()
+      .to_string(),
+    data.contents,
+  ));
 
   // Add index
   files.insert(file_name.clone(), input.clone());
 
   // Construct import map
-  let mut result = String::from("let __import_cache = .{};\nlet __imports = .{");
+  let mut result = String::from("let __import_cache = .{};\nlet __imports = .{\n");
 
   // Loop through found files
-  for i in files {
-    result.push_str(&format!("\"{}\": func {{", i.0));
+  for i in imports {
+    result.push_str(&format!("`{}`: func {{\n", i.0));
 
     result.push_str(&format!(
-      "if !(\"{}\" in __import_cache) {{ {} __import_cache[\"{}\"] = .{{}}; }} return __import_cache[\"{}\"];",
+      "if !(`{}` in __import_cache) {{ let __mod_exports = .{{}}; {} __import_cache[`{}`] = __mod_exports; }} return __import_cache[`{}`];",
       i.0, i.1, i.0, i.0
     ));
 
-    result.push_str("},");
+    result.push_str("\n},\n");
   }
 
   // Close __imports
   result.push_str("};\n");
 
   // Call the index
-  result.push_str(&format!("(__imports[\"{}\"])();\n", file_name.clone()));
+  result.push_str(&format!("(__imports[`{}`])();\n", file_name.clone()));
 
   result.clone()
 }

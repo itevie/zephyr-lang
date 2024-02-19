@@ -59,7 +59,7 @@ pub enum TokenType {
   Loop,
   Break,
   Continue,
-  
+
   Assert,
 
   Let,

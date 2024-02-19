@@ -32,6 +32,8 @@ pub fn compress_tokens(tokens: Vec<Token>) -> String {
       TokenType::Until => true,
       TokenType::Loop => true,
       TokenType::Import => true,
+      TokenType::Export => true,
+      TokenType::Function => true,
       TokenType::Return => true,
       _ => false,
     };

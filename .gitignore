@@ -5,3 +5,4 @@ test2.zr
 /.vscode
 Cargo.toml.old
 a.zr
+out.zr
