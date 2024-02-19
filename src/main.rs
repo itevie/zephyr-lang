@@ -116,7 +116,7 @@ fn main() {
     };
     let mut interpreter = Interpreter::new(dir.display().to_string());
 
-    let result = match lexer::lexer::lex(input) {
+    let result = match lexer::lexer::lex(input, file_name.clone()) {
       Ok(val) => val,
       Err(err) => {
         println!("{}", err.visualise(false));

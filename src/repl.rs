@@ -23,7 +23,7 @@ pub fn repl(_args: crate::Args, directory: String) {
 
     // Lex
     let lex_timer = std::time::Instant::now();
-    let result = match lexer::lexer::lex(input) {
+    let result = match lexer::lexer::lex(input, "<repl>".to_string()) {
       Ok(val) => val,
       Err(err) => {
         println!("{}", err.visualise(false));

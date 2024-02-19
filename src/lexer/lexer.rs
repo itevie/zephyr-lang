@@ -101,9 +101,21 @@ lazy_static! {
   };
 }
 
-static LOCATION_CONTENTS: Lazy<Arc<Mutex<HashMap<u128, String>>>> = Lazy::new(|| {
+#[derive(Clone)]
+pub struct LocationContents {
+  pub contents: String,
+  pub file_name: String,
+}
+
+static LOCATION_CONTENTS: Lazy<Arc<Mutex<HashMap<u128, LocationContents>>>> = Lazy::new(|| {
   let mut hash = HashMap::new();
-  hash.insert(0 as u128, "No Location Contents".to_string());
+  hash.insert(
+    0 as u128,
+    LocationContents {
+      contents: "No Location Contents".to_string(),
+      file_name: "<unknown>".to_string(),
+    },
+  );
   Arc::from(Mutex::from(hash))
 });
 static CURRENT_CONTENTS: Lazy<Arc<Mutex<u128>>> = Lazy::new(|| Arc::from(Mutex::from(0)));
@@ -116,17 +128,20 @@ pub fn get_token(_t: &TokenType) -> String {
     .to_string()
 }
 
-pub fn get_location_contents(id: u128) -> String {
-  String::from(LOCATION_CONTENTS.lock().unwrap().get(&id).unwrap())
+pub fn get_location_contents(id: u128) -> LocationContents {
+  LOCATION_CONTENTS.lock().unwrap().get(&id).unwrap().clone()
 }
 
-pub fn lex(contents: String) -> Result<Vec<Token>, ZephyrError> {
+pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrError> {
   let id = { *CURRENT_CONTENTS.lock().unwrap() };
   *CURRENT_CONTENTS.lock().unwrap() += 1;
-  LOCATION_CONTENTS
-    .lock()
-    .unwrap()
-    .insert(id, contents.clone());
+  LOCATION_CONTENTS.lock().unwrap().insert(
+    id,
+    LocationContents {
+      contents: contents.clone(),
+      file_name,
+    },
+  );
 
   let mut operator_keys: Vec<&&str> = OPERATORS.keys().clone().collect();
   operator_keys.sort_by(|a, b| b.len().cmp(&a.len()));

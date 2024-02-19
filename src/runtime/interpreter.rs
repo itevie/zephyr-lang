@@ -134,7 +134,7 @@ impl Interpreter {
         import_cache: RefCell::from(HashMap::new()),
       };
       match lib_interpreter.evaluate(Expression::Program(
-        match Parser::new(lex(String::from(i.0)).unwrap()).produce_ast() {
+        match Parser::new(lex(String::from(i.0), format!("(lib){}", i.1)).unwrap()).produce_ast() {
           Ok(ok) => ok,
           Err(err) => {
             println!(
@@ -261,8 +261,9 @@ impl Interpreter {
 
       // Check if it succeeded
       if !res.is_truthy() {
-        return Err(ZephyrError::runtime(
+        return Err(ZephyrError::runtime_with_ref(
           format!("Call failed to pass where clauses, received: {}", res),
+          location,
           clause.clone().get_location().clone(),
         ));
       }
@@ -503,11 +504,13 @@ impl Interpreter {
       Expression::BreakStatement(stmt) => Err(ZephyrError {
         error_message: "Cannot break here".to_string(),
         error_type: ErrorType::Break,
+        reference: None,
         location: stmt.location,
       }),
       Expression::ContinueStatement(stmt) => Err(ZephyrError {
         error_message: "Cannot continue here".to_string(),
         error_type: ErrorType::Continue,
+        reference: None,
         location: stmt.location,
       }),
       Expression::ReturnStatement(stmt) => Err(ZephyrError {
@@ -517,6 +520,7 @@ impl Interpreter {
         } else {
           Box::from(RuntimeValue::Null(Null {}))
         })),
+        reference: None,
         location: stmt.location,
       }),
       Expression::AssertStatement(stmt) => {
@@ -524,7 +528,7 @@ impl Interpreter {
         if !value.is_truthy() {
           return Err(ZephyrError::runtime(
             "Expression did not pass assertion, expected truthy value".to_string(),
-            stmt.location
+            stmt.location,
           ));
         }
 
@@ -563,8 +567,10 @@ impl Interpreter {
           ));
         }
 
+        let path_string = path.display().to_string();
+
         // Read it
-        let file_contents = match std::fs::read_to_string(path.display().to_string()) {
+        let file_contents = match std::fs::read_to_string(path_string.clone()) {
           Ok(ok) => ok,
           Err(err) => {
             return Err(ZephyrError::runtime(
@@ -578,31 +584,25 @@ impl Interpreter {
         let scope = if self
           .import_cache
           .borrow()
-          .contains_key(&path.display().to_string())
+          .contains_key(&(path_string.clone()))
         {
-          crate::debug(
-            &format!("Importing from cache {}", path.display().to_string()),
-            "import",
-          );
+          crate::debug(&format!("Importing from cache {}", path_string), "import");
           self
             .import_cache
             .borrow()
-            .get(&path.display().to_string())
+            .get(&path_string)
             .unwrap()
             .clone()
         } else {
-          crate::debug(
-            &format!("Importing {}", path.display().to_string()),
-            "import",
-          );
+          crate::debug(&format!("Importing {}", path_string), "import");
 
           // Lex & Parse
-          let result = lexer::lexer::lex(file_contents)?;
+          let result = lexer::lexer::lex(file_contents, path_string.clone())?;
           let mut parser = parser::parser::Parser::new(result);
           let ast = parser.produce_ast()?;
 
           // Create scope
-          let path_pre_pop = path.display().to_string();
+          let path_pre_pop = path_string.clone();
           path.pop();
           let scope = &self.global_scope.create_child();
           *scope.directory.borrow_mut() = path.display().to_string();
