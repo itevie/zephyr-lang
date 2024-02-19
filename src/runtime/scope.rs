@@ -1,6 +1,9 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+
+use once_cell::sync::Lazy;
 
 use super::memory::MemoryAddress;
 use super::values::{Boolean, Null, RuntimeValue, StringValue};
@@ -10,8 +13,11 @@ use crate::{
   lexer::location::Location,
 };
 
+static CURRENT_SCOPE_ID: Lazy<Arc<Mutex<u128>>> = Lazy::new(|| Arc::from(Mutex::from(0 as u128)));
+
 #[derive(Debug)]
 pub struct Scope {
+  pub id: u128,
   pub variables: RefCell<HashMap<String, MemoryAddress>>,
   pub exports: RefCell<HashMap<String, MemoryAddress>>,
   pub can_export: RefCell<bool>,
@@ -50,6 +56,10 @@ impl Scope {
         pure_functions_only: RefCell::from(false),
         parent: None,
         directory: RefCell::from(directory.clone()),
+        id: {
+          *CURRENT_SCOPE_ID.lock().unwrap() += 1;
+          *CURRENT_SCOPE_ID.lock().unwrap()
+        },
       }
     };
     x
@@ -153,6 +163,10 @@ impl Scope {
       exports: RefCell::new(HashMap::new()),
       can_export: RefCell::from(false),
       directory: RefCell::from(self.directory.clone()),
+      id: {
+        *CURRENT_SCOPE_ID.lock().unwrap() += 1;
+        *CURRENT_SCOPE_ID.lock().unwrap()
+      },
     })
   }
 }

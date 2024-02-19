@@ -10,6 +10,9 @@ use structopt::StructOpt;
 #[path = "./repl.rs"]
 mod repl;
 
+#[path = "./bundler.rs"]
+mod bundler;
+
 //use std::io::Write;
 
 pub mod errors;
@@ -50,6 +53,13 @@ pub struct Args {
     help = "Whether or not to log special debug logs"
   )]
   pub debug_mode: Option<bool>,
+
+  #[structopt(
+    long = "bundle",
+    value_name = "BUNDLE",
+    help = "Bundle Zephyr project into one file, provide out file as the value to this arg."
+  )]
+  pub bundle: Option<String>,
 }
 
 static MEMORY: Lazy<Arc<Mutex<Memory>>> = Lazy::new(|| Arc::from(Mutex::from(Memory::new())));
@@ -114,6 +124,13 @@ fn main() {
         })
       }
     };
+
+    // Check if it should bundle
+    if let Some(out_file) = args.bundle {
+      bundler::bundle(input, file_name.clone(), out_file);
+      return ();
+    }
+
     let mut interpreter = Interpreter::new(dir.display().to_string());
 
     let result = match lexer::lexer::lex(input, file_name.clone()) {

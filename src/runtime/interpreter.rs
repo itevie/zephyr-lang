@@ -249,6 +249,14 @@ impl Interpreter {
     }
 
     // Check where clauses
+    crate::debug(
+      &format!(
+        "Swapping scope from {} to {}",
+        self.scope.id,
+        scope.clone().id
+      ),
+      "scope",
+    );
     let prev = std::mem::replace(&mut self.scope, scope.clone());
     {
       *self.scope.pure_functions_only.borrow_mut() = true;
@@ -277,7 +285,6 @@ impl Interpreter {
     {
       *self.scope.pure_functions_only.borrow_mut() = func.pure;
     }
-    let _ = std::mem::replace(&mut self.scope, prev);
 
     let return_value = match self.evaluate_block(*func.body, scope) {
       Ok(ok) => ok,
@@ -286,6 +293,11 @@ impl Interpreter {
         _ => return Err(err),
       },
     };
+    crate::debug(
+      &format!("Swapping scope back from {} to {}", self.scope.id, prev.id),
+      "scope",
+    );
+    let _ = std::mem::replace(&mut self.scope, prev);
 
     // Check if it is predicate
     if let Some(f) = func.name {
@@ -309,7 +321,13 @@ impl Interpreter {
     ident: Identifier,
     skip_getter: bool,
   ) -> Result<RuntimeValue, ZephyrError> {
-    let variable = self.scope.get_variable(&ident.symbol)?;
+    let variable = match self.scope.get_variable(&ident.symbol) {
+      Ok(ok) => ok,
+      Err(err) => {
+        println!("{:#?} {:#?}", err, self.scope);
+        panic!();
+      }
+    };
 
     // Check if object & has __get
     if !skip_getter {
@@ -423,7 +441,7 @@ impl Interpreter {
         return Ok(*(*&arr.items[number]).clone());
       }
       RuntimeValue::ObjectContainer(obj_ref) => {
-        let object = match crate::MEMORY.lock().unwrap().get_value(obj_ref.location)? {
+        let mut object = match crate::MEMORY.lock().unwrap().get_value(obj_ref.location)? {
           RuntimeValue::Object(obj) => obj,
           _ => unreachable!(),
         };
@@ -444,6 +462,23 @@ impl Interpreter {
             ))
           }
         };
+
+        // Check if should assign
+        if let Some(to_assign) = assign {
+          // Check if already has it
+          if object.items.contains_key(&string_key.clone()) {
+            object.items.remove(&string_key.clone());
+          }
+          object.items.insert(string_key.clone(), to_assign.clone());
+
+          // Update memory
+          crate::MEMORY
+            .lock()
+            .unwrap()
+            .set_value(obj_ref.location, RuntimeValue::Object(object))?;
+
+          return Ok(RuntimeValue::ObjectContainer(obj_ref));
+        }
 
         // Check if object has the item defined
         if object.items.contains_key(&string_key) {
