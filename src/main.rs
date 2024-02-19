@@ -1,5 +1,6 @@
 use std::{
-  io::ErrorKind,
+  fs::File,
+  io::{ErrorKind, Write},
   sync::{Arc, Mutex},
 };
 
@@ -12,6 +13,9 @@ mod repl;
 
 #[path = "./bundler.rs"]
 mod bundler;
+
+#[path = "./mini.rs"]
+mod mini;
 
 //use std::io::Write;
 
@@ -41,35 +45,37 @@ pub struct Args {
 
   #[structopt(
     long = "directory",
+    short = "d",
     empty_values = false,
     help = "The directory to run the project in",
     value_name = "WORKING_DIRECTORY"
   )]
   pub directory: Option<String>,
 
-  #[structopt(
-    long = "debug",
-    value_name = "DEBUG_MODE",
-    help = "Whether or not to log special debug logs"
-  )]
-  pub debug_mode: Option<bool>,
+  #[structopt(long, help = "Whether or not to log special debug logs")]
+  pub debug: bool,
 
   #[structopt(
-    long = "bundle",
-    value_name = "BUNDLE",
-    help = "Bundle Zephyr project into one file, provide out file as the value to this arg."
+    long = "out",
+    short = "o",
+    value_name = "OUT_FILE",
+    help = "The file to write the output of actions such as --bundle or --minimise"
   )]
-  pub bundle: Option<String>,
+  pub out_file: Option<String>,
+
+  #[structopt(long, help = "Bundle Zephyr project into one file.")]
+  pub bundle: bool,
+
+  #[structopt(long, help = "Minimise a Zephyr file.")]
+  pub minimise: bool,
 }
 
 static MEMORY: Lazy<Arc<Mutex<Memory>>> = Lazy::new(|| Arc::from(Mutex::from(Memory::new())));
 static ARGS: Lazy<Args> = Lazy::new(|| Args::from_args());
 
 pub fn debug(contents: &str, what: &str) {
-  if let Some(debug_mode) = ARGS.debug_mode {
-    if debug_mode {
-      println!("[DEBUG:{}]: {}", what, contents);
-    }
+  if ARGS.debug {
+    println!("[DEBUG:{}]: {}", what, contents);
   }
 }
 
@@ -114,7 +120,7 @@ fn main() {
       panic!()
     };
 
-    let input = match std::fs::read_to_string(file_name) {
+    let mut input = match std::fs::read_to_string(file_name) {
       Ok(ok) => ok,
       Err(err) => {
         return die(match err.kind() {
@@ -125,9 +131,35 @@ fn main() {
       }
     };
 
+    // Check if should have out file
+    let should_out;
+    if args.bundle || args.minimise {
+      if !matches!(args.out_file, Some(_)) {
+        return die(
+          "The --bundle or --minimise flags were used, but no --out was provided".to_string(),
+        );
+      }
+
+      should_out = true;
+    } else {
+      should_out = false;
+    }
+
+    // Check if it should minimise
+    if args.minimise {
+      input = mini::minimise(input, file_name.clone());
+    }
+
     // Check if it should bundle
-    if let Some(out_file) = args.bundle {
-      bundler::bundle(input, file_name.clone(), out_file);
+    if args.bundle {
+      input = bundler::bundle(input, file_name.clone());
+    }
+
+    // Check if it should output
+    if should_out {
+      // Write it
+      let mut f = File::create(ARGS.clone().out_file.unwrap()).unwrap();
+      f.write_all(input.as_bytes()).unwrap();
       return ();
     }
 

@@ -1,14 +1,14 @@
 use crate::lexer;
 
-pub fn bundle(input: String, file_name: String, _out_file: String) {
+pub fn bundle(input: String, file_name: String) -> String {
   // Get the tokens
-  let result = match lexer::lexer::lex(input, file_name.clone()) {
+  let _result = match lexer::lexer::lex(input.clone(), file_name.clone()) {
     Ok(val) => val,
     Err(err) => {
       println!("{}", err.visualise(false));
-      return;
+      panic!();
     }
   };
 
-  println!("Found {} tokens", result.len());
+  input.clone()
 }

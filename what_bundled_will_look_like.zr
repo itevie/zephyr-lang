@@ -1,0 +1,67 @@
+// Say original is:
+/*
+    test2.zr
+    ```
+        Console.write_line("Import test2");
+        export func b() {
+            2;
+        }
+    ```
+
+    test.zr
+    ```
+        Console.write_line("Import test");
+        from "./test2.zr" import b;
+
+        export func c() {
+            b();
+        }
+    ```
+
+    index.zr
+    ```
+        from "./test.zr" import c;
+        c();
+*/
+
+
+
+let __import_cache = .{};
+
+let __imports = .{
+    test2: func {
+        if !("test2" in __import_cache) {
+            Console.write_line("Import test2");
+            __import_cache["test2"] = .{
+                b: func {
+                    2;
+                }
+            };
+        }
+
+        return __import_cache["test2"];
+    },
+    test: func {
+        if !("test" in __import_cache) {
+            __import_cache["test"] = {
+                Console.write_line("Import test");
+                let b = (__imports["test2"]())["b"];
+                .{
+                    c: func {
+                        b();
+                    }
+                };
+            };
+        }
+
+        return __import_cache["test"];
+    }
+};
+
+// ----- Index file -----
+
+let c = (__imports["test"]())["c"];
+
+// Shows that it caches the import
+let c2 = (__imports["test"]())["c"]; 
+Console.write_line(c, c2, c(), c2());

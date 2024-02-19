@@ -1,0 +1,35 @@
+use crate::lexer::{self, token::TokenType};
+
+pub fn minimise(input: String, file_name: String) -> String {
+  // Get the tokens
+  let result = match lexer::lexer::lex(input, file_name.clone()) {
+    Ok(val) => val,
+    Err(err) => {
+      println!("{}", err.visualise(false));
+      panic!();
+    }
+  };
+
+  let mut result_string = String::new();
+
+  for i in result {
+    let value = match i.token_type {
+      TokenType::String => format!("\"{}\"", i.value),
+      _ => i.value,
+    };
+    let needs_space_after = match i.token_type {
+      TokenType::Let => true,
+      TokenType::In => true,
+      TokenType::If => true,
+      TokenType::While => true,
+      TokenType::Until => true,
+      TokenType::Loop => true,
+      TokenType::Import => true,
+      TokenType::Return => true,
+      _ => false,
+    };
+    result_string.push_str(&(value + if needs_space_after { "  " } else { "" }));
+  }
+
+  result_string
+}
