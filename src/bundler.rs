@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fs, io::ErrorKind};
+use std::{
+  collections::HashMap,
+  fs::{self, File},
+  io::{ErrorKind, Write},
+  path::PathBuf,
+};
 
 use crate::{
   die,
@@ -221,4 +226,71 @@ pub fn bundle(input: String, file_name: String) -> String {
   result.push_str(&format!("(__imports[`{}`])();\n", file_name.clone()));
 
   result.clone()
+}
+
+pub fn bundle_executable(input: String, file_name: String, out_file: String) -> String {
+  // Bundle
+  let contents = bundle(input, file_name);
+
+  // Create temp directory
+  if PathBuf::from("./bundler_executable_temp").exists() {
+    fs::remove_dir_all("./bundler_executable_temp").unwrap();
+  }
+  fs::create_dir("bundler_executable_temp").unwrap();
+
+  // Git clone
+  crate::debug("Attempting to clone GitHub repository...", "bundler");
+  let _command = std::process::Command::new("git")
+    .args([
+      "clone",
+      "https://github.com/itevie/zephyr-lang",
+      "bundler_executable_temp",
+    ])
+    .output()
+    .expect("Failed to run git clone!");
+
+  // Expect file to exist
+  let index_rs = PathBuf::from("./bundler_executable_temp/src/main.rs");
+
+  // Check if it exists
+  if !index_rs.exists() {
+    panic!("Failed to git clone, is git installed?");
+  }
+
+  crate::debug(
+    &format!(
+      "Git clone successful, index file is: {}",
+      fs::canonicalize(index_rs.clone())
+        .unwrap()
+        .display()
+        .to_string()
+    ),
+    "bundler",
+  );
+
+  // Read index
+  let mut index_contents = fs::read_to_string(index_rs.clone()).unwrap();
+  index_contents = index_contents.replace("let bundled_data = \"\";", &contents);
+
+  // Write the file
+  let mut f = File::open(out_file).unwrap();
+  f.write_all(index_contents.as_bytes()).unwrap();
+
+  crate::debug(
+    "Successfully modified index.rs, now attempting to compile...",
+    "bundler",
+  );
+
+  // Try to run cargo build
+  std::process::Command::new("cargo")
+    .args([
+      "build",
+      "--release",
+      "--manifest-file=./bundler_executable_temp/Cargo.toml",
+    ])
+    .output()
+    .expect("Failed to run cargo");
+
+  println!("{:#?}", _command.stdout);
+  "".to_string()
 }

@@ -6,3 +6,5 @@ test2.zr
 Cargo.toml.old
 a.zr
 out.zr
+zephyr-lang,
+bundler_executable_temp

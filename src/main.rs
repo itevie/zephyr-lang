@@ -5,7 +5,7 @@ use std::{
 };
 
 use once_cell::sync::Lazy;
-use runtime::{interpreter::Interpreter, memory::Memory};
+use runtime::memory::Memory;
 use structopt::StructOpt;
 
 #[path = "./repl.rs"]
@@ -16,6 +16,9 @@ mod bundler;
 
 #[path = "./mini.rs"]
 mod mini;
+
+#[path = "./basic_run.rs"]
+mod basic_run;
 
 //use std::io::Write;
 
@@ -66,6 +69,12 @@ pub struct Args {
   #[structopt(long, help = "Bundle Zephyr project into one file.")]
   pub bundle: bool,
 
+  #[structopt(
+    long = "bundle-executable",
+    help = "Bundle Zephyr project into one executable file."
+  )]
+  pub bundle_executable: bool,
+
   #[structopt(long, help = "Minimise a Zephyr file.")]
   pub minimise: bool,
 }
@@ -80,6 +89,8 @@ pub fn debug(contents: &str, what: &str) {
 }
 
 fn main() {
+  // This will be present if --bundle-executable is ran
+  let bundled_data = "";
   let args = ARGS.clone();
 
   // Get the directory to run in
@@ -90,6 +101,15 @@ fn main() {
   } else {
     std::env::current_dir().unwrap()
   };
+
+  // Check if bundled_data
+  if bundled_data != "" {
+    basic_run::basic_run(
+      String::from(bundled_data),
+      std::env::current_exe().unwrap().display().to_string(),
+      std::env::current_dir().unwrap(),
+    );
+  }
 
   // Check if the provided dir exists
   if dir.exists() == false {
@@ -135,7 +155,7 @@ fn main() {
 
     // Check if should have out file
     let should_out;
-    if args.bundle || args.minimise {
+    if args.bundle || args.minimise || args.bundle_executable {
       if !matches!(args.out_file, Some(_)) {
         return die(
           "The --bundle or --minimise flags were used, but no --out was provided".to_string(),
@@ -146,6 +166,16 @@ fn main() {
     } else {
       should_out = false;
     }
+    // Check if should bundle executable
+    if args.bundle_executable {
+      bundler::bundle_executable(
+        input,
+        proper_file_name.display().to_string(),
+        ARGS.clone().out_file.unwrap(),
+      );
+      return ();
+    }
+
     // Check if it should bundle
     if args.bundle {
       input = bundler::bundle(input, proper_file_name.display().to_string());
@@ -164,30 +194,7 @@ fn main() {
       return ();
     }
 
-    let mut interpreter = Interpreter::new(dir.display().to_string());
-
-    let result = match lexer::lexer::lex(input, file_name.clone()) {
-      Ok(val) => val,
-      Err(err) => {
-        println!("{}", err.visualise(false));
-        return;
-      }
-    };
-
-    let mut parser = parser::parser::Parser::new(result);
-    let ast = match parser.produce_ast() {
-      Ok(val) => val,
-      Err(err) => {
-        println!("{}", err.visualise(false));
-        return;
-      }
-    };
-
-    let value = interpreter.evaluate(parser::nodes::Expression::Program(ast));
-    match value {
-      Err(err) => println!("{}", err.visualise(false)),
-      Ok(_) => return,
-    }
+    basic_run::basic_run(input, file_name.clone(), dir);
   }
 }
 
