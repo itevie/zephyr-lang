@@ -233,7 +233,6 @@ pub fn bundle(input: String, file_name: String) -> String {
 pub fn bundle_executable(input: String, file_name: String, _out_file: String) -> () {
   // Bundle
   let contents = bundle(input, file_name);
-  println!("{}", contents);
 
   // Create temp directory
   if PathBuf::from("./bundler_executable_temp").exists() {
