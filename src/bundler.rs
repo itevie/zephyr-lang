@@ -46,10 +46,19 @@ pub fn extract(file_name: String) -> ExtractionResult {
   let tokens = match lexer::lexer::lex(input.clone(), proper_file_name.display().to_string()) {
     Ok(val) => val,
     Err(err) => {
-      println!("{}", err.visualise(false));
+      crate::die(format!("\n{}", err.visualise(false)));
       panic!();
     }
   };
+
+  // Parse to check if it's valid
+  match parser::Parser::new(tokens.clone()).produce_ast() {
+    Ok(_) => (),
+    Err(err) => {
+      crate::die(format!("\n{}", err.visualise(false)));
+      panic!();
+    }
+  }
 
   let mut imports: Vec<(String, String)> = vec![];
   let mut processed: Vec<String> = vec![];
