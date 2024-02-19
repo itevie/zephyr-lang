@@ -302,8 +302,17 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
       let mut value: String = eat(&mut chars);
 
       // Loop until not a number
-      while chars.len() > 0 && chars[0].is_numeric() {
+      while chars.len() > 0 && (chars[0].is_numeric() || (value.len() == 1 && chars[0] == 'x')) {
         value.push_str(&eat(&mut chars));
+      }
+
+      // Check if the first number is 0, if it is then try other bases
+      if value.starts_with("0") && value.len() > 1 {
+        // Check the base
+        let base = value.chars().nth(1).unwrap();
+        match base {
+          _ => unimplemented!(),
+        }
       }
 
       // Set token
