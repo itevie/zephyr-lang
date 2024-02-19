@@ -137,6 +137,10 @@ impl Parser {
         symbol: val.value,
         location: val.location,
       }),
+      TokenType::String => Ok(Identifier {
+        symbol: val.value,
+        location: val.location,
+      }),
       _ => Err(parser_error!(
         "Expected an identifier".to_string(),
         self.at().location
@@ -1083,8 +1087,11 @@ impl Parser {
     let mut items: HashMap<String, Box<nodes::Expression>> = HashMap::new();
     while !matches!(self.at().token_type, TokenType::CloseBrace) {
       // Expect key
-      let tok = self.expect(
-        discriminant(&TokenType::Identifier),
+      let tok = self.expect_one_of(
+        vec![
+          discriminant(&TokenType::Identifier),
+          discriminant(&TokenType::String),
+        ],
         ZephyrError::parser(
           "Expected identifier as key for object item".to_string(),
           self.at().location,

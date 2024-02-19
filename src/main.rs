@@ -1,5 +1,5 @@
 use std::{
-  fs::File,
+  fs::{self, File},
   io::{ErrorKind, Write},
   sync::{Arc, Mutex},
 };
@@ -131,6 +131,8 @@ fn main() {
       }
     };
 
+    let proper_file_name = fs::canonicalize(file_name).unwrap();
+
     // Check if should have out file
     let should_out;
     if args.bundle || args.minimise {
@@ -144,15 +146,14 @@ fn main() {
     } else {
       should_out = false;
     }
+    // Check if it should bundle
+    if args.bundle {
+      input = bundler::bundle(input, proper_file_name.display().to_string());
+    }
 
     // Check if it should minimise
     if args.minimise {
-      input = mini::minimise(input, file_name.clone());
-    }
-
-    // Check if it should bundle
-    if args.bundle {
-      input = bundler::bundle(input, file_name.clone());
+      input = mini::minimise(input, proper_file_name.display().to_string());
     }
 
     // Check if it should output

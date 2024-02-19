@@ -1,4 +1,7 @@
-use crate::lexer::{self, token::TokenType};
+use crate::lexer::{
+  self,
+  token::{Token, TokenType},
+};
 
 pub fn minimise(input: String, file_name: String) -> String {
   // Get the tokens
@@ -10,9 +13,13 @@ pub fn minimise(input: String, file_name: String) -> String {
     }
   };
 
+  compress_tokens(result)
+}
+
+pub fn compress_tokens(tokens: Vec<Token>) -> String {
   let mut result_string = String::new();
 
-  for i in result {
+  for i in tokens {
     let value = match i.token_type {
       TokenType::String => format!("\"{}\"", i.value),
       _ => i.value,
@@ -28,7 +35,7 @@ pub fn minimise(input: String, file_name: String) -> String {
       TokenType::Return => true,
       _ => false,
     };
-    result_string.push_str(&(value + if needs_space_after { "  " } else { "" }));
+    result_string.push_str(&(value + if needs_space_after { " " } else { "" }));
   }
 
   result_string
