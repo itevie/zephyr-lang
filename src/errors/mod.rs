@@ -1,10 +1,9 @@
-use std::cmp::max;
-
 use crate::{
   lexer::{lexer::get_location_contents, location::Location},
   runtime::values::RuntimeValue,
   util::{self},
 };
+use std::cmp::max;
 
 const REPL_OFFSET: usize = 2;
 
