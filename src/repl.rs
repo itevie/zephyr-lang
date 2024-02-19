@@ -3,7 +3,7 @@ use std::io::Write;
 use crate::{lexer, parser, runtime::interpreter::Interpreter};
 
 pub fn repl(_args: crate::Args, directory: String) {
-  let mut interpreter = Interpreter::new(directory);
+  let mut interpreter = Interpreter::new(directory.clone());
   loop {
     // Get input
     print!("> ");
@@ -14,6 +14,13 @@ pub fn repl(_args: crate::Args, directory: String) {
     if input.starts_with(".mem") {
       println!("{:#?}", crate::MEMORY.clone());
       continue;
+    }
+    if input.starts_with(".flush") {
+      interpreter = Interpreter::new(directory.clone());
+      continue;
+    }
+    if input.starts_with(".exit") {
+      std::process::exit(0);
     }
 
     // Check if input has a ; at the end
