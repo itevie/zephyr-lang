@@ -307,7 +307,8 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
         .map(|v| v.to_string().chars().nth(0).unwrap())
         .collect::<Vec<char>>();
       while chars.len() > 0
-        && (allowed_chars.contains(&chars[0]) || (value.len() == 1 && chars[0] == 'x'))
+        && (allowed_chars.contains(&chars[0])
+          || (value.len() == 1 && (chars[0] == 'x' || chars[0] == 'o' || chars[0] == 'b')))
       {
         let c = &eat(&mut chars);
         value.push_str(c);
@@ -315,6 +316,8 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
         // Check if should modify allowed
         match c.as_str() {
           "x" => allowed_chars = "abcdef0123456789".to_string().chars().collect(),
+          "o" => allowed_chars = "01234567".to_string().chars().collect(),
+          "b" => allowed_chars = vec!['0', '1'],
           _ => (),
         }
       }
@@ -328,7 +331,42 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
         actual_number_chars.next();
         let actual_number = actual_number_chars.as_str();
         match base {
-          'x' => ,
+          'x' => {
+            value = match i64::from_str_radix(actual_number, 16) {
+              Ok(ok) => ok,
+              Err(err) => {
+                return Err(ZephyrError::lexer(
+                  format!("Failed to parse hexadecimal string: {}", err),
+                  location.clone(),
+                ))
+              }
+            }
+            .to_string()
+          }
+          'o' => {
+            value = match i64::from_str_radix(actual_number, 16) {
+              Ok(ok) => ok,
+              Err(err) => {
+                return Err(ZephyrError::lexer(
+                  format!("Failed to parse octal string: {}", err),
+                  location.clone(),
+                ))
+              }
+            }
+            .to_string()
+          }
+          'b' => {
+            value = match i64::from_str_radix(actual_number, 16) {
+              Ok(ok) => ok,
+              Err(err) => {
+                return Err(ZephyrError::lexer(
+                  format!("Failed to parse binary string: {}", err),
+                  location.clone(),
+                ))
+              }
+            }
+            .to_string()
+          }
           _ => unimplemented!(),
         }
       }

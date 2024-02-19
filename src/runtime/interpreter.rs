@@ -321,13 +321,7 @@ impl Interpreter {
     ident: Identifier,
     skip_getter: bool,
   ) -> Result<RuntimeValue, ZephyrError> {
-    let variable = match self.scope.get_variable(&ident.symbol) {
-      Ok(ok) => ok,
-      Err(err) => {
-        println!("{:#?} {:#?}", err, self.scope);
-        panic!();
-      }
-    };
+    let variable = self.scope.get_variable(&ident.symbol)?;
 
     // Check if object & has __get
     if !skip_getter {
