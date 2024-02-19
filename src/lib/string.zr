@@ -26,5 +26,9 @@ export let String = .{
 
   reverse: func pure reverse(value: string?) {
     __zephyr_native.reverse(value);
+  },
+
+  unescape: func pure unescape(value: string?) {
+    __zephyr_native.unescape(value);
   }
 };

@@ -95,6 +95,12 @@ impl Interpreter {
             }),
           ),
           (
+            "unescape".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::unescape,
+            }),
+          ),
+          (
             "get_time_nanos".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::get_time_nanos,

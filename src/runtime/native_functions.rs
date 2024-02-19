@@ -2,13 +2,55 @@
 
 use crate::{errors::ZephyrError, lexer::location::Location};
 
-use super::values::{to_array, Null, Number, RuntimeValue};
+use super::values::{to_array, Null, Number, RuntimeValue, StringValue};
 
 type R = Result<RuntimeValue, ZephyrError>;
 
 pub struct CallOptions<'a> {
   pub args: &'a [RuntimeValue],
   pub location: Location,
+}
+
+pub fn unescape(options: CallOptions) -> R {
+  match options.args {
+    [RuntimeValue::StringValue(str)] => {
+      let val = str.value.clone();
+      let mut result = String::new();
+      let chars = &mut val.chars();
+
+      while let Some(c) = (*chars).next() {
+        if c == '\\' {
+          if let Some(escaped_char) = chars.next() {
+            match escaped_char {
+              'x' => {
+                // Handle hexadecimal escape sequence
+                let hex_digits: String = chars.take(2).collect();
+                if let Ok(value) = u8::from_str_radix(&hex_digits, 16) {
+                  result.push(value as char);
+                } else {
+                  result.push_str("\\x");
+                  result.push_str(&hex_digits);
+                }
+              }
+              // Add more cases for other escape sequences as needed
+              _ => result.push(escaped_char),
+            }
+          } else {
+            // If '\\' is at the end of the string
+            result.push('\\');
+          }
+        } else {
+          result.push(c);
+        }
+      }
+
+      Ok(RuntimeValue::StringValue(StringValue { value: result }))
+    }
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
+  }
 }
 
 pub fn print(options: CallOptions) -> R {
