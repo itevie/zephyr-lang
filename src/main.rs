@@ -89,13 +89,13 @@ pub struct Args {
 
 #[derive(Debug, StructOpt, Clone)]
 pub enum Subcommands {
-  New {
-    #[structopt(
-      value_name = "PACKAGE-NAME",
-      empty_values = false,
-    )]
-    name_pos: Option<String>,
-  }
+  New(NewPackage),
+}
+
+#[derive(Debug, StructOpt, Clone)]
+pub struct NewPackage {
+  #[structopt(value_name = "PACKAGE-NAME", empty_values = false)]
+  name_pos: String,
 }
 
 static MEMORY: Lazy<Arc<Mutex<Memory>>> = Lazy::new(|| Arc::from(Mutex::from(Memory::new())));
@@ -143,15 +143,20 @@ fn main() {
 
   debug(
     &format!(
-      "The current directory is set to: {}",
-      dir.display().to_string()
+      "The current directory is set to: {}, app data dir is {}",
+      dir.display().to_string(),
+      dire
     ),
     "main",
   );
 
   // Check for subcommands
   if let Some(subcommand) = ARGS.clone().subcommand {
-    println!("{:#?}", subcommand);
+    match subcommand {
+      Subcommands::New(new) => package_manager::new(new, dir),
+    }
+
+    return ();
   }
 
   // Check if should run in repl mode
