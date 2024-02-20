@@ -170,7 +170,7 @@ impl Interpreter {
         ),
       };
 
-      crate::debug(&format!("Finished loading lib: {}", i.1), "lib-loader");
+      crate::verbose(&format!("Finished loading lib: {}", i.1), "lib-loader");
 
       // Add defined variables to global
       for (key, value) in lib_scope.get_exports().unwrap().iter() {
@@ -261,7 +261,7 @@ impl Interpreter {
     }
 
     // Check where clauses
-    crate::debug(
+    crate::verbose(
       &format!("Swapping scope from {} to {}", self.scope.id, scope.id),
       "scope",
     );
@@ -276,7 +276,7 @@ impl Interpreter {
           // Cleanup
           {
             self.scope.set_pure_functions_only(func.pure)?;
-            crate::debug(
+            crate::verbose(
               &format!(
                 "Swapping scope back from {} to {} due to error",
                 self.scope.id, prev.id
@@ -309,7 +309,7 @@ impl Interpreter {
         _ => return Err(err),
       },
     };
-    crate::debug(
+    crate::verbose(
       &format!("Swapping scope back from {} to {}", self.scope.id, prev.id),
       "scope",
     );
@@ -637,10 +637,10 @@ impl Interpreter {
           .borrow()
           .contains_key(&(path_string.clone()))
         {
-          crate::debug(&format!("Importing from cache {}", path_string), "import");
+          crate::verbose(&format!("Importing from cache {}", path_string), "import");
           *self.import_cache.borrow().get(&path_string).unwrap()
         } else {
-          crate::debug(&format!("Importing {}", path_string), "import");
+          crate::verbose(&format!("Importing {}", path_string), "import");
 
           // Lex & Parse
           let result = lexer::lexer::lex(file_contents, path_string.clone())?;
@@ -1256,7 +1256,9 @@ impl Interpreter {
         let mut iters = 0;
         while self.evaluate(*expr.test.clone())?.is_truthy() {
           iters += 1;
-          let res = self.evaluate_block(*expr.body.clone(), self.scope.create_child()?);
+          let scope = self.scope.create_child()?;
+          let res = self.evaluate_block(*expr.body.clone(), scope);
+          scope.delete()?;
 
           // Check if continue or break
           match res {
@@ -1339,6 +1341,7 @@ impl Interpreter {
             },
           };
           values.push(Box::from(res));
+          scope.delete()?;
         }
 
         // Check for else

@@ -2,6 +2,7 @@ use std::{
   collections::HashMap,
   fs::{self, File},
   io::{ErrorKind, Write},
+  path::PathBuf,
   sync::{Arc, Mutex},
 };
 
@@ -62,6 +63,9 @@ pub struct Args {
   #[structopt(long, help = "Whether or not to log special debug logs")]
   pub debug: bool,
 
+  #[structopt(long, help = "Whether or not to log special verbose logs")]
+  pub verbose: bool,
+
   #[structopt(
     long = "out",
     short = "o",
@@ -104,9 +108,21 @@ static SCOPES: Lazy<Arc<Mutex<HashMap<u128, Arc<Mutex<runtime::scope::Scope>>>>>
 static ARGS: Lazy<Args> = Lazy::new(|| Args::from_args());
 
 pub fn debug(contents: &str, what: &str) {
-  if ARGS.debug {
+  if ARGS.debug || ARGS.verbose {
     println!("[DEBUG:{}]: {}", what, contents);
   }
+}
+
+pub fn verbose(contents: &str, what: &str) {
+  if ARGS.verbose {
+    println!("[VERBOSE:{}]: {}", what, contents);
+  }
+}
+
+pub fn get_data_dir() -> PathBuf {
+  let mut buf = PathBuf::from(directories::UserDirs::new().unwrap().home_dir());
+  buf.push(".zephyr");
+  buf
 }
 
 fn main() {
@@ -145,7 +161,7 @@ fn main() {
     &format!(
       "The current directory is set to: {}, app data dir is {}",
       dir.display().to_string(),
-      dire
+      get_data_dir().display().to_string(),
     ),
     "main",
   );

@@ -68,6 +68,15 @@ impl ScopeContainer {
       .unwrap()
       .insert(id, Arc::from(Mutex::from(x)));
 
+    crate::verbose(
+      &format!(
+        "Scope {} was created, there are now {} scopes",
+        id,
+        crate::SCOPES.lock().unwrap().len()
+      ),
+      "scope",
+    );
+
     // Return container
     ScopeContainer { id }
   }
@@ -94,8 +103,41 @@ impl ScopeContainer {
       .unwrap()
       .insert(id, Arc::from(Mutex::from(scope)));
 
+    crate::verbose(
+      &format!(
+        "Scope {} was created, there are now {} scopes",
+        id,
+        crate::SCOPES.lock().unwrap().len()
+      ),
+      "scope",
+    );
+
     // Return container
     Ok(ScopeContainer { id })
+  }
+
+  pub fn delete(&self) -> Result<(), ZephyrError> {
+    // Check if scope exists
+    if !crate::SCOPES.lock().unwrap().contains_key(&self.id) {
+      return Err(ZephyrError::runtime(
+        format!("Failed to get scope with ID: {}", self.id),
+        Location::no_location(),
+      ));
+    }
+
+    // Delete
+    crate::SCOPES.lock().unwrap().remove(&self.id);
+
+    crate::verbose(
+      &format!(
+        "Scope {} was deleted, there are now {} scopes",
+        self.id,
+        crate::SCOPES.lock().unwrap().len()
+      ),
+      "scope",
+    );
+
+    Ok(())
   }
 
   pub fn has_variable(&self, name: &str) -> Result<bool, errors::ZephyrError> {
@@ -372,7 +414,7 @@ impl ScopeContainer {
           ))
         }
       };
-      crate::debug(
+      crate::verbose(
         &format!("Exported {} with memory address {}", name.clone(), address),
         "scope",
       );
