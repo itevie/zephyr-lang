@@ -26,6 +26,9 @@ pub struct Scope {
   pub directory: RefCell<String>,
 }
 
+unsafe impl Sync for Scope {}
+unsafe impl Send for Scope {}
+
 impl Scope {
   pub fn new(directory: String) -> Scope {
     let values: HashMap<String, MemoryAddress> = HashMap::from([
