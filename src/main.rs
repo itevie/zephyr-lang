@@ -1,8 +1,8 @@
 use std::{
+  collections::HashMap,
   fs::{self, File},
   io::{ErrorKind, Write},
   sync::{Arc, Mutex},
-  collections::HashMap,
 };
 
 use once_cell::sync::Lazy;
@@ -81,7 +81,8 @@ pub struct Args {
 }
 
 static MEMORY: Lazy<Arc<Mutex<Memory>>> = Lazy::new(|| Arc::from(Mutex::from(Memory::new())));
-static SCOPES: Lazy<Arc<Mutex<HashMap<u128, Arc<Mutex<runtime::scope::Scope>>>>>> = Lazy::new(|| Arc::from(Mutex::from(HashMap::new())));
+static SCOPES: Lazy<Arc<Mutex<HashMap<u128, Arc<Mutex<runtime::scope::Scope>>>>>> =
+  Lazy::new(|| Arc::from(Mutex::from(HashMap::new())));
 static ARGS: Lazy<Args> = Lazy::new(|| Args::from_args());
 
 pub fn debug(contents: &str, what: &str) {

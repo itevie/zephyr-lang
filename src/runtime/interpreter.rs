@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{borrow::Borrow, cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
   errors::{self, runtime_error, ErrorType, ZephyrError},
@@ -23,7 +23,7 @@ use super::{
   memory::MemoryAddress,
   native_functions,
   native_functions::CallOptions,
-  scope::Scope,
+  scope::ScopeContainer,
   values::{
     to_array, to_object, Array, ArrayContainer, Boolean, Function, NativeFunction, Null, Number,
     Object, ObjectContainer, Reference, RuntimeValue, StringValue,
@@ -34,9 +34,9 @@ use super::{
 pub mod handlers;
 
 pub struct Interpreter {
-  pub scope: Rc<Scope>,
-  pub global_scope: Rc<Scope>,
-  pub import_cache: RefCell<HashMap<String, Rc<Scope>>>,
+  pub scope: ScopeContainer,
+  pub global_scope: ScopeContainer,
+  pub import_cache: RefCell<HashMap<String, ScopeContainer>>,
 }
 
 macro_rules! include_lib {
@@ -57,7 +57,7 @@ impl Interpreter {
       include_lib!("../lib/time.zr"),
       include_lib!("../lib/object.zr"),
     ];
-    let scope = &Rc::new(Scope::new(directory));
+    let scope = ScopeContainer::new(directory);
 
     let native_address = crate::MEMORY
       .lock()
@@ -138,11 +138,11 @@ impl Interpreter {
 
     // Load libs
     for i in libs {
-      let lib_scope = scope.clone().create_child();
-      *lib_scope.can_export.borrow_mut() = true;
+      let lib_scope = scope.create_child().unwrap();
+      lib_scope.set_can_export(true).unwrap();
       let mut lib_interpreter = Interpreter {
-        scope: lib_scope.clone(),
-        global_scope: scope.clone(),
+        scope: lib_scope,
+        global_scope: scope,
         import_cache: RefCell::from(HashMap::new()),
       };
       match lib_interpreter.evaluate(Expression::Program(
@@ -166,17 +166,19 @@ impl Interpreter {
         ),
       };
 
+      crate::debug(&format!("Finished loading lib: {}", i.1), "lib-loader");
+
       // Add defined variables to global
-      for (key, value) in lib_scope.clone().exports.borrow().iter() {
-        scope.variables.borrow_mut().insert((key).clone(), *value);
+      for (key, value) in lib_scope.get_exports().unwrap().iter() {
+        scope.declare_variable_with_address(&key, *value).unwrap();
       }
     }
 
-    let s = scope.create_child();
-    *s.can_export.borrow_mut() = true;
+    let s = scope.create_child().unwrap();
+    s.set_can_export(true).unwrap();
 
     Interpreter {
-      global_scope: scope.clone(),
+      global_scope: scope,
       scope: s,
       import_cache: RefCell::from(HashMap::new()),
     }
@@ -185,7 +187,7 @@ impl Interpreter {
   pub fn evaluate_block(
     &mut self,
     block: Block,
-    scope: Rc<Scope>,
+    scope: ScopeContainer,
   ) -> Result<RuntimeValue, ZephyrError> {
     let prev_scope = std::mem::replace(&mut self.scope, scope);
     let mut last_value: Option<RuntimeValue> = None;
@@ -211,8 +213,8 @@ impl Interpreter {
     arguments: Vec<Box<Expression>>,
     location: Location,
   ) -> Result<RuntimeValue, ZephyrError> {
-    if *self.scope.pure_functions_only.borrow() {
-      *self.scope.pure_functions_only.borrow_mut() = false;
+    if self.scope.get_pure_functions_only()? {
+      self.scope.set_pure_functions_only(false);
       // Check if it is pure
       if !func.pure {
         return Err(ZephyrError::parser(
@@ -223,14 +225,14 @@ impl Interpreter {
     }
     // Get the scope
     let scope = if func.pure {
-      self.global_scope.create_child()
+      self.global_scope.create_child()?
     } else {
-      func.scope.create_child()
+      func.scope.create_child()?
     };
     let caller_args = arguments.clone();
 
     if func.pure {
-      *scope.pure_functions_only.borrow_mut() = true;
+      scope.set_pure_functions_only(true);
     }
 
     let mut evalled_args: Vec<Box<RuntimeValue>> = vec![];
@@ -256,16 +258,12 @@ impl Interpreter {
 
     // Check where clauses
     crate::debug(
-      &format!(
-        "Swapping scope from {} to {}",
-        self.scope.id,
-        scope.clone().id
-      ),
+      &format!("Swapping scope from {} to {}", self.scope.id, scope.id),
       "scope",
     );
-    let prev = std::mem::replace(&mut self.scope, scope.clone());
+    let prev = std::mem::replace(&mut self.scope, scope);
     {
-      *self.scope.pure_functions_only.borrow_mut() = true;
+      self.scope.set_pure_functions_only(true);
     }
     for clause in func.where_clause.tests {
       let res = match self.evaluate((**&clause).clone()) {
@@ -273,7 +271,7 @@ impl Interpreter {
         Err(err) => {
           // Cleanup
           {
-            *self.scope.pure_functions_only.borrow_mut() = func.pure;
+            self.scope.set_pure_functions_only(func.pure);
           }
           return Err(err);
         }
@@ -289,7 +287,7 @@ impl Interpreter {
       }
     }
     {
-      *self.scope.pure_functions_only.borrow_mut() = func.pure;
+      self.scope.set_pure_functions_only(func.pure);
     }
 
     let return_value = match self.evaluate_block(*func.body, scope) {
@@ -521,7 +519,7 @@ impl Interpreter {
         }
       }
 
-      Expression::Block(block) => self.evaluate_block(block, self.scope.create_child()),
+      Expression::Block(block) => self.evaluate_block(block, self.scope.create_child()?),
 
       /////////////////////////////
       // ----- Statements ----- //
@@ -578,7 +576,7 @@ impl Interpreter {
       Expression::ImportStatement(stmt) => {
         // Create path
         let mut path = std::path::PathBuf::new();
-        path.push(self.scope.directory.borrow().clone());
+        path.push(self.scope.get_directory()?);
         path.push(stmt.from.value.clone());
 
         crate::debug(
@@ -628,12 +626,7 @@ impl Interpreter {
           .contains_key(&(path_string.clone()))
         {
           crate::debug(&format!("Importing from cache {}", path_string), "import");
-          self
-            .import_cache
-            .borrow()
-            .get(&path_string)
-            .unwrap()
-            .clone()
+          *self.import_cache.borrow().get(&path_string).unwrap()
         } else {
           crate::debug(&format!("Importing {}", path_string), "import");
 
@@ -645,21 +638,18 @@ impl Interpreter {
           // Create scope
           let path_pre_pop = path_string.clone();
           path.pop();
-          let scope = &self.global_scope.create_child();
-          *scope.directory.borrow_mut() = path.display().to_string();
-          *scope.can_export.borrow_mut() = true;
+          let scope = self.global_scope.create_child()?;
+          scope.set_directory(path.display().to_string());
+          scope.set_can_export(true);
 
           // Evaluate it
-          let prev = std::mem::replace(&mut self.scope, scope.clone());
+          let prev = std::mem::replace(&mut self.scope, scope);
           self.evaluate(Expression::Program(ast))?;
           let _ = std::mem::replace(&mut self.scope, prev);
 
           // Set cache
-          self
-            .import_cache
-            .borrow_mut()
-            .insert(path_pre_pop, scope.clone());
-          scope.clone()
+          self.import_cache.borrow_mut().insert(path_pre_pop, scope);
+          scope
         };
 
         for i in stmt.import {
@@ -667,7 +657,7 @@ impl Interpreter {
           let import_as = i.1.symbol;
 
           // Check if scope contains it
-          if !scope.has_variable(&to_import) {
+          if !scope.has_variable(&to_import)? {
             return Err(ZephyrError::runtime(
               format!("The import does not contain a definition for {}", to_import),
               i.0.location,
@@ -750,10 +740,10 @@ impl Interpreter {
       }
       Expression::FunctionLiteral(stmt) => {
         //let _name = stmt.identifier.symbol;
-        let child_scope = self.scope.create_child();
+        let child_scope = self.scope.create_child()?;
 
         if stmt.is_pure {
-          *child_scope.pure_functions_only.borrow_mut() = true;
+          child_scope.set_pure_functions_only(true);
         }
 
         let function = Function {
@@ -1240,7 +1230,7 @@ impl Interpreter {
 
         if test.is_truthy() {
           // Run the success block
-          self.evaluate_block(*expr.success, self.scope.create_child())
+          self.evaluate_block(*expr.success, self.scope.create_child()?)
         } else if let Some(alt) = expr.alternate {
           self.evaluate(*alt)
         } else {
@@ -1253,7 +1243,7 @@ impl Interpreter {
         let mut iters = 0;
         while self.evaluate(*expr.test.clone())?.is_truthy() {
           iters += 1;
-          let res = self.evaluate_block(*expr.body.clone(), self.scope.create_child());
+          let res = self.evaluate_block(*expr.body.clone(), self.scope.create_child()?);
 
           // Check if continue or break
           match res {
@@ -1287,7 +1277,7 @@ impl Interpreter {
             // Check if there is a catch block
             if let Some(catch) = expr.catch {
               // Check if it defines ident
-              let scope = self.scope.create_child();
+              let scope = self.scope.create_child()?;
               if let Some(ident) = expr.catch_identifier {
                 let err_obj = to_object(HashMap::from([
                   (
@@ -1325,7 +1315,7 @@ impl Interpreter {
         let mut values: Vec<Box<RuntimeValue>> = vec![];
 
         for i in value {
-          let scope = self.scope.create_child();
+          let scope = self.scope.create_child()?;
           scope.declare_variable(&expr.identifier.symbol, *i.clone())?;
           let res = match self.evaluate_block(expr.body.clone(), scope) {
             Ok(ok) => ok,

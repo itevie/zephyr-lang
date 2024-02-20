@@ -6,7 +6,7 @@ use crate::{
   parser::nodes::{Block, Identifier, WhereClause},
 };
 
-use super::{memory::MemoryAddress, native_functions::CallOptions, scope::Scope};
+use super::{memory::MemoryAddress, native_functions::CallOptions, scope::ScopeContainer};
 
 // ----- Base -----
 #[derive(Clone, Debug)]
@@ -247,7 +247,7 @@ pub struct Object {
 
 #[derive(Clone)]
 pub struct Function {
-  pub scope: Rc<Scope>,
+  pub scope: Rc<ScopeContainer>,
   pub body: Box<Block>,
   pub name: Option<String>,
   pub arguments: Vec<Identifier>,
