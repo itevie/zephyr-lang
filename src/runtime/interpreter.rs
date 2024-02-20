@@ -64,7 +64,7 @@ impl Interpreter {
     let scope = ScopeContainer::new(directory);
 
     let native_address = crate::MEMORY
-      .lock()
+      .write()
       .unwrap()
       .add_value(RuntimeValue::Object(Object {
         items: HashMap::from([
@@ -199,6 +199,10 @@ impl Interpreter {
     block: Block,
     scope: ScopeContainer,
   ) -> Result<RuntimeValue, ZephyrError> {
+    crate::debug(
+      &format!("Swapping scope from {} to {}", self.scope.id, scope.id),
+      "scope",
+    );
     let prev_scope = std::mem::replace(&mut self.scope, scope);
     let mut last_value: Option<RuntimeValue> = None;
 
@@ -209,6 +213,10 @@ impl Interpreter {
       });
     }
 
+    crate::debug(
+      &format!("Swapping scope back from {} to {}", self.scope.id, scope.id),
+      "scope",
+    );
     let _ = std::mem::replace(&mut self.scope, prev_scope);
 
     match last_value {
@@ -348,7 +356,7 @@ impl Interpreter {
     // Check if object & has __get
     if !skip_getter {
       if let RuntimeValue::ObjectContainer(obj) = variable.clone() {
-        let obj = match crate::MEMORY.lock().unwrap().get_value(obj.location)? {
+        let obj = match crate::MEMORY.read().unwrap().get_value(obj.location)? {
           RuntimeValue::Object(obj) => obj,
           _ => unreachable!(),
         };
@@ -401,7 +409,7 @@ impl Interpreter {
         }
 
         // Get the referenced array
-        let mut arr = match crate::MEMORY.lock().unwrap().get_value(arr_ref.location)? {
+        let mut arr = match crate::MEMORY.read().unwrap().get_value(arr_ref.location)? {
           RuntimeValue::Array(arr) => arr,
           _ => unreachable!(),
         };
@@ -447,7 +455,7 @@ impl Interpreter {
 
           return Ok(RuntimeValue::ArrayContainer(ArrayContainer {
             location: crate::MEMORY
-              .lock()
+              .write()
               .unwrap()
               .set_value(arr_ref.location, RuntimeValue::Array(arr))?,
           }));
@@ -457,7 +465,7 @@ impl Interpreter {
         return Ok(*(*&arr.items[number]).clone());
       }
       RuntimeValue::ObjectContainer(obj_ref) => {
-        let mut object = match crate::MEMORY.lock().unwrap().get_value(obj_ref.location)? {
+        let mut object = match crate::MEMORY.read().unwrap().get_value(obj_ref.location)? {
           RuntimeValue::Object(obj) => obj,
           _ => unreachable!(),
         };
@@ -489,7 +497,7 @@ impl Interpreter {
 
           // Update memory
           crate::MEMORY
-            .lock()
+            .write()
             .unwrap()
             .set_value(obj_ref.location, RuntimeValue::Object(object))?;
 
@@ -728,7 +736,7 @@ impl Interpreter {
 
         // Assign to memory
         let address = crate::MEMORY
-          .lock()
+          .write()
           .unwrap()
           .add_value(RuntimeValue::Object(object));
 
@@ -747,7 +755,7 @@ impl Interpreter {
 
         // Add to memory
         let address = crate::MEMORY
-          .lock()
+          .write()
           .unwrap()
           .add_value(RuntimeValue::Array(array));
 
@@ -798,7 +806,7 @@ impl Interpreter {
         Ok(RuntimeValue::Boolean(Boolean {
           value: match right {
             RuntimeValue::ObjectContainer(obj) => {
-              let obj = match crate::MEMORY.lock().unwrap().get_value(obj.location)? {
+              let obj = match crate::MEMORY.read().unwrap().get_value(obj.location)? {
                 RuntimeValue::Object(obj) => obj,
                 _ => unreachable!(),
               };
@@ -1006,7 +1014,7 @@ impl Interpreter {
             }
             RuntimeValue::ArrayContainer(ref container) => {
               let mut array = match crate::MEMORY
-                .lock()
+                .read()
                 .unwrap()
                 .get_value(container.location)?
               {
@@ -1018,7 +1026,7 @@ impl Interpreter {
 
               // Modify the value
               crate::MEMORY
-                .lock()
+                .write()
                 .unwrap()
                 .set_value(container.location, RuntimeValue::Array(array))?;
               Some(RuntimeValue::ArrayContainer(container.clone()))
@@ -1204,13 +1212,13 @@ impl Interpreter {
             value: !value.is_truthy(),
           })),
           TokenType::UnaryOperator(UnaryOperator::Dereference) => match value {
-            RuntimeValue::Reference(refer) => crate::MEMORY.lock().unwrap().get_value(refer.value),
+            RuntimeValue::Reference(refer) => crate::MEMORY.read().unwrap().get_value(refer.value),
             RuntimeValue::Number(num) => crate::MEMORY
-              .lock()
+              .read()
               .unwrap()
               .get_value(num.value as MemoryAddress),
             RuntimeValue::ArrayContainer(arr) => {
-              crate::MEMORY.lock().unwrap().get_value(arr.location)
+              crate::MEMORY.read().unwrap().get_value(arr.location)
             }
             _ => Err(ZephyrError::runtime(
               format!("Cannot derference a {:?}", value.type_name()),

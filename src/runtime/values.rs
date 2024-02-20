@@ -56,13 +56,13 @@ impl RuntimeValue {
         })
         .collect::<Vec<Box<RuntimeValue>>>(),
       RuntimeValue::ArrayContainer(arr) => {
-        match crate::MEMORY.lock().unwrap().get_value(arr.location)? {
+        match crate::MEMORY.read().unwrap().get_value(arr.location)? {
           RuntimeValue::Array(a) => a.items,
           _ => unreachable!(),
         }
       }
       RuntimeValue::ObjectContainer(obj) => {
-        match crate::MEMORY.lock().unwrap().get_value(obj.location)? {
+        match crate::MEMORY.read().unwrap().get_value(obj.location)? {
           RuntimeValue::Object(o) => o
             .items
             .keys()
@@ -103,7 +103,7 @@ impl RuntimeValue {
       RuntimeValue::ArrayContainer(arr) => {
         let mut res = String::from("[");
         let array = match crate::MEMORY
-          .lock()
+          .read()
           .unwrap()
           .get_value(arr.location)
           .unwrap()
@@ -128,7 +128,7 @@ impl RuntimeValue {
       RuntimeValue::ObjectContainer(obj) => {
         let mut res = String::from("{");
         let object = match crate::MEMORY
-          .lock()
+          .read()
           .unwrap()
           .get_value(obj.location)
           .unwrap()
@@ -189,7 +189,7 @@ pub fn to_array(values: Vec<Box<RuntimeValue>>) -> RuntimeValue {
   let array = RuntimeValue::Array(Array { items: values });
 
   RuntimeValue::ArrayContainer(ArrayContainer {
-    location: crate::MEMORY.lock().unwrap().add_value(array),
+    location: crate::MEMORY.write().unwrap().add_value(array),
   })
 }
 
@@ -197,7 +197,7 @@ pub fn to_object(values: HashMap<String, RuntimeValue>) -> RuntimeValue {
   let object = RuntimeValue::Object(Object { items: values });
 
   RuntimeValue::ObjectContainer(ObjectContainer {
-    location: crate::MEMORY.lock().unwrap().add_value(object),
+    location: crate::MEMORY.write().unwrap().add_value(object),
   })
 }
 

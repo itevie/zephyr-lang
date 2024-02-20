@@ -2,7 +2,7 @@ use std::{
   collections::HashMap,
   fs::{self, File},
   io::{ErrorKind, Write},
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, RwLock},
 };
 
 use once_cell::sync::Lazy;
@@ -80,9 +80,9 @@ pub struct Args {
   pub minimise: bool,
 }
 
-static MEMORY: Lazy<Arc<Mutex<Memory>>> = Lazy::new(|| Arc::from(Mutex::from(Memory::new())));
-static SCOPES: Lazy<Arc<Mutex<HashMap<u128, Arc<Mutex<runtime::scope::Scope>>>>>> =
-  Lazy::new(|| Arc::from(Mutex::from(HashMap::new())));
+static MEMORY: Lazy<Arc<RwLock<Memory>>> = Lazy::new(|| Arc::from(RwLock::from(Memory::new())));
+static SCOPES: Lazy<Arc<RwLock<HashMap<u128, Arc<Mutex<runtime::scope::Scope>>>>>> =
+  Lazy::new(|| Arc::from(RwLock::from(HashMap::new())));
 static ARGS: Lazy<Args> = Lazy::new(|| Args::from_args());
 
 pub fn debug(contents: &str, what: &str) {

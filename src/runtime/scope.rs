@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::hash::Hash;
+use std::sync::{Arc, Mutex, RwLock};
 
 use once_cell::sync::Lazy;
 
@@ -38,7 +39,7 @@ impl ScopeContainer {
     .map(|(key, val)| {
       (
         String::from(*key),
-        crate::MEMORY.lock().unwrap().add_value((*val).clone()),
+        crate::MEMORY.write().unwrap().add_value((*val).clone()),
       )
     })
     .collect();
@@ -50,7 +51,7 @@ impl ScopeContainer {
     // Create the scope
     let x = {
       Scope {
-        variables: RefCell::from(values),
+        variables: Arc::from(RwLock::from(values)),
         exports: RefCell::new(HashMap::new()),
         details: ScopeDetails {
           can_export: RefCell::from(false),
@@ -64,7 +65,7 @@ impl ScopeContainer {
 
     // Add scope to SCOPES
     crate::SCOPES
-      .lock()
+      .write()
       .unwrap()
       .insert(id, Arc::from(Mutex::from(x)));
 
@@ -82,7 +83,7 @@ impl ScopeContainer {
     // Create the scope
     let scope = Scope {
       parent_id: Some(self.id),
-      variables: RefCell::from(HashMap::new()),
+      variables: Arc::from(RwLock::from(HashMap::new())),
       exports: RefCell::new(HashMap::new()),
       details,
       id,
@@ -90,7 +91,7 @@ impl ScopeContainer {
 
     // Add scope to SCOPES
     crate::SCOPES
-      .lock()
+      .write()
       .unwrap()
       .insert(id, Arc::from(Mutex::from(scope)));
 
@@ -99,8 +100,8 @@ impl ScopeContainer {
   }
 
   pub fn has_variable(&self, name: &str) -> Result<bool, errors::ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
-      Ok(ok) => Ok(ok.variables.borrow().contains_key(name)),
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
+      Ok(ok) => Ok(ok.variables.read().unwrap().contains_key(name)),
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
         Location::no_location(),
@@ -113,11 +114,11 @@ impl ScopeContainer {
     name: &str,
     value: RuntimeValue,
   ) -> Result<(), errors::ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => {
-        ok.variables.borrow_mut().insert(
+        ok.variables.write().unwrap().insert(
           name.to_string(),
-          crate::MEMORY.lock().unwrap().add_value(value),
+          crate::MEMORY.write().unwrap().add_value(value),
         );
         Ok(())
       }
@@ -133,10 +134,12 @@ impl ScopeContainer {
     name: &str,
     value: MemoryAddress,
   ) -> Result<(), errors::ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => {
-        ok.variables.borrow();
-        ok.variables.borrow_mut().insert(name.to_string(), value);
+        ok.variables
+          .write()
+          .unwrap()
+          .insert(name.to_string(), value);
         Ok(())
       }
       Err(_) => Err(ZephyrError::runtime(
@@ -195,7 +198,7 @@ impl ScopeContainer {
   }
 
   pub fn get_self_details(&self) -> Result<ScopeDetails, ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(ok.details.clone()),
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
@@ -205,7 +208,7 @@ impl ScopeContainer {
   }
 
   pub fn get_exports(&self) -> Result<HashMap<String, MemoryAddress>, ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(ok.exports.borrow().clone()),
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
@@ -215,7 +218,7 @@ impl ScopeContainer {
   }
 
   pub fn get_can_export(&self) -> Result<bool, ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(*ok.details.can_export.borrow()),
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
@@ -225,7 +228,7 @@ impl ScopeContainer {
   }
 
   pub fn set_can_export(&self, to: bool) -> Result<(), ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(*ok.details.can_export.borrow_mut() = to),
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
@@ -235,7 +238,7 @@ impl ScopeContainer {
   }
 
   pub fn get_pure_functions_only(&self) -> Result<bool, ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(*ok.details.pure_functions_only.borrow()),
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
@@ -245,7 +248,7 @@ impl ScopeContainer {
   }
 
   pub fn set_pure_functions_only(&self, to: bool) -> Result<(), ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(*ok.details.pure_functions_only.borrow_mut() = to),
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
@@ -255,7 +258,7 @@ impl ScopeContainer {
   }
 
   pub fn get_directory(&self) -> Result<String, ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok((*ok.details.directory.borrow()).clone()),
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
@@ -265,7 +268,7 @@ impl ScopeContainer {
   }
 
   pub fn set_directory(&self, to: String) -> Result<(), ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(*ok.details.directory.borrow_mut() = to),
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
@@ -275,7 +278,7 @@ impl ScopeContainer {
   }
 
   pub fn get_parent(&self) -> Result<Option<ScopeContainer>, ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(if let Some(parent) = ok.parent_id {
         Some(ScopeContainer { id: parent })
       } else {
@@ -289,16 +292,16 @@ impl ScopeContainer {
   }
 
   pub fn get_variable_addr(&self, name: &str) -> Result<MemoryAddress, errors::ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => {
         // Check if it exists
-        if !ok.variables.borrow().contains_key(name) {
+        if !ok.variables.read().unwrap().contains_key(name) {
           Err(ZephyrError::runtime(
             format!("The variable {} does not exist", name),
             Location::no_location(),
           ))
         } else {
-          Ok(*ok.variables.borrow().get(name).unwrap())
+          Ok(*ok.variables.read().unwrap().get(name).unwrap())
         }
       }
       Err(_) => Err(ZephyrError::runtime(
@@ -324,7 +327,7 @@ impl ScopeContainer {
 
     Ok(
       crate::MEMORY
-        .lock()
+        .read()
         .unwrap()
         .get_value(self.get_variable_addr(name)?)?,
     )
@@ -354,7 +357,7 @@ impl ScopeContainer {
   ) -> Result<RuntimeValue, errors::ZephyrError> {
     let value = self.get_variable_address(name)?;
     crate::MEMORY
-      .lock()
+      .write()
       .unwrap()
       .set_value(value, new_value.clone())?;
     Ok(new_value.clone())
@@ -363,7 +366,7 @@ impl ScopeContainer {
   pub fn export(&self, name: String, address: MemoryAddress) -> Result<(), ZephyrError> {
     // Check if current scope can export
     if *self.get_self_details()?.can_export.borrow() {
-      match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+      match crate::SCOPES.read().unwrap().get(&self.id).unwrap().lock() {
         Ok(ok) => ok.exports.borrow_mut().insert(name.clone(), address),
         Err(_) => {
           return Err(ZephyrError::runtime(
@@ -403,7 +406,7 @@ pub struct ScopeDetails {
 pub struct Scope {
   pub id: u128,
   pub parent_id: Option<u128>,
-  pub variables: RefCell<HashMap<String, MemoryAddress>>,
+  pub variables: Arc<RwLock<HashMap<String, MemoryAddress>>>,
   pub exports: RefCell<HashMap<String, MemoryAddress>>,
   pub details: ScopeDetails,
 }
