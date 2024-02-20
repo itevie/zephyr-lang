@@ -4,7 +4,11 @@ use crate::{lexer, parser, runtime::interpreter::Interpreter};
 
 pub fn repl(_args: crate::Args, directory: String) {
   let mut interpreter = Interpreter::new(directory.clone());
+  let scope = interpreter.scope;
+
   loop {
+    let _ = std::mem::swap(&mut interpreter.scope, &mut scope.clone());
+
     // Get input
     print!("> ");
     std::io::stdout().flush().unwrap();

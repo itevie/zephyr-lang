@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use once_cell::sync::Lazy;
@@ -191,16 +190,6 @@ impl ScopeContainer {
 
     // Declare it
     self.insert_variable(name, value)?;
-    println!(
-      "{:#?}",
-      match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
-        Ok(ref ok) => Ok(ok.variables.borrow()),
-        Err(_) => Err(ZephyrError::runtime(
-          format!("Failed to get scope with ID: {}", self.id),
-          Location::no_location(),
-        )),
-      }
-    );
 
     Ok(())
   }

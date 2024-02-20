@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, rc::Rc};
+use std::{collections::HashMap, fmt};
 
 use crate::{
   errors::ZephyrError,
@@ -247,7 +247,7 @@ pub struct Object {
 
 #[derive(Clone)]
 pub struct Function {
-  pub scope: Rc<ScopeContainer>,
+  pub scope: ScopeContainer,
   pub body: Box<Block>,
   pub name: Option<String>,
   pub arguments: Vec<Identifier>,

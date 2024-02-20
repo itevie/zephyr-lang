@@ -3,13 +3,18 @@ use std::io::Write;
 
 use crate::{errors::ZephyrError, lexer::location::Location};
 
-use super::values::{to_array, Null, Number, RuntimeValue, StringValue};
+use super::{
+  interpreter::Interpreter,
+  values::{to_array, Null, Number, RuntimeValue, StringValue},
+};
 
 type R = Result<RuntimeValue, ZephyrError>;
 
+#[derive(Clone)]
 pub struct CallOptions<'a> {
   pub args: &'a [RuntimeValue],
   pub location: Location,
+  pub interpreter: Interpreter,
 }
 
 pub fn unescape(options: CallOptions) -> R {
@@ -150,6 +155,28 @@ pub fn ceil(options: CallOptions) -> R {
     [RuntimeValue::Number(num)] => Ok(RuntimeValue::Number(Number {
       value: num.value.ceil(),
     })),
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
+  }
+}
+
+// ----- Threads -----
+pub fn spawn_thread(options: CallOptions) -> R {
+  match options.args {
+    [RuntimeValue::Function(func)] => {
+      std::thread::scope(|s| {
+        let options = options.clone();
+        let mut interpreter = options.interpreter;
+        s.spawn(move || {
+          interpreter
+            .evaluate_zephyr_function(func.clone(), vec![], options.location)
+            .unwrap();
+        });
+      });
+      Ok(RuntimeValue::Null(Null {}))
+    }
     _ => Err(ZephyrError::runtime(
       "Invalid args".to_string(),
       options.location,

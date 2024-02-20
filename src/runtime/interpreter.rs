@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
   errors::{self, runtime_error, ErrorType, ZephyrError},
@@ -33,11 +33,15 @@ use super::{
 #[path = "./handlers/mod.rs"]
 pub mod handlers;
 
+#[derive(Clone)]
 pub struct Interpreter {
   pub scope: ScopeContainer,
   pub global_scope: ScopeContainer,
   pub import_cache: RefCell<HashMap<String, ScopeContainer>>,
 }
+
+unsafe impl Send for Interpreter {}
+unsafe impl Sync for Interpreter {}
 
 macro_rules! include_lib {
   ($what:expr) => {
@@ -110,6 +114,12 @@ impl Interpreter {
             "get_time_nanos".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::get_time_nanos,
+            }),
+          ),
+          (
+            "spawn_thread".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::spawn_thread,
             }),
           ),
           (
@@ -214,7 +224,7 @@ impl Interpreter {
     location: Location,
   ) -> Result<RuntimeValue, ZephyrError> {
     if self.scope.get_pure_functions_only()? {
-      self.scope.set_pure_functions_only(false);
+      self.scope.set_pure_functions_only(false)?;
       // Check if it is pure
       if !func.pure {
         return Err(ZephyrError::parser(
@@ -232,7 +242,7 @@ impl Interpreter {
     let caller_args = arguments.clone();
 
     if func.pure {
-      scope.set_pure_functions_only(true);
+      scope.set_pure_functions_only(true)?;
     }
 
     let mut evalled_args: Vec<Box<RuntimeValue>> = vec![];
@@ -263,7 +273,7 @@ impl Interpreter {
     );
     let prev = std::mem::replace(&mut self.scope, scope);
     {
-      self.scope.set_pure_functions_only(true);
+      self.scope.set_pure_functions_only(true)?;
     }
     for clause in func.where_clause.tests {
       let res = match self.evaluate((**&clause).clone()) {
@@ -271,7 +281,15 @@ impl Interpreter {
         Err(err) => {
           // Cleanup
           {
-            self.scope.set_pure_functions_only(func.pure);
+            self.scope.set_pure_functions_only(func.pure)?;
+            crate::debug(
+              &format!(
+                "Swapping scope back from {} to {} due to error",
+                self.scope.id, prev.id
+              ),
+              "scope",
+            );
+            let _ = std::mem::replace(&mut self.scope, prev);
           }
           return Err(err);
         }
@@ -287,7 +305,7 @@ impl Interpreter {
       }
     }
     {
-      self.scope.set_pure_functions_only(func.pure);
+      self.scope.set_pure_functions_only(func.pure)?;
     }
 
     let return_value = match self.evaluate_block(*func.body, scope) {
@@ -639,8 +657,8 @@ impl Interpreter {
           let path_pre_pop = path_string.clone();
           path.pop();
           let scope = self.global_scope.create_child()?;
-          scope.set_directory(path.display().to_string());
-          scope.set_can_export(true);
+          scope.set_directory(path.display().to_string())?;
+          scope.set_can_export(true)?;
 
           // Evaluate it
           let prev = std::mem::replace(&mut self.scope, scope);
@@ -743,11 +761,11 @@ impl Interpreter {
         let child_scope = self.scope.create_child()?;
 
         if stmt.is_pure {
-          child_scope.set_pure_functions_only(true);
+          child_scope.set_pure_functions_only(true)?;
         }
 
         let function = Function {
-          scope: Rc::from(child_scope),
+          scope: child_scope,
           body: Box::from(stmt.body),
           arguments: stmt.arguments,
           where_clause: stmt.where_clauses,
@@ -824,6 +842,7 @@ impl Interpreter {
             (func.func)(CallOptions {
               args: &args,
               location: expr2.location,
+              interpreter: self.clone(),
             })
           }
           RuntimeValue::Function(func) => {
