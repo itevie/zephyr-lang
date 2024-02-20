@@ -117,12 +117,6 @@ impl Interpreter {
             }),
           ),
           (
-            "spawn_thread".to_string(),
-            RuntimeValue::NativeFunction(NativeFunction {
-              func: &native_functions::spawn_thread,
-            }),
-          ),
-          (
             "floor".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::floor,

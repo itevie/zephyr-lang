@@ -21,6 +21,9 @@ mod mini;
 #[path = "./basic_run.rs"]
 mod basic_run;
 
+#[path = "./package_manager.rs"]
+mod package_manager;
+
 //use std::io::Write;
 
 pub mod errors;
@@ -78,6 +81,21 @@ pub struct Args {
 
   #[structopt(long, help = "Minimise a Zephyr file.")]
   pub minimise: bool,
+
+  // ----- Subcommands -----
+  #[structopt(subcommand)]
+  pub subcommand: Option<Subcommands>,
+}
+
+#[derive(Debug, StructOpt, Clone)]
+pub enum Subcommands {
+  New {
+    #[structopt(
+      value_name = "PACKAGE-NAME",
+      empty_values = false,
+    )]
+    name_pos: Option<String>,
+  }
 }
 
 static MEMORY: Lazy<Arc<Mutex<Memory>>> = Lazy::new(|| Arc::from(Mutex::from(Memory::new())));
@@ -130,6 +148,11 @@ fn main() {
     ),
     "main",
   );
+
+  // Check for subcommands
+  if let Some(subcommand) = ARGS.clone().subcommand {
+    println!("{:#?}", subcommand);
+  }
 
   // Check if should run in repl mode
   if matches!(args.file_flag, None) && matches!(args.file_pos, None) {

@@ -163,7 +163,7 @@ pub fn ceil(options: CallOptions) -> R {
 }
 
 // ----- Threads -----
-pub fn spawn_thread(options: CallOptions) -> R {
+/*pub fn spawn_thread(options: CallOptions) -> R {
   match options.args {
     [RuntimeValue::Function(func)] => {
       std::thread::scope(|s| {
@@ -182,7 +182,7 @@ pub fn spawn_thread(options: CallOptions) -> R {
       options.location,
     )),
   }
-}
+}*/
 
 // ----- Network -----
 /*pub fn response_to_object(result: reqwest::blocking::Response) -> R {
