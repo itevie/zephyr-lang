@@ -1,11 +1,11 @@
 //use std::collections::HashMap;
-use std::io::Write;
+use std::{collections::HashMap, io::Write};
 
 use crate::{errors::ZephyrError, lexer::location::Location};
 
 use super::{
   interpreter::Interpreter,
-  values::{to_array, Null, Number, RuntimeValue, StringValue},
+  values::{to_array, Null, Number, Object, RuntimeValue, StringValue},
 };
 
 type R = Result<RuntimeValue, ZephyrError>;
@@ -185,6 +185,81 @@ pub fn ceil(options: CallOptions) -> R {
 }*/
 
 // ----- Network -----
+pub fn ureq_to_object(response: ureq::Response) -> R {
+  // Create object
+  let object = Object {
+    items: HashMap::from([
+      (
+        "contents".to_string(),
+        match response.into_string() {
+          Ok(ok) => RuntimeValue::StringValue(StringValue { value: ok }),
+          _ => {
+            return Err(ZephyrError::runtime(
+              "Failed to parse response".to_string(),
+              Location::no_location(),
+            ))
+          }
+        },
+      ),
+      (
+        "status_text".to_string(),
+        RuntimeValue::StringValue(StringValue {
+          value: response.status_text().to_string(),
+        }),
+      ),
+      (
+        "status".to_string(),
+        RuntimeValue::Number(Number {
+          value: response.status() as f64,
+        }),
+      ),
+    ]),
+  };
+  Ok(RuntimeValue::ObjectContainer(
+    super::values::ObjectContainer {
+      location: crate::MEMORY
+        .lock()
+        .unwrap()
+        .add_value(RuntimeValue::Object(object)),
+    },
+  ))
+}
+
+pub fn http_get(options: CallOptions) -> R {
+  match options.args {
+    [RuntimeValue::StringValue(url), RuntimeValue::ObjectContainer(headers)] => {
+      let request = ureq::get(&url.value);
+
+      // Add headers
+      let _object = match crate::MEMORY.lock().unwrap().get_value(headers.location)? {
+        RuntimeValue::Object(obj) => obj,
+        _ => unreachable!(),
+      };
+      /*for i in object.items {
+        request.set(
+          &i.0,
+          match i.1 {
+            RuntimeValue::StringValue(ref str) => &str.value,
+            _ => unreachable!(),
+          },
+        );
+      }*/
+
+      let result = match request.call() {
+        Ok(ok) => ureq_to_object(ok),
+        Err(ureq::Error::Status(code, response)) => ureq_to_object(response),
+        _ => unreachable!(),
+      };
+
+      result
+    }
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
+  }
+}
+
 /*pub fn response_to_object(result: reqwest::blocking::Response) -> R {
   let result_status = result.status().as_u16();
 

@@ -60,6 +60,7 @@ impl Interpreter {
       include_lib!("../lib/iter.zr"),
       include_lib!("../lib/time.zr"),
       include_lib!("../lib/object.zr"),
+      include_lib!("../lib/network.zr"),
     ];
     let scope = ScopeContainer::new(directory);
 
@@ -78,6 +79,12 @@ impl Interpreter {
             "write".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::write,
+            }),
+          ),
+          (
+            "http_get".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::http_get,
             }),
           ),
           (
