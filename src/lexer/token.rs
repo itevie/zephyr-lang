@@ -87,6 +87,7 @@ pub enum MultiplicativeTokenType {
   Divide,
   IntegerDivide,
   Modulo,
+  Coalesce,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

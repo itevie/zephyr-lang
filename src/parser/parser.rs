@@ -803,6 +803,10 @@ impl Parser {
           is_computed: false,
           location: left_location.combine_with(ident_location),
         });
+
+        if matches!(self.at().token_type, TokenType::OpenParen) {
+          left = self.parse_call_expression(Some(left))?;
+        }
       } else {
         unreachable!();
       }

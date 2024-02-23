@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::{cell::RefCell, collections::HashMap, time::Instant};
 
 use crate::{
   errors::{self, runtime_error, ErrorType, ZephyrError},
@@ -51,6 +51,7 @@ macro_rules! include_lib {
 
 impl Interpreter {
   pub fn new(directory: String) -> Self {
+    let start = Instant::now();
     let libs: Vec<(&str, &str)> = vec![
       include_lib!("../lib/predicates.zr"),
       include_lib!("../lib/array.zr"),
@@ -61,6 +62,7 @@ impl Interpreter {
       include_lib!("../lib/time.zr"),
       include_lib!("../lib/object.zr"),
       include_lib!("../lib/network.zr"),
+      include_lib!("../lib/fs.zr"),
     ];
     let scope = ScopeContainer::new(directory);
 
@@ -135,6 +137,12 @@ impl Interpreter {
               func: &native_functions::ceil,
             }),
           ),
+          (
+            "read_file".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::read_file,
+            }),
+          ),
         ]),
       }));
 
@@ -187,6 +195,11 @@ impl Interpreter {
 
     let s = scope.create_child().unwrap();
     s.set_can_export(true).unwrap();
+
+    crate::debug(
+      &format!("Took {}ms to load interpreter", start.elapsed().as_millis()),
+      "interpreter",
+    );
 
     Interpreter {
       global_scope: scope,
@@ -941,6 +954,20 @@ impl Interpreter {
         // Collect values
         let left = self.evaluate(*expr.left)?;
         let right = self.evaluate(*expr.right)?;
+
+        // Check if the operator takes in stuff other than numbers
+        match expr.operator {
+          TokenType::MultiplicativeOperator(MultiplicativeTokenType::Coalesce) => {
+            return Ok({
+              if left.type_name() == "null" {
+                right
+              } else {
+                left
+              }
+            })
+          }
+          _ => (),
+        };
 
         // Check if both are numbers
         if util::varient_eq(&left, &right) && matches!(left, RuntimeValue::Number(_)) {

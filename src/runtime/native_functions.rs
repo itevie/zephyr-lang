@@ -1,5 +1,5 @@
 //use std::collections::HashMap;
-use std::{collections::HashMap, io::Write};
+use std::{collections::HashMap, fs, io::Write};
 
 use crate::{errors::ZephyrError, lexer::location::Location};
 
@@ -184,23 +184,28 @@ pub fn ceil(options: CallOptions) -> R {
   }
 }*/
 
+// ----- File Management -----
+pub fn read_file(options: CallOptions) -> R {
+  match options.args {
+    [RuntimeValue::StringValue(str)] => match fs::read_to_string(str.value.clone()) {
+      Ok(ok) => Ok(RuntimeValue::StringValue(StringValue { value: ok })),
+      Err(e) => Err(ZephyrError::runtime(
+        format!("Failed to read file {}: {}", str.value, e),
+        Location::no_location(),
+      )),
+    },
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
+  }
+}
+
 // ----- Network -----
 pub fn ureq_to_object(response: ureq::Response) -> R {
   // Create object
   let object = Object {
     items: HashMap::from([
-      (
-        "contents".to_string(),
-        match response.into_string() {
-          Ok(ok) => RuntimeValue::StringValue(StringValue { value: ok }),
-          _ => {
-            return Err(ZephyrError::runtime(
-              "Failed to parse response".to_string(),
-              Location::no_location(),
-            ))
-          }
-        },
-      ),
       (
         "status_text".to_string(),
         RuntimeValue::StringValue(StringValue {
@@ -212,6 +217,18 @@ pub fn ureq_to_object(response: ureq::Response) -> R {
         RuntimeValue::Number(Number {
           value: response.status() as f64,
         }),
+      ),
+      (
+        "contents".to_string(),
+        match response.into_string() {
+          Ok(ok) => RuntimeValue::StringValue(StringValue { value: ok }),
+          _ => {
+            return Err(ZephyrError::runtime(
+              "Failed to parse response".to_string(),
+              Location::no_location(),
+            ))
+          }
+        },
       ),
     ]),
   };
@@ -247,7 +264,7 @@ pub fn http_get(options: CallOptions) -> R {
 
       let result = match request.call() {
         Ok(ok) => ureq_to_object(ok),
-        Err(ureq::Error::Status(code, response)) => ureq_to_object(response),
+        Err(ureq::Error::Status(_, response)) => ureq_to_object(response),
         _ => unreachable!(),
       };
 

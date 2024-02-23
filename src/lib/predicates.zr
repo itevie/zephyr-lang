@@ -65,3 +65,35 @@ export func pure callable?(test) {
 export func pure iterable?(what) {
   typeof what == "array" || typeof what == "string" || typeof what == "object";
 }
+
+// Checks if an object matches a "struct", for example:
+// object_matches?(.{a:2, b:null}, .{a:number?, b:string?}) will fail
+export func pure object_matches?(test_with: object?, test: object?) {
+  for key in test {
+    // Check if test_with has the key
+    if !(key in test_with) {
+      return false;
+    }
+
+    // Check if it is an object
+    if object?(test[key]) {
+      if !(object_matches?(test_with[key], test[key])) {
+        return false;
+      }
+
+      continue;
+    }
+
+    // Make sure it is callable
+    if !(test[key] is callable?) {
+      return false;
+    }
+
+    // Check if it matches
+    if !(test[key](test_with[key])) {
+      return false;
+    }
+  }
+
+  return true;
+}

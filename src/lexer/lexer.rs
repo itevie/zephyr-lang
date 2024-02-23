@@ -31,6 +31,7 @@ lazy_static! {
     tok!("/", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Divide));
     tok!("//", TokenType::MultiplicativeOperator(MultiplicativeTokenType::IntegerDivide));
     tok!("%", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Modulo));
+    tok!("??", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Coalesce));
 
     // Comparison operators
     tok!("==", TokenType::ComparisonTokenType(ComparisonTokenType::Equals));
@@ -132,6 +133,19 @@ pub fn get_location_contents(id: u128) -> LocationContents {
   LOCATION_CONTENTS.lock().unwrap().get(&id).unwrap().clone()
 }
 
+static OPERATOR_KEYS: Lazy<Vec<&&str>> = Lazy::new(|| {
+  let mut keys: Vec<&&str> = OPERATORS.keys().clone().collect();
+  keys.sort_by(|a, b| b.len().cmp(&a.len()));
+  keys
+});
+
+static STRING_ONLY_OPERATORS: Lazy<Vec<&&str>> = Lazy::new(|| {
+  OPERATORS
+    .keys()
+    .filter(|x| x.chars().all(char::is_alphabetic))
+    .collect()
+});
+
 pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrError> {
   *CURRENT_CONTENTS.lock().unwrap() += 1;
   let id = { *CURRENT_CONTENTS.lock().unwrap() };
@@ -142,15 +156,6 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
       file_name: file_name.clone(),
     },
   );
-
-  let mut operator_keys: Vec<&&str> = OPERATORS.keys().clone().collect();
-  operator_keys.sort_by(|a, b| b.len().cmp(&a.len()));
-
-  let string_only_operators: Vec<&&str> = OPERATORS
-    .keys()
-    .filter(|x| x.chars().all(char::is_alphabetic))
-    .collect();
-  //for i in &operator_keys { println!("{}", i); }
 
   let mut chars: Vec<char> = contents.chars().collect();
   let mut tokens: Vec<Token> = vec![];
@@ -412,7 +417,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
         set_token(value, TokenType::PredicateIdentifier);
       } else {
         // Check if it is an operator
-        if string_only_operators.contains(&&&*value) {
+        if STRING_ONLY_OPERATORS.contains(&&&*value) {
           let oper = *OPERATORS.get(&*value).unwrap();
           set_token(value, *oper);
         }
@@ -426,7 +431,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
     else {
       // Check for symbol operators
       let mut found: bool = false;
-      for key in &operator_keys {
+      for key in &OPERATOR_KEYS.clone() {
         let operator_type = OPERATORS[*key];
 
         // Check if length is ok
