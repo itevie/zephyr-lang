@@ -1,4 +1,10 @@
-use std::{cell::RefCell, collections::HashMap, time::Instant};
+use std::{
+  collections::HashMap,
+  sync::{Arc, Mutex},
+  time::Instant,
+};
+
+use once_cell::sync::Lazy;
 
 use crate::{
   errors::{self, runtime_error, ErrorType, ZephyrError},
@@ -33,11 +39,13 @@ use super::{
 #[path = "./handlers/mod.rs"]
 pub mod handlers;
 
-#[derive(Clone)]
+static IMPORT_CACHE: Lazy<Arc<Mutex<HashMap<String, ScopeContainer>>>> =
+  Lazy::new(|| Arc::from(Mutex::from(HashMap::new())));
+
+#[derive(Clone, Copy)]
 pub struct Interpreter {
   pub scope: ScopeContainer,
   pub global_scope: ScopeContainer,
-  pub import_cache: RefCell<HashMap<String, ScopeContainer>>,
 }
 
 unsafe impl Send for Interpreter {}
@@ -58,7 +66,7 @@ impl Interpreter {
       include_lib!("../lib/string.zr"),
       include_lib!("../lib/math.zr"),
       include_lib!("../lib/console.zr"),
-      include_lib!("../lib/iter.zr"),
+      include_lib!("../lib/basics.zr"),
       include_lib!("../lib/time.zr"),
       include_lib!("../lib/object.zr"),
       include_lib!("../lib/network.zr"),
@@ -105,6 +113,12 @@ impl Interpreter {
             "reverse".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::reverse,
+            }),
+          ),
+          (
+            "spawn_thread".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::spawn_thread,
             }),
           ),
           (
@@ -162,7 +176,6 @@ impl Interpreter {
       let mut lib_interpreter = Interpreter {
         scope: lib_scope,
         global_scope: scope,
-        import_cache: RefCell::from(HashMap::new()),
       };
       match lib_interpreter.evaluate(Expression::Program(
         match Parser::new(lex(String::from(i.0), format!("(lib){}", i.1)).unwrap()).produce_ast() {
@@ -204,7 +217,39 @@ impl Interpreter {
     Interpreter {
       global_scope: scope,
       scope: s,
-      import_cache: RefCell::from(HashMap::new()),
+    }
+  }
+
+  pub fn get_proto(
+    &mut self,
+    value: RuntimeValue,
+    key: String,
+  ) -> Result<Option<Function>, ZephyrError> {
+    let value = match match value {
+      RuntimeValue::StringValue(_) => Some(self.global_scope.get_variable("String")?),
+      RuntimeValue::ArrayContainer(_) => Some(self.global_scope.get_variable("Array")?),
+      RuntimeValue::ObjectContainer(_) => Some(self.global_scope.get_variable("Object")?),
+      _ => None,
+    } {
+      Some(s) => match s {
+        RuntimeValue::ObjectContainer(obj) => {
+          match crate::MEMORY.lock().unwrap().get_value(obj.location)? {
+            RuntimeValue::Object(obj) => obj,
+            _ => unreachable!(),
+          }
+        }
+        _ => unreachable!(),
+      },
+      None => return Ok(None),
+    };
+
+    if !value.items.contains_key(&key) {
+      Ok(None)
+    } else {
+      Ok(Some(match value.items.get(&key).unwrap() {
+        RuntimeValue::Function(func) => func.clone(),
+        _ => unreachable!(),
+      }))
     }
   }
 
@@ -231,10 +276,22 @@ impl Interpreter {
     }
   }
 
+  pub fn expr_to_runtime(
+    &mut self,
+    args: Vec<Box<Expression>>,
+  ) -> Result<Vec<Box<RuntimeValue>>, ZephyrError> {
+    let mut evalled_args: Vec<Box<RuntimeValue>> = vec![];
+    for i in args {
+      evalled_args.push(Box::from(self.evaluate(*i)?))
+    }
+
+    Ok(evalled_args)
+  }
+
   pub fn evaluate_zephyr_function(
     &mut self,
     func: Function,
-    arguments: Vec<Box<Expression>>,
+    arguments: Vec<Box<RuntimeValue>>,
     location: Location,
   ) -> Result<RuntimeValue, ZephyrError> {
     if self.scope.get_pure_functions_only()? {
@@ -259,10 +316,7 @@ impl Interpreter {
       scope.set_pure_functions_only(true)?;
     }
 
-    let mut evalled_args: Vec<Box<RuntimeValue>> = vec![];
-    for i in caller_args {
-      evalled_args.push(Box::from(self.evaluate(*i)?));
-    }
+    let evalled_args: Vec<Box<RuntimeValue>> = caller_args;
 
     // Declare the args
     for i in 0..func.arguments.len() {
@@ -404,6 +458,27 @@ impl Interpreter {
       None
     };
 
+    // Check if has proto thing
+    let thing = self.get_proto(
+      value.clone(),
+      match key {
+        Some(ref val) => match val {
+          RuntimeValue::StringValue(s) => s.value.clone(),
+          _ => "".to_string(),
+        },
+        None => match (*expr.key).clone() {
+          Expression::Identifier(ident) => ident.symbol,
+          _ => "".to_string(),
+        },
+      },
+    )?;
+
+    if let Some(func) = thing {
+      let mut mutfunc = func.clone();
+      mutfunc.type_call = Some(Box::from(value.clone()));
+      return Ok(RuntimeValue::Function(mutfunc));
+    }
+
     match value {
       RuntimeValue::ArrayContainer(arr_ref) => {
         // Make sure it is is_computed
@@ -512,13 +587,39 @@ impl Interpreter {
 
         // Check if object has the item defined
         if object.items.contains_key(&string_key) {
-          return Ok((*object.items.get(&string_key).unwrap()).clone());
+          Ok((*object.items.get(&string_key).unwrap()).clone())
         } else {
-          return Err(errors::ZephyrError::runtime(
+          Err(errors::ZephyrError::runtime(
             format!("Object does not contain definition for key {}", string_key),
             key_loc.clone(),
+          ))
+        }
+      }
+      RuntimeValue::StringValue(str) => {
+        // Can only index via numbers
+        let number = match key {
+          Some(RuntimeValue::Number(num)) => num.value as usize,
+          _ => {
+            return Err(errors::ZephyrError::runtime(
+              format!(
+                "Can only index array with numbers, but got {}",
+                key.unwrap().type_name()
+              ),
+              Location::no_location(),
+            ))
+          }
+        };
+
+        if str.value.len() <= number {
+          return Err(errors::ZephyrError::runtime(
+            format!("Index out of bounds"),
+            Location::no_location(),
           ));
         }
+
+        Ok(RuntimeValue::StringValue(StringValue {
+          value: str.value.chars().nth(number).unwrap().to_string(),
+        }))
       }
       _ => {
         return Err(errors::ZephyrError::runtime(
@@ -652,13 +753,13 @@ impl Interpreter {
         };
 
         // Check if cache has it
-        let scope = if self
-          .import_cache
-          .borrow()
+        let scope = if IMPORT_CACHE
+          .lock()
+          .unwrap()
           .contains_key(&(path_string.clone()))
         {
           crate::verbose(&format!("Importing from cache {}", path_string), "import");
-          *self.import_cache.borrow().get(&path_string).unwrap()
+          *IMPORT_CACHE.lock().unwrap().get(&path_string).unwrap()
         } else {
           crate::verbose(&format!("Importing {}", path_string), "import");
 
@@ -680,7 +781,7 @@ impl Interpreter {
           let _ = std::mem::replace(&mut self.scope, prev);
 
           // Set cache
-          self.import_cache.borrow_mut().insert(path_pre_pop, scope);
+          IMPORT_CACHE.lock().unwrap().insert(path_pre_pop, scope);
           scope
         };
 
@@ -788,6 +889,7 @@ impl Interpreter {
             None => None,
           },
           pure: stmt.is_pure,
+          type_call: None,
         };
 
         Ok(RuntimeValue::Function(function))
@@ -854,13 +956,17 @@ impl Interpreter {
               .collect::<Result<Vec<_>, _>>()?;
 
             (func.func)(CallOptions {
-              args: &args,
+              args,
               location: expr2.location,
-              interpreter: self.clone(),
+              interpreter: *self,
             })
           }
           RuntimeValue::Function(func) => {
-            self.evaluate_zephyr_function(func, expr2.arguments, expr2.left.get_location())
+            let mut args = self.expr_to_runtime(expr2.arguments)?;
+            if let Some(t) = func.clone().type_call {
+              args.insert(0, t.clone());
+            }
+            self.evaluate_zephyr_function(func, args, expr2.left.get_location())
           }
           _ => Err(runtime_error!("Expected a function to call".to_string())),
         }
@@ -1228,9 +1334,11 @@ impl Interpreter {
         let operator = expr.operator;
 
         match operator {
-          TokenType::UnaryOperator(UnaryOperator::Not) => Ok(RuntimeValue::Boolean(Boolean {
-            value: !value.is_truthy(),
-          })),
+          TokenType::UnaryOperator(UnaryOperator::Not) | TokenType::Not => {
+            Ok(RuntimeValue::Boolean(Boolean {
+              value: !value.is_truthy(),
+            }))
+          }
           TokenType::UnaryOperator(UnaryOperator::Dereference) => match value {
             RuntimeValue::Reference(refer) => crate::MEMORY.lock().unwrap().get_value(refer.value),
             RuntimeValue::Number(num) => crate::MEMORY

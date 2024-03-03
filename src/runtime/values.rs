@@ -253,6 +253,7 @@ pub struct Function {
   pub arguments: Vec<Identifier>,
   pub where_clause: Box<WhereClause>,
   pub pure: bool,
+  pub type_call: Option<Box<RuntimeValue>>,
 }
 
 #[derive(Clone)]

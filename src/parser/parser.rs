@@ -442,7 +442,7 @@ impl Parser {
   }}
 
   parser_section! {parse_assignment_expression, self, {
-    let left = self.parse_ternary_expression()?;
+    let left = self.parse_high_prescedence_unary_expression()?;
 
     // Check if it is =
     if matches!(self.at().token_type, TokenType::NormalAssignmentOperator) {
@@ -468,6 +468,21 @@ impl Parser {
     }
 
     Ok(left)
+  }}
+
+  parser_section! {parse_high_prescedence_unary_expression, self, {
+    if matches!(self.at().token_type, TokenType::Not) {
+      let tok = self.eat();
+      let expr = self.parse_ternary_expression()?;
+
+      return Ok(nodes::Expression::UnaryExpression(nodes::UnaryExpression {
+        location: tok.location,
+        value: Box::from(expr),
+        operator: tok.token_type
+      }));
+    }
+
+    self.parse_ternary_expression()
   }}
 
   parser_section! {parse_ternary_expression, self, {

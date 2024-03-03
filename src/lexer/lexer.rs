@@ -56,6 +56,7 @@ lazy_static! {
     // Keywords
     tok!("is", TokenType::Is);
     tok!("in", TokenType::In);
+    tok!("not", TokenType::Not);
     tok!("let", TokenType::Let);
     tok!("try", TokenType::Try);
     tok!("catch", TokenType::Catch);

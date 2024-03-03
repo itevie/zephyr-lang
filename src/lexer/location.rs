@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::runtime::values::{to_object, Number, RuntimeValue};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Location {
   pub char_start: u32,
   pub char_end: u32,

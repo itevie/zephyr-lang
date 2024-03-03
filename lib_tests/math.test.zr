@@ -1,0 +1,4 @@
+// Math.max
+assert Math.max(1, 2, 3) == 3;
+assert Math.max(38, 94, 284, 994, 2, 39) == 994;
+assert Math.max() == null;

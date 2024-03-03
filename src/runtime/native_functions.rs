@@ -1,5 +1,10 @@
 //use std::collections::HashMap;
-use std::{collections::HashMap, fs, io::Write};
+use std::{
+  collections::HashMap,
+  fs,
+  io::Write,
+  sync::{atomic::Ordering, Arc},
+};
 
 use crate::{errors::ZephyrError, lexer::location::Location};
 
@@ -11,14 +16,14 @@ use super::{
 type R = Result<RuntimeValue, ZephyrError>;
 
 #[derive(Clone)]
-pub struct CallOptions<'a> {
-  pub args: &'a [RuntimeValue],
+pub struct CallOptions {
+  pub args: Vec<RuntimeValue>,
   pub location: Location,
   pub interpreter: Interpreter,
 }
 
 pub fn unescape(options: CallOptions) -> R {
-  match options.args {
+  match &options.args[..] {
     [RuntimeValue::StringValue(str)] => {
       let val = str.value.clone();
       let mut result = String::new();
@@ -68,7 +73,7 @@ pub fn print(options: CallOptions) -> R {
 }
 
 pub fn read_line(options: CallOptions) -> R {
-  let question = match options.args {
+  let question = match options.args[..] {
     [RuntimeValue::StringValue(ref str)] => str.value.clone(),
     _ => "".to_string(),
   };
@@ -86,9 +91,9 @@ pub fn read_line(options: CallOptions) -> R {
 }
 
 pub fn write(options: CallOptions) -> R {
-  match options.args {
-    [RuntimeValue::StringValue(str)] => {
-      print!("{}", str.value);
+  match &options.args[..] {
+    [val] => {
+      print!("{}", val.stringify(true, true));
     }
     _ => unreachable!(),
   }
@@ -139,7 +144,7 @@ pub fn get_time_nanos(_: CallOptions) -> R {
 
 // ----- Math -----
 pub fn floor(options: CallOptions) -> R {
-  match options.args {
+  match &options.args[..] {
     [RuntimeValue::Number(num)] => Ok(RuntimeValue::Number(Number {
       value: num.value.floor(),
     })),
@@ -151,7 +156,7 @@ pub fn floor(options: CallOptions) -> R {
 }
 
 pub fn ceil(options: CallOptions) -> R {
-  match options.args {
+  match &options.args[..] {
     [RuntimeValue::Number(num)] => Ok(RuntimeValue::Number(Number {
       value: num.value.ceil(),
     })),
@@ -163,17 +168,18 @@ pub fn ceil(options: CallOptions) -> R {
 }
 
 // ----- Threads -----
-/*pub fn spawn_thread(options: CallOptions) -> R {
-  match options.args {
+pub fn spawn_thread(options: CallOptions) -> R {
+  match &options.args[..] {
     [RuntimeValue::Function(func)] => {
-      std::thread::scope(|s| {
-        let options = options.clone();
-        let mut interpreter = options.interpreter;
-        s.spawn(move || {
-          interpreter
-            .evaluate_zephyr_function(func.clone(), vec![], options.location)
-            .unwrap();
-        });
+      let op = Arc::new(options.clone());
+      let func = func.clone();
+      crate::GLOBAL_THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
+      std::thread::spawn(move || {
+        op.interpreter
+          .clone()
+          .evaluate_zephyr_function(func, vec![], op.location.clone())
+          .unwrap();
+        crate::GLOBAL_THREAD_COUNT.fetch_sub(1, Ordering::SeqCst);
       });
       Ok(RuntimeValue::Null(Null {}))
     }
@@ -182,11 +188,11 @@ pub fn ceil(options: CallOptions) -> R {
       options.location,
     )),
   }
-}*/
+}
 
 // ----- File Management -----
 pub fn read_file(options: CallOptions) -> R {
-  match options.args {
+  match &options.args[..] {
     [RuntimeValue::StringValue(str)] => match fs::read_to_string(str.value.clone()) {
       Ok(ok) => Ok(RuntimeValue::StringValue(StringValue { value: ok })),
       Err(e) => Err(ZephyrError::runtime(
@@ -243,7 +249,7 @@ pub fn ureq_to_object(response: ureq::Response) -> R {
 }
 
 pub fn http_get(options: CallOptions) -> R {
-  match options.args {
+  match &options.args[..] {
     [RuntimeValue::StringValue(url), RuntimeValue::ObjectContainer(headers)] => {
       let request = ureq::get(&url.value);
 
@@ -276,6 +282,77 @@ pub fn http_get(options: CallOptions) -> R {
     )),
   }
 }
+
+// Don't know rust enough for this shit
+/*pub fn open_ws(options: CallOptions) -> R {
+  let location = &options.location;
+  let interpreter = Arc::from(Mutex::from(options.interpreter));
+  match &options.args[..] {
+    [RuntimeValue::StringValue(str), RuntimeValue::Function(func)] => {
+      let msg_func = Arc::from(Mutex::from(0 as u128));
+      thread::scope(|s| {
+        let options = options.clone();
+
+        s.spawn(move || {
+          ws::connect(str.value.clone(), |_out| {
+            fn test(_options: CallOptions) -> R {
+              Ok(RuntimeValue::Null(Null {}))
+            }
+
+            let x: dyn Fn() = || {} as dyn Fn();
+
+            let value = options
+              .clone()
+              .interpreter
+              .evaluate_zephyr_function(
+                func.clone(),
+                vec![Box::from(RuntimeValue::NativeFunction(NativeFunction {
+                  func: &test,
+                }))],
+                options.location,
+              )
+              .unwrap();
+            *msg_func.lock().unwrap() = crate::MEMORY.lock().unwrap().add_value(value);
+            |msg: ws::Message| {
+              let func = match crate::MEMORY
+                .lock()
+                .unwrap()
+                .get_value(msg_func.lock().unwrap().clone())
+                .unwrap()
+              {
+                RuntimeValue::Function(func) => {
+                  println!("{:?}", func);
+                  func
+                }
+                _ => panic!("Expected a function to run"),
+              };
+              interpreter
+                .lock()
+                .unwrap()
+                .evaluate_zephyr_function(
+                  func,
+                  vec![Box::from(RuntimeValue::StringValue(StringValue {
+                    value: msg.to_string(),
+                  }))],
+                  location.clone(),
+                )
+                .unwrap();
+              Ok(())
+            }
+          })
+          .unwrap();
+        });
+      });
+    }
+    _ => {
+      return Err(ZephyrError::runtime(
+        "Invalid args".to_string(),
+        options.location,
+      ))
+    }
+  };
+  Ok(RuntimeValue::Null(Null {}))
+}*/
 
 /*pub fn response_to_object(result: reqwest::blocking::Response) -> R {
   let result_status = result.status().as_u16();

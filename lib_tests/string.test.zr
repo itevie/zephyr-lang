@@ -1,0 +1,16 @@
+// String.starts_with
+assert String.starts_with("hello", "hell");
+assert String.starts_with("hello", "");
+assert String.starts_with("hello", "hello");
+
+assert not String.starts_with("hello", "hello world");
+assert not String.starts_with("hello", "bye");
+
+// String.index_of
+assert String.index_of("hello", "el") == 1;
+assert String.index_of("hello", "hello") == 0;
+assert String.index_of("hello", "") == 0;
+assert String.index_of("hello", "w") == null;
+
+// String.reverse
+assert String.reverse("hi", "ih") == "ih";

@@ -4,10 +4,12 @@ use std::{
   io::{ErrorKind, Write},
   path::PathBuf,
   sync::{Arc, Mutex},
+  time::Duration,
 };
 
 use once_cell::sync::Lazy;
 use runtime::memory::Memory;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use structopt::StructOpt;
 
 #[path = "./repl.rs"]
@@ -15,6 +17,9 @@ mod repl;
 
 #[path = "./bundler.rs"]
 mod bundler;
+
+#[path = "./tester.rs"]
+mod tester;
 
 #[path = "./mini.rs"]
 mod mini;
@@ -94,6 +99,7 @@ pub struct Args {
 #[derive(Debug, StructOpt, Clone)]
 pub enum Subcommands {
   New(NewPackage),
+  Test(TestPackage),
 }
 
 #[derive(Debug, StructOpt, Clone)]
@@ -102,10 +108,28 @@ pub struct NewPackage {
   name_pos: String,
 }
 
+#[derive(Debug, StructOpt, Clone)]
+pub struct TestPackage {
+  #[structopt(value_name = "PATH-NAME", empty_values = false)]
+  name_pos: String,
+
+  #[structopt(
+    long = "pattern",
+    empty_values = false,
+    short = "p",
+    help = "The pattern to match with files",
+    value_name = "PATTERN",
+    default_value = "*.test.zr"
+  )]
+  pub pattern: String,
+}
+
 static MEMORY: Lazy<Arc<Mutex<Memory>>> = Lazy::new(|| Arc::from(Mutex::from(Memory::new())));
 static SCOPES: Lazy<Arc<Mutex<HashMap<u128, Arc<Mutex<runtime::scope::Scope>>>>>> =
   Lazy::new(|| Arc::from(Mutex::from(HashMap::new())));
 static ARGS: Lazy<Args> = Lazy::new(|| Args::from_args());
+
+static GLOBAL_THREAD_COUNT: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0));
 
 pub fn debug(contents: &str, what: &str) {
   if ARGS.debug || ARGS.verbose {
@@ -170,6 +194,7 @@ fn main() {
   if let Some(subcommand) = ARGS.clone().subcommand {
     match subcommand {
       Subcommands::New(new) => package_manager::new(new, dir),
+      Subcommands::Test(new) => tester::test(new),
     }
 
     return ();
@@ -243,6 +268,10 @@ fn main() {
     }
 
     basic_run::basic_run(input, file_name.clone(), dir);
+  }
+
+  while GLOBAL_THREAD_COUNT.load(Ordering::SeqCst) != 0 {
+    std::thread::sleep(Duration::from_millis(1));
   }
 }
 

@@ -7,7 +7,7 @@ export let Console = .{
     null;
   },
 
-  write: func write(str: string?) {
+  write: func write(str) {
     __zephyr_native.write(str);
     null;
   },

@@ -44,6 +44,7 @@ pub enum TokenType {
   // ----- Keywords -----
   Is,
   In,
+  Not,
   Typeof,
 
   If,

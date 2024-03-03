@@ -8,8 +8,7 @@ pub fn basic_run(input: String, file_name: String, dir: PathBuf) -> () {
   let result = match lexer::lexer::lex(input, file_name.clone()) {
     Ok(val) => val,
     Err(err) => {
-      println!("{}", err.visualise(false));
-      return;
+      return crate::die(err.visualise(false));
     }
   };
 
@@ -17,14 +16,13 @@ pub fn basic_run(input: String, file_name: String, dir: PathBuf) -> () {
   let ast = match parser.produce_ast() {
     Ok(val) => val,
     Err(err) => {
-      println!("{}", err.visualise(false));
-      return;
+      return crate::die(err.visualise(false));
     }
   };
 
   let value = interpreter.evaluate(parser::nodes::Expression::Program(ast));
   match value {
-    Err(err) => println!("{}", err.visualise(false)),
-    Ok(_) => return,
+    Err(err) => crate::die(err.visualise(false)),
+    Ok(_) => (),
   }
 }

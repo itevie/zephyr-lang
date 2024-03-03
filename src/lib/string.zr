@@ -25,10 +25,74 @@ export let String = .{
   },
 
   reverse: func pure reverse(value: string?) {
-    __zephyr_native.reverse(value);
+    Array.join(__zephyr_native.reverse(value));
   },
 
   unescape: func pure unescape(value: string?) {
     __zephyr_native.unescape(value);
+  },
+
+  index_of: func pure index_of(value: string?, what: string?) {
+    if len(what) == 0 {
+      return 0;
+    }
+
+    // If what > value, value cannot contain what
+    if len(what) > len(value) {
+      return null;
+    }
+
+    for i in 0.<len(value) {
+      // If the index of value > what, value cannot contain what
+      if i > len(what) {
+        return null;
+      }
+
+      let is_index = true;
+      if len(i.<len(what)) == 0 {
+        return null;
+      }
+      for x in i.<len(what) {
+        if value[x] != what[x-i] {
+          is_index = false;
+          break;
+        }
+      }
+
+      if is_index {
+        return i;
+      }
+    }
+
+    return null;
+  },
+
+  starts_with: func pure starts_with(value: string?, what: string?) {
+    // If what > value, value cannot contain what
+    if len(what) > len(value) {
+      return false;
+    }
+
+    for i in 0..len(value) {
+      // If it has reached the end, value is what
+      if i == len(what) {
+        return true;
+      }
+
+      if value[i] != what[i] {
+        return false;
+      }
+    }
+
+    return true;
+  },
+
+  remove_prefix: func pure remove_prefix(value: string?, prefix: string?) {
+    let done = false;
+    let result = "";
+
+    for i in value {
+
+    }
   }
 };
