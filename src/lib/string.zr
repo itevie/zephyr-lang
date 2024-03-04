@@ -76,7 +76,7 @@ export let String = .{
   slice: func pure slice(value: string?, start: number?, amount: number?) {
     // Check for negatives
     if start < 0 {
-      start = $value - start.to_positive();
+      start = $value - start.abs();
     }
     if amount < 0 {
       amount = $value - amount;
@@ -122,7 +122,6 @@ export let String = .{
   },
 
   remove_prefix: func pure remove_prefix(value: string?, prefix: string?) {
-
     // Check if starts_with
     if value.starts_with(prefix) == false {
       return value;

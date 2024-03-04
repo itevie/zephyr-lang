@@ -2,9 +2,10 @@ export func pure iter(what) {
   __zephyr_native.iter(what);
 }
 
-export func pure len(what: iterable?) {
+// Use $ instead, $[1, 2, 3] $"" etc.
+/*export func pure len(what: iterable?) {
   Array.len(iter(what));
-}
+}*/
 
 export func print(__args__: array?) {
   for value in __args__ {

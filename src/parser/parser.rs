@@ -684,7 +684,7 @@ impl Parser {
 
   parser_section! {parse_unary_expression, self, {
     // Check for unary left
-    if matches!(self.at().token_type, TokenType::UnaryOperator(_)) {
+    if matches!(self.at().token_type, TokenType::UnaryOperator(_)) || matches!(self.at().token_type, TokenType::AdditiveOperator(_)) {
       let tok = self.eat();
 
       // Get the right hand value
@@ -695,6 +695,7 @@ impl Parser {
         location: tok.location,
         operator: match tok.token_type {
           TokenType::UnaryOperator(val) => TokenType::UnaryOperator(val),
+          TokenType::AdditiveOperator(val) => TokenType::AdditiveOperator(val),
           _ => unreachable!(),
         }
       }));

@@ -61,6 +61,7 @@ impl Interpreter {
   pub fn new(directory: String) -> Self {
     let start = Instant::now();
     let libs: Vec<(&str, &str)> = vec![
+      include_lib!("../lib/any.zr"),
       include_lib!("../lib/predicates.zr"),
       include_lib!("../lib/array.zr"),
       include_lib!("../lib/string.zr"),
@@ -251,8 +252,28 @@ impl Interpreter {
       None => return Ok(None),
     };
 
+    let any = match self.global_scope.get_variable("Any")? {
+      s => match s {
+        RuntimeValue::ObjectContainer(obj) => {
+          match crate::MEMORY.lock().unwrap().get_value(obj.location)? {
+            RuntimeValue::Object(obj) => obj,
+            _ => unreachable!(),
+          }
+        }
+        _ => unreachable!(),
+      },
+    };
+
     if !value.items.contains_key(&key) {
-      Ok(None)
+      // Check if Any contains it
+      if any.items.contains_key(&key) {
+        Ok(Some(match any.items.get(&key).unwrap() {
+          RuntimeValue::Function(func) => func.clone(),
+          _ => unreachable!(),
+        }))
+      } else {
+        Ok(None)
+      }
     } else {
       Ok(Some(match value.items.get(&key).unwrap() {
         RuntimeValue::Function(func) => func.clone(),
@@ -1323,6 +1344,28 @@ impl Interpreter {
         let operator = expr.operator;
 
         match operator {
+          TokenType::AdditiveOperator(AdditiveTokenType::Minus) => match value {
+            RuntimeValue::Number(number) => Ok(RuntimeValue::Number(Number {
+              value: -number.value,
+            })),
+            _ => {
+              return Err(ZephyrError::runtime(
+                format!("Cannot negate a {}", value.type_name()),
+                expr.location,
+              ))
+            }
+          },
+          TokenType::AdditiveOperator(AdditiveTokenType::Plus) => match value {
+            RuntimeValue::Number(number) => Ok(RuntimeValue::Number(Number {
+              value: number.value.abs(),
+            })),
+            _ => {
+              return Err(ZephyrError::runtime(
+                format!("Cannot negate a {}", value.type_name()),
+                expr.location,
+              ))
+            }
+          },
           TokenType::UnaryOperator(UnaryOperator::Not) | TokenType::Not => {
             Ok(RuntimeValue::Boolean(Boolean {
               value: !value.is_truthy(),

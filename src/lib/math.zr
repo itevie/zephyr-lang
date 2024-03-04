@@ -10,6 +10,14 @@ export let Math = .{
     __zephyr_native.ceil(number);
   },
 
+  abs: func pure to_positive(number: number?) {
+    if number < 0 {
+      return number - number - number;
+    } else {
+      return number;
+    }
+  },
+
   min: func pure min (a: number?, b: number?) {
     let min = null;
 
