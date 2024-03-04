@@ -13,39 +13,6 @@ use crate::{
   lexer::token::{Token, TokenType},
 };
 
-// Used for handling errors with expressions (with parsers)
-macro_rules! herr {
-  ($x:expr) => {{
-    let result: nodes::Expression = match $x {
-      Ok(val) => val,
-      Err(err) => return Err(err),
-    };
-    result
-  }};
-}
-
-// Used for handling token errors (functions with return types Result<Token, _>)
-macro_rules! hterr {
-  ($x:expr) => {{
-    let result: Token = match $x {
-      Ok(val) => val,
-      Err(err) => return Err(err),
-    };
-    result
-  }};
-}
-
-// Used for handling other errors (functions with return types Result<T, _>)
-macro_rules! hoerr {
-  ($x:expr, $t:ty) => {{
-    let result: $t = match $x {
-      Ok(val) => val,
-      Err(err) => return Err(err),
-    };
-    result
-  }};
-}
-
 macro_rules! parser_section {
   ($name:tt, $self:ident, $body:expr) => {
     pub fn $name(&mut $self) -> Result<nodes::Expression, ZephyrError> { $body }
@@ -204,23 +171,23 @@ impl Parser {
   }
 
   pub fn parse_block(&mut self) -> Result<nodes::Block, ZephyrError> {
-    let tok = hterr!(self.expect(
+    let tok = self.expect(
       discriminant(&TokenType::OpenBrace),
       parser_error!(
         "Expected open of block brace".to_string(),
         self.at().location
-      )
-    ));
+      ),
+    )?;
 
-    let expressions = hoerr!(self.parse_inner_block(true), Vec<Box<nodes::Expression>>);
+    let expressions = self.parse_inner_block(true)?;
 
-    hterr!(self.expect(
+    self.expect(
       discriminant(&TokenType::CloseBrace),
       parser_error!(
         "Expected close of block brace".to_string(),
         self.at().location
-      )
-    ));
+      ),
+    )?;
 
     Ok(nodes::Block {
       nodes: expressions,
@@ -244,7 +211,7 @@ impl Parser {
         continue;
       }
 
-      let expression = &herr!(self.parse_statement());
+      let expression = &self.parse_statement()?;
       expressions.push(Box::from(expression.clone()));
 
       // Check if needs semicolon
@@ -257,10 +224,10 @@ impl Parser {
     }
 
     if !is_block_type {
-      hterr!(self.expect(
+      self.expect(
         discriminant(&TokenType::EOF),
-        parser_error!("Expected end of file".to_string(), self.at().location)
-      ));
+        parser_error!("Expected end of file".to_string(), self.at().location),
+      )?;
     }
 
     Ok(expressions)
@@ -268,7 +235,7 @@ impl Parser {
 
   pub fn produce_ast(&mut self) -> Result<nodes::Program, ZephyrError> {
     Ok(nodes::Program {
-      nodes: hoerr!(self.parse_inner_block(false), Vec<Box<nodes::Expression>>),
+      nodes: self.parse_inner_block(false)?,
     })
   }
 
@@ -324,24 +291,24 @@ impl Parser {
     let var_token = self.eat();
 
     // Get the name of the variable
-    let name = hterr!(self.expect(
+    let name =self.expect(
       discriminant(&TokenType::Identifier),
       parser_error!("Expected variable name here".to_string(), self.at().location)
-    ));
+    )?;
 
     // Expect an =
-    hterr!(self.expect(
+    self.expect(
       discriminant(&TokenType::NormalAssignmentOperator),
       parser_error!("Expected normal assignment operator".to_string(), self.at().location),
-    ));
+    )?;
 
     // Get the value
-    let value = herr!(self.parse_expression());
+    let value = self.parse_expression()?;
 
     Ok(nodes::Expression::VariableDeclaration(VariableDeclaration {
       location: var_token.location,
       identifier: match name.token_type {
-        TokenType::Identifier => hoerr!(self.create_identifier(name), Identifier),
+        TokenType::Identifier => self.create_identifier(name)?,
         _ => unreachable!()
       },
       value: Box::from(value),
@@ -517,12 +484,12 @@ impl Parser {
   }}
 
   parser_section! {parse_logical_expression, self, {
-    let mut left = herr!(self.parse_comparison_operator());
+    let mut left = self.parse_comparison_operator()?;
 
     // Check if it is an comparison
     while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::LogicalOperator(_)) {
       let oper = self.eat();
-      let right = herr!(self.parse_comparison_operator());
+      let right = self.parse_comparison_operator()?;
 
       left = nodes::Expression::LogicalExpression(LogicalExpression {
         left: Box::from(left),
@@ -539,12 +506,12 @@ impl Parser {
   }}
 
   parser_section! {parse_comparison_operator, self, {
-    let mut left = herr!(self.parse_is_expression());
+    let mut left = self.parse_is_expression()?;
 
     // Check if it is an comparison
     while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::ComparisonTokenType(_)) {
       let oper = self.eat();
-      let right = herr!(self.parse_is_expression());
+      let right = self.parse_is_expression()?;
 
       left = nodes::Expression::ComparisonOperator(ComparisonExpression {
         left: Box::from(left),
@@ -595,7 +562,7 @@ impl Parser {
   parser_section! {parse_typeof_statement, self, {
     if matches!(self.at().token_type, TokenType::Typeof) {
       let typeof_token = self.eat();
-      let value = herr!(self.parse_in_expression());
+      let value = self.parse_in_expression()?;
 
       return Ok(nodes::Expression::TypeofExpression(TypeofStatement {
         location: typeof_token.location,
@@ -603,7 +570,7 @@ impl Parser {
       }));
     }
 
-    Ok(herr!(self.parse_in_expression()))
+    Ok(self.parse_in_expression())?
   }}
 
   parser_section! {parse_in_expression, self, {
@@ -652,12 +619,12 @@ impl Parser {
   }}
 
   parser_section! {parse_additive_expression, self, {
-    let mut left = herr!(self.parse_multiplicative_expression());
+    let mut left = self.parse_multiplicative_expression()?;
 
     // Check if it is an additive
     while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::AdditiveOperator(_)) {
       let oper = self.eat();
-      let right = herr!(self.parse_multiplicative_expression());
+      let right = self.parse_multiplicative_expression()?;
 
       left = nodes::Expression::ArithmeticOperator(ArithmeticExpression {
         left: Box::from(left),
@@ -674,12 +641,12 @@ impl Parser {
   }}
 
   parser_section! {parse_multiplicative_expression, self, {
-    let mut left = herr!(self.parse_unary_expression());
+    let mut left = self.parse_unary_expression()?;
 
     // Check if dual additive
     while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::DualOperator(DualTokenType::Multiplicative(_))) {
       let oper = self.eat();
-      let right = herr!(self.parse_unary_expression());
+      let right = self.parse_unary_expression()?;
 
       left = nodes::Expression::AssignmentExpression(AssignmentExpression {
         left: Box::from(left.clone()),
@@ -699,7 +666,7 @@ impl Parser {
     // Check if it is an additive
     while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::MultiplicativeOperator(_)) {
       let oper = self.eat();
-      let right = herr!(self.parse_unary_expression());
+      let right = self.parse_unary_expression()?;
 
       left = nodes::Expression::ArithmeticOperator(ArithmeticExpression {
         left: Box::from(left),
@@ -721,10 +688,10 @@ impl Parser {
       let tok = self.eat();
 
       // Get the right hand value
-      let expr = self.parse_call_expression(None);
+      let expr = self.parse_call_expression(None)?;
 
       return Ok(nodes::Expression::UnaryExpression(nodes::UnaryExpression {
-        value: Box::from(herr!(expr)),
+        value: Box::from(expr),
         location: tok.location,
         operator: match tok.token_type {
           TokenType::UnaryOperator(val) => TokenType::UnaryOperator(val),
@@ -734,14 +701,14 @@ impl Parser {
     }
 
     // Get a value
-    let expr = self.parse_call_expression(None);
+    let expr = self.parse_call_expression(None)?;
 
     // Check if it is a unary right expression
     if matches!(self.at().token_type, TokenType::UnaryRightOperator(_)) {
       let tok = self.eat();
 
       return Ok(nodes::Expression::UnaryExpression(nodes::UnaryExpression {
-        value: Box::from(herr!(expr)),
+        value: Box::from(expr),
         location: tok.location,
         operator: match tok.token_type {
           TokenType::UnaryOperator(val) => TokenType::UnaryOperator(val),
@@ -750,7 +717,7 @@ impl Parser {
       }));
     }
 
-    expr
+    Ok(expr)
   }}
 
   pub fn parse_call_expression(
@@ -888,11 +855,11 @@ impl Parser {
       TokenType::Try => self.parse_try_expression()?,
       TokenType::OpenParen => {
         self.eat();
-        let value = herr!(self.parse_expression());
-        hterr!(self.expect(
+        let value = self.parse_expression()?;
+        self.expect(
           discriminant(&TokenType::CloseParen),
           parser_error!("Expected closing paren".to_string(), self.at().location
-        )));
+        ))?;
         value
       },
       TokenType::Dot => {
@@ -930,7 +897,7 @@ impl Parser {
       },
       TokenType::OpenBrace => {
         //self.eat();
-        let block = hoerr!(self.parse_block(), nodes::Block);
+        let block = self.parse_block()?;
         nodes::Expression::Block(block)
       },
       _ => return Err(parser_error!(format!("Cannot handle this token {:?}", self.at().token_type), self.at().location))
