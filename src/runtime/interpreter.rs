@@ -1087,8 +1087,8 @@ impl Interpreter {
       }
       Expression::ArithmeticOperator(expr) => {
         // Collect values
-        let left = self.evaluate(*expr.left)?;
-        let right = self.evaluate(*expr.right)?;
+        let left = self.evaluate(*expr.left.clone())?;
+        let right = self.evaluate(*expr.right.clone())?;
 
         // Check if the operator takes in stuff other than numbers
         match expr.operator {
@@ -1153,9 +1153,10 @@ impl Interpreter {
                 RuntimeValue::Null(_) => Some("null".to_string()),
                 RuntimeValue::Reference(ref refer) => Some(refer.value.to_string()),
                 _ => {
-                  return Err(ZephyrError::runtime(
+                  return Err(ZephyrError::runtime_with_ref(
                     format!("Cannot coerce a {} to a string", right.type_name()),
-                    Location::no_location(),
+                    expr.location,
+                    expr.right.get_location(),
                   ))
                 }
               };
@@ -1181,7 +1182,7 @@ impl Interpreter {
               expr.operator,
               right.clone().type_name()
             ),
-            Location::no_location(),
+            expr.location,
           )),
         }
       }
@@ -1339,7 +1340,7 @@ impl Interpreter {
         },
       })),
       Expression::UnaryExpression(expr) => {
-        let expr_value = *expr.value;
+        let expr_value = *expr.value.clone();
         let value = self.evaluate(expr_value.clone())?;
         let operator = expr.operator;
 
@@ -1382,7 +1383,7 @@ impl Interpreter {
             }
             _ => Err(ZephyrError::runtime(
               format!("Cannot derference a {:?}", value.type_name()),
-              Location::no_location(),
+              expr.value.get_location(),
             )),
           },
           TokenType::UnaryOperator(UnaryOperator::Reference) => {
@@ -1398,7 +1399,7 @@ impl Interpreter {
                 _ => {
                   return Err(ZephyrError::runtime(
                     format!("Cannot reference this"),
-                    Location::no_location(),
+                    expr.value.get_location(),
                   ))
                 }
               },
