@@ -1,6 +1,6 @@
 use crate::{
   errors::{lexer_error, ZephyrError},
-  lexer::token::{AdditiveTokenType, MultiplicativeTokenType, UnaryOperator},
+  lexer::token::{AdditiveTokenType, DualTokenType, MultiplicativeTokenType, UnaryOperator},
 };
 use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
@@ -32,6 +32,15 @@ lazy_static! {
     tok!("//", TokenType::MultiplicativeOperator(MultiplicativeTokenType::IntegerDivide));
     tok!("%", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Modulo));
     tok!("??", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Coalesce));
+
+    // Dual operators
+    tok!("+=", TokenType::DualOperator(DualTokenType::Additive(AdditiveTokenType::Plus)));
+    tok!("-=", TokenType::DualOperator(DualTokenType::Additive(AdditiveTokenType::Minus)));
+    tok!("*=", TokenType::DualOperator(DualTokenType::Multiplicative(MultiplicativeTokenType::Multiply)));
+    tok!("/=", TokenType::DualOperator(DualTokenType::Multiplicative(MultiplicativeTokenType::Divide)));
+    tok!("//=", TokenType::DualOperator(DualTokenType::Multiplicative(MultiplicativeTokenType::IntegerDivide)));
+    tok!("%=", TokenType::DualOperator(DualTokenType::Multiplicative(MultiplicativeTokenType::Modulo)));
+    tok!("??=", TokenType::DualOperator(DualTokenType::Multiplicative(MultiplicativeTokenType::Coalesce)));
 
     // Comparison operators
     tok!("==", TokenType::ComparisonTokenType(ComparisonTokenType::Equals));

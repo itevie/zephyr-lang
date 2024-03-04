@@ -33,6 +33,7 @@ pub enum TokenType {
 
   // ----- Operators -----
   NormalAssignmentOperator,
+  DualOperator(DualTokenType),
   AdditiveOperator(AdditiveTokenType),
   MultiplicativeOperator(MultiplicativeTokenType),
   ComparisonTokenType(ComparisonTokenType),
@@ -74,6 +75,12 @@ pub enum TokenType {
   Pure,
   Where,
   Return,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum DualTokenType {
+  Additive(AdditiveTokenType),
+  Multiplicative(MultiplicativeTokenType),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

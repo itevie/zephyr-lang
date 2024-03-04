@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use std::mem::{discriminant, Discriminant};
 
 use super::nodes::{
-  self, ArithmeticExpression, ComparisonExpression, Expression, FunctionLiteral, Identifier,
-  InExpression, LogicalExpression, TypeofStatement, VariableDeclaration,
+  self, ArithmeticExpression, AssignmentExpression, ComparisonExpression, Expression,
+  FunctionLiteral, Identifier, InExpression, LogicalExpression, TypeofStatement,
+  VariableDeclaration,
 };
 use crate::lexer::location::Location;
-use crate::lexer::token::UnaryOperator;
+use crate::lexer::token::{DualTokenType, UnaryOperator};
 use crate::{
   errors::{parser_error, ZephyrError},
   lexer::token::{Token, TokenType},
@@ -675,6 +676,26 @@ impl Parser {
   parser_section! {parse_multiplicative_expression, self, {
     let mut left = herr!(self.parse_unary_expression());
 
+    // Check if dual additive
+    while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::DualOperator(DualTokenType::Multiplicative(_))) {
+      let oper = self.eat();
+      let right = herr!(self.parse_unary_expression());
+
+      left = nodes::Expression::AssignmentExpression(AssignmentExpression {
+        left: Box::from(left.clone()),
+        right: Box::from(nodes::Expression::ArithmeticOperator(ArithmeticExpression {
+          left: Box::from(left.clone()),
+          right: Box::from(right),
+          location: oper.location,
+          operator: match oper.token_type {
+            TokenType::DualOperator(DualTokenType::Multiplicative(add)) => TokenType::MultiplicativeOperator(add),
+            _ => unreachable!()
+          }
+        })),
+        location: oper.location,
+      });
+    }
+
     // Check if it is an additive
     while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::MultiplicativeOperator(_)) {
       let oper = self.eat();
@@ -1201,7 +1222,7 @@ impl Parser {
               if !ident.symbol.ends_with("?") {
                 return Err(ZephyrError::parser(
                   "Expected predicate identifier".to_string(),
-                  ident.location
+                  ident.location,
                 ));
               }
 

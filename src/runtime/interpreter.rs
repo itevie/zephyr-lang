@@ -158,6 +158,12 @@ impl Interpreter {
               func: &native_functions::read_file,
             }),
           ),
+          (
+            "push_arr".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::push_arr,
+            }),
+          ),
         ]),
       }));
 
@@ -1139,25 +1145,6 @@ impl Interpreter {
                 })),
                 None => None,
               }
-            }
-            RuntimeValue::ArrayContainer(ref container) => {
-              let mut array = match crate::MEMORY
-                .lock()
-                .unwrap()
-                .get_value(container.location)?
-              {
-                RuntimeValue::Array(arr) => arr,
-                _ => unreachable!(),
-              };
-
-              array.items.push(Box::from(right.clone()));
-
-              // Modify the value
-              crate::MEMORY
-                .lock()
-                .unwrap()
-                .set_value(container.location, RuntimeValue::Array(array))?;
-              Some(RuntimeValue::ArrayContainer(container.clone()))
             }
             _ => None,
           },

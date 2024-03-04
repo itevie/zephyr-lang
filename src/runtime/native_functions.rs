@@ -22,6 +22,35 @@ pub struct CallOptions {
   pub interpreter: Interpreter,
 }
 
+pub fn push_arr(options: CallOptions) -> R {
+  match &options.args[..] {
+    [RuntimeValue::ArrayContainer(container), value] => {
+      let mut array = match crate::MEMORY
+        .lock()
+        .unwrap()
+        .get_value(container.location)?
+      {
+        RuntimeValue::Array(arr) => arr,
+        _ => unreachable!(),
+      };
+
+      array.items.push(Box::from(value.clone()));
+
+      // Modify the value
+      crate::MEMORY
+        .lock()
+        .unwrap()
+        .set_value(container.location, RuntimeValue::Array(array))?;
+
+      Ok(RuntimeValue::ArrayContainer(container.clone()))
+    }
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
+  }
+}
+
 pub fn unescape(options: CallOptions) -> R {
   match &options.args[..] {
     [RuntimeValue::StringValue(str)] => {
