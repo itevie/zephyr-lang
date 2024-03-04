@@ -1,0 +1,9 @@
+export let Number = .{
+  to_positive: func pure to_positive(number: number?) {
+    if number < 0 {
+      return number - number - number;
+    } else {
+      return number;
+    }
+  }
+};

@@ -33,26 +33,32 @@ export let String = .{
   },
 
   index_of: func pure index_of(value: string?, what: string?) {
-    if len(what) == 0 {
+    // If what is "" then it is at the start
+    if $what == 0 {
       return 0;
     }
 
     // If what > value, value cannot contain what
-    if len(what) > len(value) {
+    if $what > $value {
       return null;
     }
 
-    for i in 0.<len(value) {
+    for i in 0.<$value {
       // If the index of value > what, value cannot contain what
-      if i > len(what) {
+      if i > $what {
         return null;
       }
 
       let is_index = true;
-      if len(i.<len(what)) == 0 {
+
+      // If the next range is length 0, it does not contain it
+      if $(i.<$what) == 0 {
         return null;
       }
-      for x in i.<len(what) {
+
+      // Try find if the what is at current index
+      for x in i.<$what {
+        // If it isn't then this index isn't it
         if value[x] != what[x-i] {
           is_index = false;
           break;
@@ -67,15 +73,43 @@ export let String = .{
     return null;
   },
 
+  slice: func pure slice(value: string?, start: number?, amount: number?) {
+    // Check for negatives
+    if start < 0 {
+      start = $value - start.to_positive();
+    }
+    if amount < 0 {
+      amount = $value - amount;
+    }
+
+    let finished_value = "";
+    let in_skip = false;
+    for i in 0.<$value {
+      // Check if should skip this one
+      if i == start {
+        in_skip = true;
+      }
+      
+      if in_skip && amount > 0 {
+        amount = amount - 1;
+        continue;
+      }
+
+      finished_value = finished_value + value[i];
+    }
+
+    return finished_value;
+  },
+
   starts_with: func pure starts_with(value: string?, what: string?) {
     // If what > value, value cannot contain what
-    if len(what) > len(value) {
+    if $what > $value {
       return false;
     }
 
-    for i in 0..len(value) {
+    for i in 0..$value {
       // If it has reached the end, value is what
-      if i == len(what) {
+      if i == $what {
         return true;
       }
 
@@ -88,11 +122,13 @@ export let String = .{
   },
 
   remove_prefix: func pure remove_prefix(value: string?, prefix: string?) {
-    let done = false;
-    let result = "";
 
-    for i in value {
-
+    // Check if starts_with
+    if value.starts_with(prefix) == false {
+      return value;
     }
+
+    // Remove it
+    return value.slice(0, $prefix);
   }
 };

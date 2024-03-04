@@ -1201,7 +1201,7 @@ impl Parser {
               if !ident.symbol.ends_with("?") {
                 return Err(ZephyrError::parser(
                   "Expected predicate identifier".to_string(),
-                  Location::no_location(),
+                  ident.location
                 ));
               }
 

@@ -14,3 +14,12 @@ assert String.index_of("hello", "w") == null;
 
 // String.reverse
 assert String.reverse("hi", "ih") == "ih";
+
+// String.slice
+assert String.slice("hello", 1, 2) == "hlo";
+assert String.slice("hello", 1, 10) == "h";
+assert String.slice("hello", 3, 0) == "hello";
+assert String.slice("hello world", (3 - 6), 2) == "hello wod";
+
+// String.remove_prefix
+assert String.remove_prefix("hello", "hell") == "o";

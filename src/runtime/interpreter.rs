@@ -71,6 +71,7 @@ impl Interpreter {
       include_lib!("../lib/object.zr"),
       include_lib!("../lib/network.zr"),
       include_lib!("../lib/fs.zr"),
+      include_lib!("../lib/number.zr"),
     ];
     let scope = ScopeContainer::new(directory);
 
@@ -227,6 +228,7 @@ impl Interpreter {
   ) -> Result<Option<Function>, ZephyrError> {
     let value = match match value {
       RuntimeValue::StringValue(_) => Some(self.global_scope.get_variable("String")?),
+      RuntimeValue::Number(_) => Some(self.global_scope.get_variable("Number")?),
       RuntimeValue::ArrayContainer(_) => Some(self.global_scope.get_variable("Array")?),
       RuntimeValue::ObjectContainer(_) => Some(self.global_scope.get_variable("Object")?),
       _ => None,
