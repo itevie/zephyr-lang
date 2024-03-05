@@ -85,7 +85,7 @@ lazy_static! {
     tok!("from", TokenType::From);
     tok!("as", TokenType::As);
     tok!("func", TokenType::Function);
-    tok!("pure", TokenType::Pure);
+    //tok!("pure", TokenType::Pure);
     tok!("step", TokenType::Step);
     tok!("return", TokenType::Return);
     tok!("assert", TokenType::Assert);

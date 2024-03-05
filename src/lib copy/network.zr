@@ -1,0 +1,7 @@
+export let Network = .{
+  http: .{
+    get: func get(url: string?) {
+      __zephyr_native.http_get(url, .{});
+    }
+  }
+}

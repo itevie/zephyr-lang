@@ -323,7 +323,7 @@ impl Interpreter {
     arguments: Vec<Box<RuntimeValue>>,
     location: Location,
   ) -> Result<RuntimeValue, ZephyrError> {
-    if self.scope.get_pure_functions_only()? {
+    /*if self.scope.get_pure_functions_only()? {
       self.scope.set_pure_functions_only(false)?;
       // Check if it is pure
       if !func.pure {
@@ -332,7 +332,7 @@ impl Interpreter {
           location.clone(),
         ));
       }
-    }
+    }*/
     // Get the scope
     let scope = if func.pure {
       self.global_scope.create_child()?
@@ -341,9 +341,9 @@ impl Interpreter {
     };
     let caller_args = arguments.clone();
 
-    if func.pure {
+    /*if func.pure {
       scope.set_pure_functions_only(true)?;
-    }
+    }*/
 
     let evalled_args: Vec<Box<RuntimeValue>> = caller_args;
 
@@ -369,9 +369,9 @@ impl Interpreter {
       "scope",
     );
     let prev = std::mem::replace(&mut self.scope, scope);
-    {
+    /*{
       self.scope.set_pure_functions_only(true)?;
-    }
+    }*/
     for clause in func.where_clause.tests {
       let res = match self.evaluate((**&clause).clone()) {
         Ok(ok) => ok,
@@ -401,9 +401,9 @@ impl Interpreter {
         ));
       }
     }
-    {
+    /*{
       self.scope.set_pure_functions_only(func.pure)?;
-    }
+    }*/
 
     let return_value = match self.evaluate_block(*func.body, scope) {
       Ok(ok) => ok,

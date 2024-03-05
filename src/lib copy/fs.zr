@@ -1,0 +1,5 @@
+export let Fs = .{
+  read_file: func read_file(path: string?) {
+    __zephyr_native.read_file(path);
+  }
+};

@@ -1,52 +1,52 @@
-export func not_null?(test) {
+export func pure not_null?(test) {
   typeof test != "null";
 }
 
-export func null?(test) {
+export func pure null?(test) {
   typeof test == "null";
 }
 
-export func null_or?(test, predicate: callable?) {
+export func pure null_or?(test, predicate: callable?) {
   null?(test) ? true : predicate(test);
 } 
 
-export func number?(test) { 
+export func pure number?(test) { 
   typeof test == "number";
 };
 
-export func positive_number?(test) {
+export func pure positive_number?(test) {
   typeof test == "number" && test > 0;
 }
 
-export func negative_number?(test) {
+export func pure negative_number?(test) {
   typeof test == "number" && test < 0;
 }
 
-export func string?(test) {
+export func pure string?(test) {
   typeof test == "string";
 }
 
-export func boolean?(test) {
+export func pure boolean?(test) {
   typeof test == "boolean";
 }
 
-export func function?(test) {
+export func pure function?(test) {
   typeof test == "function";
 }
 
-export func native_function?(test) {
+export func pure native_function?(test) {
   typeof test == "native_function";
 }
 
-export func object?(test) {
+export func pure object?(test) {
   typeof test == "object";
 }
 
-export func array?(test) {
+export func pure array?(test) {
   typeof test == "array";
 }
 
-export func array_of?(test: array?, f: callable?) {
+export func pure array_of?(test: array?, f: callable?) {
   for i in test {
     if !f(i) { return false; }
   }
@@ -54,21 +54,21 @@ export func array_of?(test: array?, f: callable?) {
   true;
 }
 
-export func reference?(reference) {
+export func pure reference?(reference) {
   typeof test == "reference";
 }
 
-export func callable?(test) {
+export func pure callable?(test) {
   typeof test == "function" || typeof test == "native_function";
 }
 
-export func iterable?(what) {
+export func pure iterable?(what) {
   typeof what == "array" || typeof what == "string" || typeof what == "object";
 }
 
 // Checks if an object matches a "struct", for example:
 // object_matches?(.{a:2, b:null}, .{a:number?, b:string?}) will fail
-export func object_matches?(test_with: object?, test: object?) {
+export func pure object_matches?(test_with: object?, test: object?) {
   for key in test {
     // Check if test_with has the key
     if !(key in test_with) {

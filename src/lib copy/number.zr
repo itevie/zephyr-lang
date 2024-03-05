@@ -1,0 +1,9 @@
+// Stuff is populated from the Math.zr module.
+export let Number = .{
+};
+
+for i in Math.keys() {
+  if typeof Math[i] == "function" {
+    Number[i] = Math[i];
+  }
+}

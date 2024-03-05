@@ -1,18 +1,18 @@
 export let Array = .{
   // Returns the length of an array
-  len: func len(value: array?) {
+  len: func pure len(value: array?) {
     let res = 0;
     for i in value { res = res + 1; };
     res;
   },
 
   // Adds an item to the end of the array
-  push: func push(arr: array?, value) {
+  push: func pure push(arr: array?, value) {
     __zephyr_native.push_arr(arr, value);
   },
 
   // Joins an array into a string with an optional seperator
-  join: func join(values: array?, by: null_or?(string?)) {
+  join: func pure join(values: array?, by: null_or?(string?)) {
     let value = "";
 
     for i in values {
@@ -23,11 +23,11 @@ export let Array = .{
   },
 
   // Creates a new array based on another array but calling f with each item
-  map: func map(value: array?, f: callable?) {
+  map: func pure map(value: array?, f: callable?) {
     for i in value { f(i); };
   },
 
-  filter: func filter(value: array?, f: callable?) {
+  filter: func pure filter(value: array, f: callable?) {
     let result = [];
 
     for v in value {
@@ -40,7 +40,7 @@ export let Array = .{
   },
 
   // Reverses the items in an array
-  reverse: func reverse(array: array?) {
+  reverse: func pure reverse(array: array?) {
     // Check if empty array
     if Array.len(array) == 0 { return array; }
 
@@ -56,7 +56,7 @@ export let Array = .{
   // Checks if two arrays contain the exact same elements, this is because
   // arrays are references so [1, 2, 3] == [1, 2, 3] is false because
   // they are two different references.
-  same_as: func same_as(what: array?, compare_to: array?) {
+  same_as: func pure same_as(what: array?, compare_to: array?) {
     // Check lengths
     if Array.len(what) != Array.len(compare_to) {
       return false;

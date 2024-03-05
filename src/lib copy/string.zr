@@ -1,6 +1,6 @@
 export let String = .{
   // Splits a string by a given delimiter
-  split: func split(value: string?, by: string?) {
+  split: func pure split(value: string?, by: string?) {
     let result = [];
     let current = "";
 
@@ -24,15 +24,15 @@ export let String = .{
     result;
   },
 
-  reverse: func reverse(value: string?) {
+  reverse: func pure reverse(value: string?) {
     Array.join(__zephyr_native.reverse(value));
   },
 
-  unescape: func unescape(value: string?) {
+  unescape: func pure unescape(value: string?) {
     __zephyr_native.unescape(value);
   },
 
-  index_of: func index_of(value: string?, what: string?) {
+  index_of: func pure index_of(value: string?, what: string?) {
     // If what is "" then it is at the start
     if $what == 0 {
       return 0;
@@ -73,7 +73,7 @@ export let String = .{
     return null;
   },
 
-  slice: func slice(value: string?, start: number?, amount: number?) {
+  slice: func pure slice(value: string?, start: number?, amount: number?) {
     // Check for negatives
     if start < 0 {
       start = $value - start.abs();
@@ -101,7 +101,7 @@ export let String = .{
     return finished_value;
   },
 
-  starts_with: func starts_with(value: string?, what: string?) {
+  starts_with: func pure starts_with(value: string?, what: string?) {
     // If what > value, value cannot contain what
     if $what > $value {
       return false;
@@ -121,7 +121,7 @@ export let String = .{
     return true;
   },
 
-  remove_prefix: func remove_prefix(value: string?, prefix: string?) {
+  remove_prefix: func pure remove_prefix(value: string?, prefix: string?) {
     // Check if starts_with
     if value.starts_with(prefix) == false {
       return value;

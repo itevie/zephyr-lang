@@ -2,15 +2,15 @@ export let Math = .{
   // ----- Constants -----
   pi: 314159 / 100000,
 
-  floor: func floor(number: number?) {
+  floor: func pure floor(number: number?) {
     __zephyr_native.floor(number);
   },
 
-  ceil: func floor(number: number?) {
+  ceil: func pure floor(number: number?) {
     __zephyr_native.ceil(number);
   },
 
-  abs: func to_positive(number: number?) {
+  abs: func pure to_positive(number: number?) {
     if number < 0 {
       return number - number - number;
     } else {
@@ -18,7 +18,7 @@ export let Math = .{
     }
   },
 
-  min: func min (a: number?, b: number?) {
+  min: func pure min (a: number?, b: number?) {
     let min = null;
 
     for i in __args__ {
@@ -31,7 +31,7 @@ export let Math = .{
     min;
   },
 
-  max: func max(__args__: array_of?(number?)) {
+  max: func pure max(__args__: array_of?(number?)) {
     let max = null;
 
     for i in __args__ {
@@ -44,7 +44,7 @@ export let Math = .{
     max;
   },
 
-  sum: func sum(__args__: array_of?(number?)) {
+  sum: func pure sum(__args__: array_of?(number?)) {
     let sum = 0;
     for i in __args__ { sum = sum + i; }
     sum;
