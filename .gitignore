@@ -1,12 +1,13 @@
+# Folders
 /target
+/.vscode
+/zephyr-lang
+/bundler_executable_temp
 
+# Random test files
 test.zr
 test2.zr
-/.vscode
-Cargo.toml.old
 a.zr
 out.zr
-zephyr-lang
-/zephyr-lang
-bundler_executable_temp
 out.exe
+Cargo.toml.old
