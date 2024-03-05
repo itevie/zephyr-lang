@@ -621,6 +621,26 @@ impl Parser {
   parser_section! {parse_additive_expression, self, {
     let mut left = self.parse_multiplicative_expression()?;
 
+    // Check if dual additive
+    while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::DualOperator(DualTokenType::Additive(_))) {
+      let oper = self.eat();
+      let right = self.parse_unary_expression()?;
+
+      left = nodes::Expression::AssignmentExpression(AssignmentExpression {
+        left: Box::from(left.clone()),
+        right: Box::from(nodes::Expression::ArithmeticOperator(ArithmeticExpression {
+          left: Box::from(left.clone()),
+          right: Box::from(right),
+          location: oper.location,
+          operator: match oper.token_type {
+            TokenType::DualOperator(DualTokenType::Additive(add)) => TokenType::AdditiveOperator(add),
+            _ => unreachable!()
+          }
+        })),
+        location: oper.location,
+      });
+    }
+
     // Check if it is an additive
     while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::AdditiveOperator(_)) {
       let oper = self.eat();
