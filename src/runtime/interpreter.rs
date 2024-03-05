@@ -36,9 +36,6 @@ use super::{
   },
 };
 
-#[path = "./handlers/mod.rs"]
-pub mod handlers;
-
 static IMPORT_CACHE: Lazy<Arc<Mutex<HashMap<String, ScopeContainer>>>> =
   Lazy::new(|| Arc::from(Mutex::from(HashMap::new())));
 
@@ -502,6 +499,7 @@ impl Interpreter {
       },
     )?;
 
+    // Check if it actually had the type function
     if let Some(func) = thing {
       let mut mutfunc = func.clone();
       mutfunc.type_call = Some(Box::from(value.clone()));
