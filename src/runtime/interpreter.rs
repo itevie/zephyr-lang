@@ -475,9 +475,9 @@ impl Interpreter {
     assign: &Option<RuntimeValue>,
   ) -> Result<RuntimeValue, errors::ZephyrError> {
     let key_loc = expr.key.get_location();
-    let value = match *expr.left {
+    let value = match *expr.left.clone() {
       Expression::Identifier(ident) => self.evaluate_identifier(ident, true),
-      _ => self.evaluate(*expr.left),
+      _ => self.evaluate(*expr.left.clone()),
     }?;
 
     // Get key
@@ -552,9 +552,10 @@ impl Interpreter {
                   ));
                 }
                 _ => {
-                  return Err(ZephyrError::runtime(
+                  return Err(ZephyrError::runtime_with_ref(
                     "To index an array with an array, all items must be of type number".to_string(),
-                    Location::no_location(),
+                    expr.key.get_location(),
+                    expr.left.clone().get_location(),
                   ))
                 }
               }
