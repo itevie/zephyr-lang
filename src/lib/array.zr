@@ -1,11 +1,4 @@
 export let Array = .{
-  // Returns the length of an array
-  len: func len(value: array?) {
-    let res = 0;
-    for i in value { res = res + 1; };
-    res;
-  },
-
   // Adds an item to the end of the array
   push: func push(arr: array?, value) {
     __zephyr_native.push_arr(arr, value);
@@ -42,11 +35,11 @@ export let Array = .{
   // Reverses the items in an array
   reverse: func reverse(array: array?) {
     // Check if empty array
-    if Array.len(array) == 0 { return array; }
+    if $array == 0 { return array; }
 
     let new_array = [];
 
-    for i in Array.len(array)-1..0 {
+    for i in $array-1..0 {
       new_array + array[i];
     }
 
@@ -58,11 +51,11 @@ export let Array = .{
   // they are two different references.
   same_as: func same_as(what: array?, compare_to: array?) {
     // Check lengths
-    if Array.len(what) != Array.len(compare_to) {
+    if $what != $compare_to {
       return false;
     }
 
-    for i in 0.<Array.len(what) {
+    for i in 0.<$what {
       // Check types
       if typeof what[i] != typeof compare_to[i] {
         return false;

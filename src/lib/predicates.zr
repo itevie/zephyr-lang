@@ -1,3 +1,4 @@
+// ----- Simple check predicates -----
 export func not_null?(test) {
   typeof test != "null";
 }
@@ -54,8 +55,36 @@ export func array_of?(test: array?, f: callable?) {
   true;
 }
 
-export func reference?(reference) {
-  typeof test == "reference";
+// ----- Special Ones -----
+
+export func not?(value, __args__) where __args__[1.<$__args__] is array_of?(callable?) {
+  for predicate in __args__[1.<$__args__] {
+    if predicate(value) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export func all_of?(value, __args__) where __args__[1.<$__args__] is array_of?(callable?) {
+  for predicate in __args__[1.<$__args__] {
+    if !predicate(value) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export func one_of?(value, __args__) where __args__[1.<$__args__] is array_of?(callable?) {
+  for predicate in __args__[1.<$__args__] {
+    if predicate(value) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export func callable?(test) {

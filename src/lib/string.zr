@@ -10,7 +10,7 @@ export let String = .{
       if i == by || by == "" {
         // Check if it should add the current char if the delimiter is ""
         if by == "" { current = current + i; }
-        result + current;
+        result.push(current);
         current = "";
       } else {
         current = current + i;

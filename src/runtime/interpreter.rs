@@ -527,6 +527,50 @@ impl Interpreter {
         // Can only index via numbers
         let number = match key {
           Some(RuntimeValue::Number(num)) => num.value as usize,
+          Some(RuntimeValue::ArrayContainer(array)) => {
+            let array2 = match crate::MEMORY.lock().unwrap().get_value(array.location)? {
+              RuntimeValue::Array(arr) => arr,
+              _ => unreachable!(),
+            };
+
+            let mut result: Vec<Box<RuntimeValue>> = vec![];
+
+            // Check if all items are number
+            for i in array2.items {
+              match *i {
+                RuntimeValue::Number(num) => {
+                  // Check if original array has this value
+                  if arr.items.len() <= num.value as usize {
+                    return Err(ZephyrError::runtime(
+                      format!("Index out of bounds {}", num.value),
+                      Location::no_location(),
+                    ));
+                  }
+
+                  result.push(Box::from(
+                    arr.items.get(num.value as usize).unwrap().clone(),
+                  ));
+                }
+                _ => {
+                  return Err(ZephyrError::runtime(
+                    "To index an array with an array, all items must be of type number".to_string(),
+                    Location::no_location(),
+                  ))
+                }
+              }
+            }
+
+            // Add to memory
+            let address = crate::MEMORY
+              .lock()
+              .unwrap()
+              .add_value(RuntimeValue::Array(Array { items: result }));
+
+            // Finish
+            return Ok(RuntimeValue::ArrayContainer(ArrayContainer {
+              location: address,
+            }));
+          }
           _ => {
             return Err(errors::ZephyrError::runtime(
               format!(
