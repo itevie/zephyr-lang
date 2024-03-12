@@ -70,6 +70,7 @@ impl Interpreter {
       include_lib!("../lib/network.zr"),
       include_lib!("../lib/fs.zr"),
       include_lib!("../lib/number.zr"),
+      include_lib!("../lib/error.zr"),
     ];
     let scope = ScopeContainer::new(directory);
 
@@ -112,6 +113,12 @@ impl Interpreter {
             "reverse".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::reverse,
+            }),
+          ),
+          (
+            "error".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::error,
             }),
           ),
           (
@@ -729,6 +736,65 @@ impl Interpreter {
       /////////////////////////////
       // ----- Statements ----- //
       ///////////////////////////
+      Expression::ThrowStatement(stmt) => {
+        let value = self.evaluate(*stmt.what.clone())?;
+        // Get the error_struct? func
+        let error_struct = match self.global_scope.get_variable("error_struct?")? {
+          RuntimeValue::Function(func) => func,
+          _ => unreachable!(),
+        };
+
+        // Evaluate it
+        match self.evaluate_zephyr_function(
+          error_struct,
+          vec![Box::new(value.clone())],
+          stmt.location,
+        )? {
+          RuntimeValue::Boolean(bool) => {
+            if bool.value != true {
+              return Err(ZephyrError::runtime(
+                "Threw invalid error obj".to_string(),
+                stmt.location,
+              ));
+            } else {
+              ()
+            }
+          }
+          _ => unreachable!(),
+        };
+
+        let obj_value = match &value.clone() {
+          RuntimeValue::ObjectContainer(cont) => {
+            match crate::MEMORY.lock().unwrap().get_value(cont.location)? {
+              RuntimeValue::Object(obj) => obj,
+              _ => unreachable!(),
+            }
+          }
+          _ => unreachable!(),
+        };
+
+        let message = match obj_value.items.get("message") {
+          Some(RuntimeValue::StringValue(str)) => str.value.clone(),
+          _ => unreachable!(),
+        };
+
+        let _typ = match obj_value.items.get("type") {
+          Some(RuntimeValue::StringValue(str)) => str.value.clone(),
+          _ => unreachable!(),
+        };
+
+        let data = match obj_value.items.get("data") {
+          Some(val) => val.clone(),
+          _ => RuntimeValue::Null(Null {}),
+        };
+
+        return Err(ZephyrError {
+          location: stmt.location,
+          error_message: message,
+          error_type: ErrorType::UserDefined(Box::from(data)),
+          reference: None,
+        });
+      }
       Expression::VariableDeclaration(stmt) => {
         // Collect data
         let name = stmt.identifier.symbol;
@@ -1524,6 +1590,13 @@ impl Interpreter {
                     RuntimeValue::StringValue(StringValue {
                       value: format!("{:?}", err.error_type),
                     }),
+                  ),
+                  (
+                    "data".to_string(),
+                    match err.error_type {
+                      ErrorType::UserDefined(val) => *val.clone(),
+                      _ => RuntimeValue::Null(Null {}),
+                    },
                   ),
                   ("location".to_string(), err.location.to_object()),
                 ]));

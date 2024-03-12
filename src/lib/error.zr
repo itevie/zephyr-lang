@@ -1,0 +1,18 @@
+export let error_struct = .{
+    message: string?,
+    type: string?,
+    data: any?,
+    location: .{
+        __struct_optional: true,
+        line: number?,
+        contents_id: number?,
+        char_end: number?,
+        char_start: number?,
+    }
+};
+
+export func error_struct?(value) {
+    value is object_matches?(error_struct);
+}
+
+export let error = __zephyr_native.error;

@@ -1,4 +1,8 @@
 // ----- Simple check predicates -----
+export func any?() {
+  true;
+}
+
 export func not_null?(test) {
   typeof test != "null";
 }
@@ -101,13 +105,21 @@ export func object_matches?(test_with: object?, test: object?) {
   for key in test {
     // Check if test_with has the key
     if !(key in test_with) {
+      // Check if optional 
+      if test[key] is object? {
+        if "__struct_optional" in test[key] {
+          continue;
+        }
+      }
       return false;
     }
 
     // Check if it is an object
     if object?(test[key]) {
       if !(object_matches?(test_with[key], test[key])) {
-        return false;
+        if not "__struct_optional" in test[key] {
+          return false;
+        }
       }
 
       continue;

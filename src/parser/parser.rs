@@ -251,6 +251,13 @@ impl Parser {
         location: self.eat().location,
         value: Box::from(self.parse_expression()?),
       })),
+      TokenType::Throw => {
+        let tok = self.eat();
+        Ok(nodes::Expression::ThrowStatement(nodes::ThrowStatement {
+          location: tok.location,
+          what: Box::from(self.parse_expression()?),
+        }))
+      }
       TokenType::Break => Ok(nodes::Expression::BreakStatement(nodes::BreakStatement {
         location: self.eat().location,
       })),

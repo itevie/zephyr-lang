@@ -10,7 +10,7 @@ use crate::{errors::ZephyrError, lexer::location::Location};
 
 use super::{
   interpreter::Interpreter,
-  values::{to_array, Null, Number, Object, RuntimeValue, StringValue},
+  values::{to_array, Null, Number, Object, ObjectContainer, RuntimeValue, StringValue},
 };
 
 type R = Result<RuntimeValue, ZephyrError>;
@@ -20,6 +20,47 @@ pub struct CallOptions {
   pub args: Vec<RuntimeValue>,
   pub location: Location,
   pub interpreter: Interpreter,
+}
+
+pub fn error(options: CallOptions) -> R {
+  let message: String;
+  let mut data: RuntimeValue = RuntimeValue::Null(Null {});
+
+  match &options.args[..] {
+    [RuntimeValue::StringValue(str)] => message = str.value.clone(),
+    [RuntimeValue::StringValue(str), d] => {
+      message = str.value.clone();
+      data = d.clone();
+    }
+    _ => {
+      return Err(ZephyrError::runtime(
+        "Invalid args".to_string(),
+        options.location,
+      ))
+    }
+  }
+
+  let obj = RuntimeValue::Object(Object {
+    items: HashMap::from([
+      (
+        "message".to_string(),
+        RuntimeValue::StringValue(StringValue {
+          value: message.clone(),
+        }),
+      ),
+      ("data".to_string(), data),
+      (
+        "type".to_string(),
+        RuntimeValue::StringValue(StringValue {
+          value: message.clone(),
+        }),
+      ),
+    ]),
+  });
+
+  Ok(RuntimeValue::ObjectContainer(ObjectContainer {
+    location: crate::MEMORY.lock().unwrap().add_value(obj),
+  }))
 }
 
 pub fn push_arr(options: CallOptions) -> R {

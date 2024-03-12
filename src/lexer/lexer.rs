@@ -70,6 +70,7 @@ lazy_static! {
     tok!("try", TokenType::Try);
     tok!("catch", TokenType::Catch);
     tok!("finally", TokenType::Finally);
+    tok!("throw", TokenType::Throw);
     tok!("if", TokenType::If);
     tok!("else", TokenType::Else);
     tok!("break", TokenType::Break);

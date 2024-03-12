@@ -23,6 +23,7 @@ pub enum ErrorType {
   Continue,
   Parser,
   Lexer,
+  UserDefined(Box<RuntimeValue>),
 }
 
 impl ZephyrError {
@@ -75,8 +76,12 @@ impl ZephyrError {
     let mut result = String::new();
 
     // Add error
+    let error_type = match self.error_type {
+      ErrorType::UserDefined(ref _a) => "Userdefined".to_string(),
+      _ => format!("{:?}", self.error_type),
+    };
     result += &(util::colors::fg_red()
-      + &format!("{:?} error: {}\n", self.error_type, self.error_message)
+      + &format!("{} error: {}\n", error_type, self.error_message)
       + &util::colors::reset());
 
     // Add location

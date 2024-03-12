@@ -44,6 +44,7 @@ pub enum Expression {
   ContinueStatement(ContinueStatement),
   ReturnStatement(ReturnStatement),
   AssertStatement(AssertStatement),
+  ThrowStatement(ThrowStatement),
 
   // ----- Special -----
   Program(Program),
@@ -87,6 +88,7 @@ impl Expression {
       Expression::ImportStatement(x) => x.location.clone(),
       Expression::RangeExpression(x) => x.location.clone(),
       Expression::AssertStatement(x) => x.location.clone(),
+      Expression::ThrowStatement(x) => x.location.clone(),
     }
   }
 }
@@ -156,6 +158,12 @@ pub struct ImportStatement {
   // Vec<(what, as)>
   pub import: Vec<(Identifier, Identifier)>,
   pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct ThrowStatement {
+  pub location: Location,
+  pub what: Box<Expression>,
 }
 
 // ----- Expressions -----
