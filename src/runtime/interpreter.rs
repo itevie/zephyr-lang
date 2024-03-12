@@ -1573,6 +1573,13 @@ impl Interpreter {
         let result = match self.evaluate(Expression::Block(*expr.main)) {
           Ok(ok) => ok,
           Err(err) => {
+            // Check if it is a return one
+            match err.error_type {
+              ErrorType::Continue => return Err(err),
+              ErrorType::Break => return Err(err),
+              ErrorType::Return(_) => return Err(err),
+              _ => (),
+            };
             // Check if there is a catch block
             if let Some(catch) = expr.catch {
               // Check if it defines ident
