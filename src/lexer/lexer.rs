@@ -288,6 +288,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
                 "t" => value.push_str("\t"),
                 "\"" => value.push_str("\""),
                 "\\" => value.push_str("\\"),
+                "\n" => value.push_str("\n"),
                 // Hex sequences, like x1b[31m, god knows how this work
                 // chatgpt did it
                 "x" => {

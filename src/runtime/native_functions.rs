@@ -278,7 +278,7 @@ pub fn read_file(options: CallOptions) -> R {
 }
 
 // ----- Network -----
-pub fn ureq_to_object(response: ureq::Response) -> R {
+/*pub fn ureq_to_object(response: ureq::Response) -> R {
   // Create object
   let object = Object {
     items: HashMap::from([
@@ -316,9 +316,9 @@ pub fn ureq_to_object(response: ureq::Response) -> R {
         .add_value(RuntimeValue::Object(object)),
     },
   ))
-}
+}*/
 
-pub fn http_get(options: CallOptions) -> R {
+/*pub fn http_get(options: CallOptions) -> R {
   match &options.args[..] {
     [RuntimeValue::StringValue(url), RuntimeValue::ObjectContainer(headers)] => {
       let request = ureq::get(&url.value);
@@ -351,7 +351,7 @@ pub fn http_get(options: CallOptions) -> R {
       options.location,
     )),
   }
-}
+}*/
 
 // Don't know rust enough for this shit
 /*pub fn open_ws(options: CallOptions) -> R {

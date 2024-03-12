@@ -92,12 +92,6 @@ impl Interpreter {
             }),
           ),
           (
-            "http_get".to_string(),
-            RuntimeValue::NativeFunction(NativeFunction {
-              func: &native_functions::http_get,
-            }),
-          ),
-          (
             "read_line".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::read_line,
