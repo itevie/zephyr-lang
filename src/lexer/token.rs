@@ -121,6 +121,8 @@ pub enum UnaryOperator {
   Reference,
   Dereference,
   LengthOf,
+  Increment,
+  Decrement,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -91,6 +91,7 @@ impl Parser {
       nodes::Expression::Program(_) => true,
       nodes::Expression::IfExpression(_) => true,
       nodes::Expression::ExportStatement(_) => true,
+      nodes::Expression::TryExpression(_) => true,
       _ => false,
     }
   }

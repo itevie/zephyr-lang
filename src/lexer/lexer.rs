@@ -59,8 +59,8 @@ lazy_static! {
 
     // Unary Operator
     tok!("!", TokenType::UnaryOperator(UnaryOperator::Not));
-    tok!("&", TokenType::UnaryOperator(UnaryOperator::Reference));
-    tok!("~", TokenType::UnaryOperator(UnaryOperator::Dereference));
+    tok!("++", TokenType::UnaryOperator(UnaryOperator::Increment));
+    tok!("--", TokenType::UnaryOperator(UnaryOperator::Decrement));
 
     // Keywords
     tok!("is", TokenType::Is);
