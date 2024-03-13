@@ -24,6 +24,30 @@ export let String = .{
     result;
   },
 
+  split_every: func split_every(value: string?, amount: positive_number?) {
+    // Check if can just return it
+    if $value <= amount { return [value]; }
+
+    let result = [];
+    let temp = "";
+
+    for i in 0.<$value {
+      temp += value[i];
+
+      if i != 0 && (i+1) % amount == 0 {
+        result.push(temp);
+        temp = "";
+      }
+    }
+
+    // Check if temp is not empty
+    if $temp != 0 {
+      result.push(temp);
+    }
+
+    result;
+  },
+
   reverse: func reverse(value: string?) {
     Array.join(__zephyr_native.reverse(value));
   },

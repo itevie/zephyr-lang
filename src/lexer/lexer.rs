@@ -157,7 +157,11 @@ static STRING_ONLY_OPERATORS: Lazy<Vec<&&str>> = Lazy::new(|| {
     .collect()
 });
 
-pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrError> {
+pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, ZephyrError> {
+  // Remove stupid \r's
+  let contents = temp_contents.replace("\r", "");
+
+  // Increment the current contents ID
   *CURRENT_CONTENTS.lock().unwrap() += 1;
   let id = { *CURRENT_CONTENTS.lock().unwrap() };
   LOCATION_CONTENTS.lock().unwrap().insert(
@@ -289,6 +293,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
                 "\"" => value.push('\"'),
                 "\\" => value.push('\\'),
                 "\n" => value.push('\n'),
+                "\r" => (),
                 // Hex sequences, like x1b[31m, god knows how this work
                 // chatgpt did it
                 "x" => {

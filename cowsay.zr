@@ -1,0 +1,51 @@
+export func format(text: string?) {
+  let result = "";
+  let max_size = 30;
+
+  // Get information about text
+  let parts = text.split_every(max_size);
+  let speech_bubble_size = $parts[0] + 2;
+
+  // Create speech bubble
+  result += (" " + "_" * speech_bubble_size + " ");
+
+  // Check how many lines there are
+  result += "\n";
+  if $parts == 1 {
+    result += ("< " + parts[0] + " >");
+  } else if $parts == 2 {
+    let ending = max_size - $parts[1];
+    result += ("/ " + parts[0] + " \\");
+    result += ("\n\\ " + parts[1] + (" " * (ending + 1)) + "/");
+  } else {
+    // Add 1st
+    result += ("/ " + parts[0] + " \\\n");
+
+    // Add middle
+    for i in 1.<($parts-1) {
+      result += ("| " + parts[i] + " |\n"); 
+    }
+    
+    // Add bottom
+    let ending = max_size - $parts[$parts-1];
+    result += ("\\ " + parts[$parts-1]);
+    result += ((" " * (ending + 1)) + "/");
+  }
+
+  // Add bottom of speech bubble
+  result += "\n";
+  result += (" " + "-" * speech_bubble_size + " ");
+
+  // Add cow
+  result += "\n      \\   ^__^";
+  result += "\n       \\  (oo)\\_______";
+  result += "\n          (__)\\       )\\/\\";
+  result += "\n              ||----w |";
+  result += "\n              ||     ||";
+
+  result;
+}
+
+export func say(text: string?) {
+  print(format(text));
+}

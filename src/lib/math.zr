@@ -18,7 +18,7 @@ export let Math = .{
     }
   },
 
-  min: func min (a: number?, b: number?) {
+  min: func min(__args__: array_of?(number?)) {
     let min = null;
 
     for i in __args__ {

@@ -1223,9 +1223,18 @@ impl Interpreter {
 
         // Try others
         let result: Option<RuntimeValue> = match expr.operator {
+          TokenType::MultiplicativeOperator(MultiplicativeTokenType::Multiply) => match left {
+            RuntimeValue::StringValue(ref left_value) => match right.clone() {
+              RuntimeValue::Number(num) => Some(RuntimeValue::StringValue(StringValue {
+                value: left_value.value.clone().repeat(num.value as usize),
+              })),
+              _ => None,
+            },
+            _ => None,
+          },
           TokenType::AdditiveOperator(AdditiveTokenType::Plus) => match left {
             RuntimeValue::StringValue(ref left_value) => {
-              let right_value: Option<String> = match right {
+              let right_value: Option<String> = match right.clone() {
                 RuntimeValue::StringValue(ref string_value) => {
                   Some(String::from(&*string_value.value))
                 }

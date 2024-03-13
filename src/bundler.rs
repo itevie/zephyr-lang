@@ -6,6 +6,8 @@ use std::{
   time::Duration,
 };
 
+use pbr::ProgressBar;
+
 use crate::{
   die,
   lexer::{
@@ -92,10 +94,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
 
       // Check if it exists
       if !path.exists() {
-        die(format!(
-          "The path {} does not exist",
-          path.display()
-        ));
+        die(format!("The path {} does not exist", path.display()));
         panic!();
       }
 
@@ -240,24 +239,27 @@ pub fn bundle(input: String, file_name: String) -> String {
 
 // idk why i made this i was bored
 pub fn bundle_executable(input: String, file_name: String, _out_file: String) {
+  let parts = 7;
+  let mut pb = ProgressBar::new(parts);
+  pb.show_speed = false;
+  pb.show_time_left = false;
+
   // Bundle
   let contents = bundle(input, file_name);
 
   // Create temp directory
+  pb.message("Creating temp directory ");
   if PathBuf::from("./bundler_executable_temp").exists() {
     fs::remove_dir_all("./bundler_executable_temp").unwrap();
   }
   match fs::create_dir("bundler_executable_temp") {
     Ok(_) => (),
-    Err(err) => {
-      return crate::die(format!(
-        "Failed to create temporary directory: {}",
-        err
-      ))
-    }
+    Err(err) => return crate::die(format!("Failed to create temporary directory: {}", err)),
   };
+  pb.inc();
 
   // Git clone
+  pb.message("Cloning Zephyr GitHub repository ");
   crate::debug("Attempting to clone GitHub repository...", "bundler");
   match std::process::Command::new("git")
     .args([
@@ -268,12 +270,7 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) {
     .output()
   {
     Ok(_) => (),
-    Err(err) => {
-      return crate::die(format!(
-        "Failed to run git, is git installed?: {}",
-        err
-      ))
-    }
+    Err(err) => return crate::die(format!("Failed to run git, is git installed?: {}", err)),
   };
 
   // Expect file to exist
@@ -287,17 +284,18 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) {
   crate::debug(
     &format!(
       "Git clone successful, index file is: {}",
-      fs::canonicalize(index_rs.clone())
-        .unwrap()
-        .display()
+      fs::canonicalize(index_rs.clone()).unwrap().display()
     ),
     "bundler",
   );
+  pb.inc();
 
   crate::debug("Waiting few seconds...", "bundler");
   std::thread::sleep(Duration::from_secs(3));
+  pb.inc();
 
   // Read index
+  pb.message("Building ");
   let mut index_contents = match fs::read_to_string(index_rs.clone()) {
     Ok(ok) => ok,
     Err(err) => return crate::die(format!("Failed to read index.rs: {}", err)),
@@ -306,6 +304,7 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) {
     "let bundled_data = \"\";",
     &format!("let bundled_data = r#\"{}\"#;", contents.replace('\n', "")),
   );
+  pb.inc();
 
   // Write the file
   let mut f = match OpenOptions::new().write(true).open(index_rs) {
@@ -316,6 +315,7 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) {
     Ok(_) => (),
     Err(err) => return crate::die(format!("Failed to write index.rs: {}", err)),
   };
+  pb.inc();
 
   crate::debug(
     "Successfully modified index.rs, now attempting to compile...",
@@ -333,12 +333,7 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) {
     .output()
   {
     Ok(_) => (),
-    Err(err) => {
-      return crate::die(format!(
-        "Failed to run cargo, is cargo installed?: {}",
-        err
-      ))
-    }
+    Err(err) => return crate::die(format!("Failed to run cargo, is cargo installed?: {}", err)),
   }
 
   let path = if cfg!(windows) {
@@ -353,12 +348,15 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) {
   if !path.exists() {
     panic!("Failed to compile, is cargo installed?");
   }
+  pb.inc();
 
   // Copy
   crate::debug("Copying outputted executable to out file...", "bundler");
 
   fs::copy(path, _out_file).unwrap();
+  pb.inc();
 
   crate::debug("Done, cleaning up", "bundler");
   fs::remove_dir_all("./bundler_executable_temp").unwrap();
+  pb.finish_print("Done!");
 }
