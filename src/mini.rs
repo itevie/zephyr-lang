@@ -5,7 +5,7 @@ use crate::lexer::{
 
 pub fn minimise(input: String, file_name: String) -> String {
   // Get the tokens
-  let result = match lexer::lexer::lex(input, file_name.clone()) {
+  let result = match lexer::lexer::lex(input, file_name) {
     Ok(val) => val,
     Err(err) => {
       println!("{}", err.visualise(false));
@@ -21,7 +21,7 @@ pub fn compress_tokens(tokens: Vec<Token>) -> String {
 
   for i in tokens {
     let value = match i.token_type {
-      TokenType::String => format!("\"{}\"", i.value).replace("\\", "\\\\"),
+      TokenType::String => format!("\"{}\"", i.value).replace('\\', "\\\\"),
       _ => i.value,
     };
     let needs_space_after = match i.token_type {

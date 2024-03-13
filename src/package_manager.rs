@@ -16,16 +16,16 @@ pub fn new(options: NewPackage, directory: PathBuf) {
   );
 
   // Construct path
-  let mut path = directory.clone();
+  let mut path = directory;
   path.push(options.name_pos);
 
   // Check if folder already exists
   if path.exists() {
     crate::die(format!(
       "The folder {} already exists!",
-      path.clone().display().to_string()
+      path.clone().display()
     ));
-    return ();
+    return ;
   }
 
   // Create folder
@@ -34,15 +34,15 @@ pub fn new(options: NewPackage, directory: PathBuf) {
     Err(err) => {
       crate::die(format!(
         "Failed to create directory {}: {}",
-        path.display().to_string(),
-        err.to_string()
+        path.display(),
+        err
       ));
-      return ();
+      return ;
     }
   }
 
   crate::debug(
-    &format!("Folder created {}", path.display().to_string()),
+    &format!("Folder created {}", path.display()),
     "package-manager",
   );
 
@@ -54,10 +54,10 @@ pub fn new(options: NewPackage, directory: PathBuf) {
     Err(err) => {
       crate::die(format!(
         "Failed to create index.zr {}: {}",
-        index_file.display().to_string(),
-        err.to_string()
+        index_file.display(),
+        err
       ));
-      return ();
+      return ;
     }
   }
 

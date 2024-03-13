@@ -7,7 +7,7 @@ pub fn repl(_args: crate::Args, directory: String) {
   let scope = interpreter.scope;
 
   loop {
-    let _ = std::mem::swap(&mut interpreter.scope, &mut scope.clone());
+    std::mem::swap(&mut interpreter.scope, &mut scope.clone());
 
     // Get input
     print!("> ");
@@ -28,8 +28,8 @@ pub fn repl(_args: crate::Args, directory: String) {
     }
 
     // Check if input has a ; at the end
-    if !input.ends_with(";") {
-      input.push_str(";");
+    if !input.ends_with(';') {
+      input.push(';');
     }
 
     // Lex

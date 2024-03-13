@@ -208,7 +208,7 @@ impl Interpreter {
 
       // Add defined variables to global
       for (key, value) in lib_scope.get_exports().unwrap().iter() {
-        scope.declare_variable_with_address(&key, *value).unwrap();
+        scope.declare_variable_with_address(key, *value).unwrap();
       }
     }
 
@@ -371,7 +371,7 @@ impl Interpreter {
       self.scope.set_pure_functions_only(true)?;
     }*/
     for clause in func.where_clause.tests {
-      let res = match self.evaluate((**&clause).clone()) {
+      let res = match self.evaluate((*clause).clone()) {
         Ok(ok) => ok,
         Err(err) => {
           // Cleanup
@@ -395,7 +395,7 @@ impl Interpreter {
         return Err(ZephyrError::runtime_with_ref(
           format!("Call failed to pass where clauses, received: {}", res),
           location,
-          clause.clone().get_location().clone(),
+          clause.get_location(),
         ));
       }
     }
@@ -419,7 +419,7 @@ impl Interpreter {
     // Check if it is predicate
     if let Some(f) = func.name {
       // Check endswith ?
-      if f.ends_with("?") {
+      if f.ends_with('?') {
         // Check for boolean
         if !matches!(return_value, RuntimeValue::Boolean(_)) {
           return Err(ZephyrError::runtime(
@@ -464,7 +464,7 @@ impl Interpreter {
       }
     }
 
-    Ok(variable.clone())
+    Ok(variable)
   }
 
   pub fn evaluate_member_expression(
@@ -502,7 +502,7 @@ impl Interpreter {
 
     // Check if it actually had the type function
     if let Some(func) = thing {
-      let mut mutfunc = func.clone();
+      let mut mutfunc = func;
       mutfunc.type_call = Some(Box::from(value.clone()));
       return Ok(RuntimeValue::Function(mutfunc));
     }
@@ -546,15 +546,13 @@ impl Interpreter {
                     ));
                   }
 
-                  result.push(Box::from(
-                    arr.items.get(num.value as usize).unwrap().clone(),
-                  ));
+                  result.push(arr.items.get(num.value as usize).unwrap().clone());
                 }
                 _ => {
                   return Err(ZephyrError::runtime_with_ref(
                     "To index an array with an array, all items must be of type number".to_string(),
                     expr.key.get_location(),
-                    expr.left.clone().get_location(),
+                    expr.left.get_location(),
                   ))
                 }
               }
@@ -585,12 +583,12 @@ impl Interpreter {
         // Check if out of bounds
         if arr.items.len() <= number {
           // Check if it is assignment
-          if let Some(_) = assign {
+          if assign.is_some() {
             // Only allow +1
             if arr.items.len() + 1 < number {
               return Err(ZephyrError::runtime(
                 "Index out of bounds".to_string(),
-                key_loc.clone(),
+                key_loc,
               ));
             } else {
               // Add dummy item so rust doesn't panic
@@ -616,7 +614,7 @@ impl Interpreter {
         }
 
         // Return
-        return Ok(*(*&arr.items[number]).clone());
+        Ok(*(arr.items[number]).clone())
       }
       RuntimeValue::ObjectContainer(obj_ref) => {
         let mut object = match crate::MEMORY.lock().unwrap().get_value(obj_ref.location)? {
@@ -636,7 +634,7 @@ impl Interpreter {
                 "Can only index object with strings, but got {}",
                 key.unwrap().type_name()
               ),
-              key_loc.clone(),
+              key_loc,
             ))
           }
         };
@@ -644,10 +642,10 @@ impl Interpreter {
         // Check if should assign
         if let Some(to_assign) = assign {
           // Check if already has it
-          if object.items.contains_key(&string_key.clone()) {
-            object.items.remove(&string_key.clone());
+          if object.items.contains_key(&string_key) {
+            object.items.remove(&string_key);
           }
-          object.items.insert(string_key.clone(), to_assign.clone());
+          object.items.insert(string_key, to_assign.clone());
 
           // Update memory
           crate::MEMORY
@@ -664,7 +662,7 @@ impl Interpreter {
         } else {
           Err(errors::ZephyrError::runtime(
             format!("Object does not contain definition for key {}", string_key),
-            key_loc.clone(),
+            key_loc,
           ))
         }
       }
@@ -685,7 +683,7 @@ impl Interpreter {
 
         if str.value.len() <= number {
           return Err(errors::ZephyrError::runtime(
-            format!("Index out of bounds"),
+            "Index out of bounds".to_string(),
             Location::no_location(),
           ));
         }
@@ -694,12 +692,10 @@ impl Interpreter {
           value: str.value.chars().nth(number).unwrap().to_string(),
         }))
       }
-      _ => {
-        return Err(errors::ZephyrError::runtime(
-          format!("Cannot index a {}", value.type_name()),
-          Location::no_location(),
-        ))
-      }
+      _ => Err(errors::ZephyrError::runtime(
+        format!("Cannot index a {}", value.type_name()),
+        Location::no_location(),
+      )),
     }
   }
 
@@ -745,19 +741,18 @@ impl Interpreter {
           stmt.location,
         )? {
           RuntimeValue::Boolean(bool) => {
-            if bool.value != true {
+            if !bool.value {
               return Err(ZephyrError::runtime(
                 "Threw invalid error obj".to_string(),
                 stmt.location,
               ));
             } else {
-              ()
             }
           }
           _ => unreachable!(),
         };
 
-        let obj_value = match &value.clone() {
+        let obj_value = match &value {
           RuntimeValue::ObjectContainer(cont) => {
             match crate::MEMORY.lock().unwrap().get_value(cont.location)? {
               RuntimeValue::Object(obj) => obj,
@@ -819,11 +814,11 @@ impl Interpreter {
       }),
       Expression::ReturnStatement(stmt) => Err(ZephyrError {
         error_message: "Cannot return here".to_string(),
-        error_type: ErrorType::Return(Box::from(if let Some(ret) = stmt.value {
+        error_type: ErrorType::Return(if let Some(ret) = stmt.value {
           Box::from(self.evaluate(*ret)?)
         } else {
           Box::from(RuntimeValue::Null(Null {}))
-        })),
+        }),
         reference: None,
         location: stmt.location,
       }),
@@ -844,30 +839,27 @@ impl Interpreter {
         path.push(self.scope.get_directory()?);
         path.push(stmt.from.value.clone());
 
-        crate::debug(
-          &format!("Importing {}", path.display().to_string()),
-          "import",
-        );
+        crate::debug(&format!("Importing {}", path.display()), "import");
 
         // Check if it exists
-        if path.exists() == false {
+        if !path.exists() {
           return Err(ZephyrError::runtime(
             format!(
               "Failed to import {} because the file does not exist",
-              path.display().to_string()
+              path.display()
             ),
-            stmt.from.location.clone(),
+            stmt.from.location,
           ));
         }
 
         // Check if it is file
-        if path.is_file() == false {
+        if !path.is_file() {
           return Err(ZephyrError::runtime(
             format!(
               "Failed to import {} because the path is not a file",
-              path.display().to_string()
+              path.display()
             ),
-            stmt.from.location.clone(),
+            stmt.from.location,
           ));
         }
 
@@ -878,18 +870,14 @@ impl Interpreter {
           Ok(ok) => ok,
           Err(err) => {
             return Err(ZephyrError::runtime(
-              format!("Failed to read file: {}", err.to_string()),
-              stmt.from.location.clone(),
+              format!("Failed to read file: {}", err),
+              stmt.from.location,
             ));
           }
         };
 
         // Check if cache has it
-        let scope = if IMPORT_CACHE
-          .lock()
-          .unwrap()
-          .contains_key(&(path_string.clone()))
-        {
+        let scope = if IMPORT_CACHE.lock().unwrap().contains_key(&(path_string)) {
           crate::verbose(&format!("Importing from cache {}", path_string), "import");
           *IMPORT_CACHE.lock().unwrap().get(&path_string).unwrap()
         } else {
@@ -901,7 +889,7 @@ impl Interpreter {
           let ast = parser.produce_ast()?;
 
           // Create scope
-          let path_pre_pop = path_string.clone();
+          let path_pre_pop = path_string;
           path.pop();
           let scope = self.global_scope.create_child()?;
           scope.set_directory(path.display().to_string())?;
@@ -1013,7 +1001,7 @@ impl Interpreter {
 
         let function = Function {
           scope: child_scope,
-          body: Box::from(stmt.body),
+          body: stmt.body,
           arguments: stmt.arguments,
           where_clause: stmt.where_clauses,
           name: match stmt.identifier {
@@ -1051,13 +1039,7 @@ impl Interpreter {
                 _ => unreachable!(),
               };
               match left {
-                RuntimeValue::StringValue(str) => {
-                  if obj.items.contains_key(&str.value) {
-                    true
-                  } else {
-                    false
-                  }
-                }
+                RuntimeValue::StringValue(str) => obj.items.contains_key(&str.value),
                 _ => {
                   return Err(ZephyrError::runtime(
                     format!("Cannot check if object has {}", left.type_name()),
@@ -1096,7 +1078,7 @@ impl Interpreter {
           RuntimeValue::Function(func) => {
             let mut args = self.expr_to_runtime(expr2.arguments)?;
             if let Some(t) = func.clone().type_call {
-              args.insert(0, t.clone());
+              args.insert(0, t);
             }
             self.evaluate_zephyr_function(func, args, expr2.left.get_location())
           }
@@ -1107,9 +1089,7 @@ impl Interpreter {
         let right = self.evaluate(*expr.right)?;
 
         match *expr.left {
-          Expression::MemberExpression(mem) => {
-            self.evaluate_member_expression(mem, &Some(right.clone()))
-          }
+          Expression::MemberExpression(mem) => self.evaluate_member_expression(mem, &Some(right)),
           Expression::Identifier(ident) => self.scope.modify_variable(&ident.symbol, right),
           _ => unimplemented!(),
         }
@@ -1154,12 +1134,10 @@ impl Interpreter {
 
         let step = if let Some(s) = step_expr {
           s
+        } else if start > end {
+          -1.0
         } else {
-          if start > end {
-            -1.0
-          } else {
-            1.0
-          }
+          1.0
         };
 
         let one_step = start + step;
@@ -1264,12 +1242,11 @@ impl Interpreter {
                 }
               };
 
-              match right_value {
-                Some(val) => Some(RuntimeValue::StringValue(StringValue {
+              right_value.map(|val| {
+                RuntimeValue::StringValue(StringValue {
                   value: String::from(&*left_value.value) + &*val,
-                })),
-                None => None,
-              }
+                })
+              })
             }
             _ => None,
           },
@@ -1283,7 +1260,7 @@ impl Interpreter {
               "Cannot handle {} {} {}",
               left.type_name(),
               expr.operator,
-              right.clone().type_name()
+              right.type_name()
             ),
             expr.location,
           )),
@@ -1491,7 +1468,7 @@ impl Interpreter {
           },
           TokenType::UnaryOperator(UnaryOperator::Reference) => {
             Ok(RuntimeValue::Reference(Reference {
-              value: match expr_value.clone() {
+              value: match expr_value {
                 Expression::Identifier(ident) => {
                   match self.scope.get_variable_address(&ident.symbol) {
                     Ok(val) => val,
@@ -1501,7 +1478,7 @@ impl Interpreter {
                 Expression::NumericLiteral(ident) => ident.value as MemoryAddress,
                 _ => {
                   return Err(ZephyrError::runtime(
-                    format!("Cannot reference this"),
+                    "Cannot reference this".to_string(),
                     expr.value.get_location(),
                   ))
                 }
@@ -1524,7 +1501,7 @@ impl Interpreter {
                         "Expected a number to increment, but got {}",
                         val.type_name()
                       ),
-                      expr_value.clone().get_location(),
+                      expr_value.get_location(),
                     ))
                   }
                 };
@@ -1539,7 +1516,7 @@ impl Interpreter {
               _ => {
                 return Err(ZephyrError::runtime(
                   format!("Cannot increment a {}", value.type_name()),
-                  expr_value.clone().get_location(),
+                  expr_value.get_location(),
                 ))
               }
             }
@@ -1557,7 +1534,7 @@ impl Interpreter {
                         "Expected a number to decrement, but got {}",
                         val.type_name()
                       ),
-                      expr_value.clone().get_location(),
+                      expr_value.get_location(),
                     ))
                   }
                 };
@@ -1572,7 +1549,7 @@ impl Interpreter {
               _ => {
                 return Err(ZephyrError::runtime(
                   format!("Cannot decrement a {}", value.type_name()),
-                  expr_value.clone().get_location(),
+                  expr_value.get_location(),
                 ))
               }
             }
@@ -1605,8 +1582,8 @@ impl Interpreter {
           scope.delete()?;
 
           // Check if continue or break
-          match res {
-            Err(err) => match err.error_type {
+          if let Err(err) = res {
+            match err.error_type {
               ErrorType::Break => {
                 break;
               }
@@ -1614,8 +1591,7 @@ impl Interpreter {
                 continue;
               }
               _ => return Err(err),
-            },
-            Ok(_) => (),
+            }
           }
         }
 
@@ -1661,7 +1637,7 @@ impl Interpreter {
                   (
                     "data".to_string(),
                     match err.error_type {
-                      ErrorType::UserDefined(val) => *val.clone(),
+                      ErrorType::UserDefined(val) => *val,
                       _ => RuntimeValue::Null(Null {}),
                     },
                   ),
@@ -1703,7 +1679,7 @@ impl Interpreter {
         }
 
         // Check for else
-        if values.len() == 0 {
+        if values.is_empty() {
           if let Some(el) = expr.none {
             return Ok(self.evaluate(Expression::Block(*el)))?;
           }

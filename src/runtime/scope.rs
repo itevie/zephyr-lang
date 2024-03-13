@@ -12,7 +12,7 @@ use crate::{
   lexer::location::Location,
 };
 
-static CURRENT_SCOPE_ID: Lazy<Arc<Mutex<u128>>> = Lazy::new(|| Arc::from(Mutex::from(0 as u128)));
+static CURRENT_SCOPE_ID: Lazy<Arc<Mutex<u128>>> = Lazy::new(|| Arc::from(Mutex::from(0_u128)));
 
 #[derive(Debug, Copy, Clone)]
 pub struct ScopeContainer {
@@ -55,7 +55,7 @@ impl ScopeContainer {
         details: ScopeDetails {
           can_export: RefCell::from(false),
           pure_functions_only: RefCell::from(false),
-          directory: RefCell::from(directory.clone()),
+          directory: RefCell::from(directory),
         },
         parent_id: None,
         id,
@@ -268,7 +268,10 @@ impl ScopeContainer {
 
   pub fn set_can_export(&self, to: bool) -> Result<(), ZephyrError> {
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
-      Ok(ok) => Ok(*ok.details.can_export.borrow_mut() = to),
+      Ok(ok) => {
+          *ok.details.can_export.borrow_mut() = to;
+          Ok(())
+      },
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
         Location::no_location(),
@@ -288,7 +291,10 @@ impl ScopeContainer {
 
   pub fn set_pure_functions_only(&self, to: bool) -> Result<(), ZephyrError> {
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
-      Ok(ok) => Ok(*ok.details.pure_functions_only.borrow_mut() = to),
+      Ok(ok) => {
+          *ok.details.pure_functions_only.borrow_mut() = to;
+          Ok(())
+      },
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
         Location::no_location(),
@@ -308,7 +314,10 @@ impl ScopeContainer {
 
   pub fn set_directory(&self, to: String) -> Result<(), ZephyrError> {
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
-      Ok(ok) => Ok(*ok.details.directory.borrow_mut() = to),
+      Ok(ok) => {
+          *ok.details.directory.borrow_mut() = to;
+          Ok(())
+      },
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
         Location::no_location(),
@@ -318,11 +327,7 @@ impl ScopeContainer {
 
   pub fn get_parent(&self) -> Result<Option<ScopeContainer>, ZephyrError> {
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
-      Ok(ok) => Ok(if let Some(parent) = ok.parent_id {
-        Some(ScopeContainer { id: parent })
-      } else {
-        None
-      }),
+      Ok(ok) => Ok(ok.parent_id.map(|parent| ScopeContainer { id: parent })),
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
         Location::no_location(),
@@ -351,7 +356,7 @@ impl ScopeContainer {
   }
 
   pub fn get_variable(&self, name: &str) -> Result<RuntimeValue, errors::ZephyrError> {
-    if self.has_variable(name)? == false {
+    if !(self.has_variable(name)?) {
       // Check if it has a parent
       if let Some(parent) = self.get_parent()? {
         let val = parent.get_variable(name)?;
@@ -364,16 +369,14 @@ impl ScopeContainer {
       ));
     }
 
-    Ok(
-      crate::MEMORY
+    crate::MEMORY
         .lock()
         .unwrap()
-        .get_value(self.get_variable_addr(name)?)?,
-    )
+        .get_value(self.get_variable_addr(name)?)
   }
 
   pub fn get_variable_address(&self, name: &str) -> Result<MemoryAddress, errors::ZephyrError> {
-    if self.has_variable(name)? == false {
+    if !(self.has_variable(name)?) {
       // Check if it has a parent
       if let Some(parent) = self.get_parent()? {
         let val = parent.get_variable_address(name)?;
@@ -386,7 +389,7 @@ impl ScopeContainer {
       ));
     }
 
-    Ok(self.get_variable_addr(name)?)
+    self.get_variable_addr(name)
   }
 
   pub fn modify_variable(
@@ -399,7 +402,7 @@ impl ScopeContainer {
       .lock()
       .unwrap()
       .set_value(value, new_value.clone())?;
-    Ok(new_value.clone())
+    Ok(new_value)
   }
 
   pub fn export(&self, name: String, address: MemoryAddress) -> Result<(), ZephyrError> {
@@ -415,7 +418,7 @@ impl ScopeContainer {
         }
       };
       crate::verbose(
-        &format!("Exported {} with memory address {}", name.clone(), address),
+        &format!("Exported {} with memory address {}", name, address),
         "scope",
       );
     } else {

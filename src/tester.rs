@@ -2,9 +2,9 @@ use std::{fs, path::PathBuf};
 
 use crate::TestPackage;
 
-pub fn test(options: TestPackage) -> () {
+pub fn test(options: TestPackage) {
   let mut files: Vec<PathBuf> = vec![];
-  let r = regex::Regex::new(&format!("({})$", options.pattern.replace("*", ".*"))).unwrap();
+  let r = regex::Regex::new(&format!("({})$", options.pattern.replace('*', ".*"))).unwrap();
   let directory = PathBuf::from(options.name_pos);
 
   // Gather files
@@ -17,16 +17,12 @@ pub fn test(options: TestPackage) -> () {
     }
   }
 
-  files = files
-    .iter()
-    .filter(|z| r.is_match(&z.display().to_string()))
-    .map(|x| x.clone())
-    .collect();
+  files.retain(|z| r.is_match(&z.display().to_string()));
 
   println!("Found {} files to test...", files.len());
 
   for file in files {
-    println!("  Testing {}...", file.display().to_string());
+    println!("  Testing {}...", file.display());
     let contents = std::fs::read_to_string(file.clone()).unwrap();
     crate::basic_run::basic_run(contents, file.display().to_string(), directory.clone());
   }

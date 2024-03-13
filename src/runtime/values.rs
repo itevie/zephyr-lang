@@ -113,7 +113,7 @@ impl RuntimeValue {
         };
 
         for i in 0..array.items.len() {
-          res.push_str(&format!("{}", array.items[i].stringify(false, pretty)));
+          res.push_str(&array.items[i].stringify(false, pretty).to_string());
 
           // Check if should add comma
           if i < array.items.len() - 1 {
@@ -121,7 +121,7 @@ impl RuntimeValue {
           }
         }
 
-        res.push_str("]");
+        res.push(']');
 
         res
       }
@@ -155,9 +155,9 @@ impl RuntimeValue {
         }
 
         if pretty && item_length > 1 {
-          res.push_str("\n");
+          res.push('\n');
         }
-        res.push_str("}");
+        res.push('}');
 
         res
       }
@@ -263,12 +263,12 @@ pub struct NativeFunction {
 
 impl fmt::Debug for NativeFunction {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", "NativeFunction")
+    write!(f, "NativeFunction")
   }
 }
 
 impl fmt::Debug for Function {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", "Function")
+    write!(f, "Function")
   }
 }

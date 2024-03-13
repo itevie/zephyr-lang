@@ -52,7 +52,7 @@ pub fn error(options: CallOptions) -> R {
       (
         "type".to_string(),
         RuntimeValue::StringValue(StringValue {
-          value: message.clone(),
+          value: message,
         }),
       ),
     ]),
@@ -138,7 +138,7 @@ pub fn print(options: CallOptions) -> R {
   for i in options.args {
     print!("{} ", i.stringify(true, true));
   }
-  print!("\n");
+  println!();
   Ok(RuntimeValue::Null(Null {}))
 }
 
@@ -156,7 +156,7 @@ pub fn read_line(options: CallOptions) -> R {
 
   // Return answer
   Ok(RuntimeValue::StringValue(StringValue {
-    value: input.replace("\n", "").replace("\r", ""),
+    value: input.replace(['\n', '\r'], ""),
   }))
 }
 
@@ -247,7 +247,7 @@ pub fn spawn_thread(options: CallOptions) -> R {
       std::thread::spawn(move || {
         op.interpreter
           .clone()
-          .evaluate_zephyr_function(func, vec![], op.location.clone())
+          .evaluate_zephyr_function(func, vec![], op.location)
           .unwrap();
         crate::GLOBAL_THREAD_COUNT.fetch_sub(1, Ordering::SeqCst);
       });

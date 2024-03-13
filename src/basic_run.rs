@@ -2,10 +2,10 @@ use std::path::PathBuf;
 
 use crate::{lexer, parser, runtime::interpreter::Interpreter};
 
-pub fn basic_run(input: String, file_name: String, dir: PathBuf) -> () {
+pub fn basic_run(input: String, file_name: String, dir: PathBuf) {
   let mut interpreter = Interpreter::new(dir.display().to_string());
 
-  let result = match lexer::lexer::lex(input, file_name.clone()) {
+  let result = match lexer::lexer::lex(input, file_name) {
     Ok(val) => val,
     Err(err) => {
       return crate::die(err.visualise(false));

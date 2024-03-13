@@ -25,7 +25,7 @@ pub struct ExtractionResult {
 
 pub fn extract(file_name: String) -> ExtractionResult {
   crate::debug(
-    &format!("Preparing {} to be bundled...", file_name.clone()),
+    &format!("Preparing {} to be bundled...", file_name),
     "bundler",
   );
   let input = match std::fs::read_to_string(file_name.clone()) {
@@ -40,10 +40,10 @@ pub fn extract(file_name: String) -> ExtractionResult {
     }
   };
 
-  let proper_file_name = fs::canonicalize(file_name.clone()).unwrap();
+  let proper_file_name = fs::canonicalize(file_name).unwrap();
 
   // Get the tokens
-  let tokens = match lexer::lexer::lex(input.clone(), proper_file_name.display().to_string()) {
+  let tokens = match lexer::lexer::lex(input, proper_file_name.display().to_string()) {
     Ok(val) => val,
     Err(err) => {
       crate::die(format!("\n{}", err.visualise(false)));
@@ -94,7 +94,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
       if !path.exists() {
         die(format!(
           "The path {} does not exist",
-          path.display().to_string()
+          path.display()
         ));
         panic!();
       }
@@ -105,7 +105,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
         &format!(
           "The import took {} tokens, it imported {}",
           removed,
-          path_whole.display().to_string()
+          path_whole.display()
         ),
         "bundler",
       );
@@ -118,7 +118,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
           value: format!(
             "let {} = (__imports[`{}`]())[`{}`];",
             i.1.symbol,
-            path_whole.display().to_string(),
+            path_whole.display(),
             i.0.symbol
           ),
           location: Location::no_location(),
@@ -194,7 +194,7 @@ pub fn bundle(input: String, file_name: String) -> String {
   let _result = match lexer::lexer::lex(input.clone(), file_name.clone()) {
     Ok(val) => val,
     Err(err) => {
-      crate::die(format!("{}", err.visualise(false)));
+      crate::die(err.visualise(false));
       return "".to_string();
     }
   };
@@ -212,7 +212,7 @@ pub fn bundle(input: String, file_name: String) -> String {
   ));
 
   // Add index
-  files.insert(file_name.clone(), input.clone());
+  files.insert(file_name.clone(), input);
 
   // Construct import map
   let mut result = String::from("let __import_cache = .{};\nlet __imports = .{\n");
@@ -233,13 +233,13 @@ pub fn bundle(input: String, file_name: String) -> String {
   result.push_str("};\n");
 
   // Call the index
-  result.push_str(&format!("(__imports[`{}`])();\n", file_name.clone()));
+  result.push_str(&format!("(__imports[`{}`])();\n", file_name));
 
   result.clone()
 }
 
 // idk why i made this i was bored
-pub fn bundle_executable(input: String, file_name: String, _out_file: String) -> () {
+pub fn bundle_executable(input: String, file_name: String, _out_file: String) {
   // Bundle
   let contents = bundle(input, file_name);
 
@@ -252,7 +252,7 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
     Err(err) => {
       return crate::die(format!(
         "Failed to create temporary directory: {}",
-        err.to_string()
+        err
       ))
     }
   };
@@ -271,7 +271,7 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
     Err(err) => {
       return crate::die(format!(
         "Failed to run git, is git installed?: {}",
-        err.to_string()
+        err
       ))
     }
   };
@@ -290,7 +290,6 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
       fs::canonicalize(index_rs.clone())
         .unwrap()
         .display()
-        .to_string()
     ),
     "bundler",
   );
@@ -301,21 +300,21 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
   // Read index
   let mut index_contents = match fs::read_to_string(index_rs.clone()) {
     Ok(ok) => ok,
-    Err(err) => return crate::die(format!("Failed to read index.rs: {}", err.to_string())),
+    Err(err) => return crate::die(format!("Failed to read index.rs: {}", err)),
   };
   index_contents = index_contents.replace(
     "let bundled_data = \"\";",
-    &format!("let bundled_data = r#\"{}\"#;", contents.replace("\n", "")),
+    &format!("let bundled_data = r#\"{}\"#;", contents.replace('\n', "")),
   );
 
   // Write the file
   let mut f = match OpenOptions::new().write(true).open(index_rs) {
     Ok(ok) => ok,
-    Err(err) => return crate::die(format!("Failed to open index.rs: {}", err.to_string())),
+    Err(err) => return crate::die(format!("Failed to open index.rs: {}", err)),
   };
   match f.write_all(index_contents.as_bytes()) {
     Ok(_) => (),
-    Err(err) => return crate::die(format!("Failed to write index.rs: {}", err.to_string())),
+    Err(err) => return crate::die(format!("Failed to write index.rs: {}", err)),
   };
 
   crate::debug(
@@ -337,7 +336,7 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
     Err(err) => {
       return crate::die(format!(
         "Failed to run cargo, is cargo installed?: {}",
-        err.to_string()
+        err
       ))
     }
   }
@@ -351,7 +350,7 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) ->
   };
 
   // Check if it exists
-  if path.exists() == false {
+  if !path.exists() {
     panic!("Failed to compile, is cargo installed?");
   }
 

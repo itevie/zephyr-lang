@@ -127,7 +127,7 @@ pub struct TestPackage {
 static MEMORY: Lazy<Arc<Mutex<Memory>>> = Lazy::new(|| Arc::from(Mutex::from(Memory::new())));
 static SCOPES: Lazy<Arc<Mutex<HashMap<u128, Arc<Mutex<runtime::scope::Scope>>>>>> =
   Lazy::new(|| Arc::from(Mutex::from(HashMap::new())));
-static ARGS: Lazy<Args> = Lazy::new(|| Args::from_args());
+static ARGS: Lazy<Args> = Lazy::new(Args::from_args);
 
 static GLOBAL_THREAD_COUNT: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0));
 
@@ -164,17 +164,17 @@ fn main() {
   };
 
   // Check if bundled_data
-  if bundled_data != "" {
+  if !bundled_data.is_empty() {
     basic_run::basic_run(
       String::from(bundled_data),
       std::env::current_exe().unwrap().display().to_string(),
       std::env::current_dir().unwrap(),
     );
-    return ();
+    return;
   }
 
   // Check if the provided dir exists
-  if dir.exists() == false {
+  if !dir.exists() {
     return die(format!(
       "The directory ({}) provided with --directory does not exist",
       dir.display()
@@ -184,8 +184,8 @@ fn main() {
   debug(
     &format!(
       "The current directory is set to: {}, app data dir is {}",
-      dir.display().to_string(),
-      get_data_dir().display().to_string(),
+      dir.display(),
+      get_data_dir().display(),
     ),
     "main",
   );
@@ -197,7 +197,7 @@ fn main() {
       Subcommands::Test(new) => tester::test(new),
     }
 
-    return ();
+    return;
   }
 
   // Check if should run in repl mode
@@ -227,18 +227,17 @@ fn main() {
     let proper_file_name = fs::canonicalize(file_name).unwrap();
 
     // Check if should have out file
-    let should_out;
-    if args.bundle || args.minimise || args.bundle_executable {
+    let should_out = if args.bundle || args.minimise || args.bundle_executable {
       if !matches!(args.out_file, Some(_)) {
         return die(
           "The --bundle or --minimise flags were used, but no --out was provided".to_string(),
         );
       }
-
-      should_out = true;
+      true
     } else {
-      should_out = false;
-    }
+      false
+    };
+
     // Check if should bundle executable
     if args.bundle_executable {
       bundler::bundle_executable(
@@ -246,7 +245,7 @@ fn main() {
         proper_file_name.display().to_string(),
         ARGS.clone().out_file.unwrap(),
       );
-      return ();
+      return;
     }
 
     // Check if it should bundle
@@ -264,7 +263,7 @@ fn main() {
       // Write it
       let mut f = File::create(ARGS.clone().out_file.unwrap()).unwrap();
       f.write_all(input.as_bytes()).unwrap();
-      return ();
+      return;
     }
 
     basic_run::basic_run(input, file_name.clone(), dir);
@@ -275,7 +274,7 @@ fn main() {
   }
 }
 
-fn die(err: String) -> () {
+fn die(err: String) {
   println!(
     "{}Fatal Error: {}{}",
     util::colors::fg_red(),

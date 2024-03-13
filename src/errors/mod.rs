@@ -85,12 +85,12 @@ impl ZephyrError {
       + &util::colors::reset());
 
     // Add location
-    result += &(ZephyrError::visualise_location(self.location.clone(), false, false));
+    result += &(ZephyrError::visualise_location(self.location, false, false));
 
     // Check if it has a reference
     if let Some(reference) = &self.reference {
       result += "\nIn reference to:\n";
-      result += &(ZephyrError::visualise_location(reference.clone(), false, true))
+      result += &(ZephyrError::visualise_location(*reference, false, true))
     }
 
     result
@@ -99,13 +99,13 @@ impl ZephyrError {
   pub fn visualise_old(&self, is_repl: bool) -> String {
     format!(
       "{}\n{:?}: {}{}",
-      ZephyrError::visualise_location_old(self.location.clone(), is_repl, false),
+      ZephyrError::visualise_location_old(self.location, is_repl, false),
       self.error_type,
       self.error_message,
       if let Some(reference) = &self.reference {
         format!(
           "\n\n{}",
-          ZephyrError::visualise_location_old(reference.clone(), false, true)
+          ZephyrError::visualise_location_old(*reference, false, true)
         )
       } else {
         "".to_string()
@@ -129,8 +129,8 @@ impl ZephyrError {
     result += "\n\n  ";
     result += location_contents
       .contents
-      .replace("\t", " ")
-      .split("\n")
+      .replace('\t', " ")
+      .split('\n')
       .collect::<Vec<&str>>()[location.line as usize];
 
     // Calculate how long the arrow will be
@@ -168,8 +168,8 @@ impl ZephyrError {
 
       result += location_contents
         .contents
-        .replace("\t", " ")
-        .split("\n")
+        .replace('\t', " ")
+        .split('\n')
         .collect::<Vec<&str>>()[location.line as usize];
       result += "\n";
     }

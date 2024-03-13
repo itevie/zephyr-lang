@@ -40,7 +40,7 @@ impl Memory {
     self.get_value(address)?;
     self.memory.remove(&address);
     self.memory.insert(address, value);
-    return Ok(address);
+    Ok(address)
   }
 
   pub fn get_value(&self, address: MemoryAddress) -> Result<RuntimeValue, ZephyrError> {

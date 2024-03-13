@@ -122,7 +122,7 @@ pub struct LocationContents {
 static LOCATION_CONTENTS: Lazy<Arc<Mutex<HashMap<u128, LocationContents>>>> = Lazy::new(|| {
   let mut hash = HashMap::new();
   hash.insert(
-    0 as u128,
+    0_u128,
     LocationContents {
       contents: "No Location Contents".to_string(),
       file_name: "<unknown>".to_string(),
@@ -164,7 +164,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
     id,
     LocationContents {
       contents: contents.clone(),
-      file_name: file_name.clone(),
+      file_name,
     },
   );
 
@@ -174,7 +174,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
   let mut current_char: u32 = 0;
   let mut current_line: u32 = 0;
 
-  while chars.len() != 0 {
+  while !chars.is_empty() {
     let mut location = Location {
       char_start: current_char,
       char_end: current_char,
@@ -213,7 +213,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
     // Check for // comment
     else if chars[0] == '/' && chars.len() >= 2 && chars[1] == '/' {
       // Repeat until \n or eof
-      while chars.len() > 0 && chars[0] != '\n' {
+      while !chars.is_empty() && chars[0] != '\n' {
         eat(&mut chars);
       }
       continue;
@@ -222,7 +222,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
     else if chars[0] == '/' && chars.len() >= 2 && chars[1] == '*' {
       let mut closed = false;
 
-      while chars.len() > 0 {
+      while !chars.is_empty() {
         if chars.len() >= 2 && chars[0] == '*' && chars[1] == '/' {
           eat(&mut chars);
           eat(&mut chars);
@@ -247,7 +247,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
 
       let mut value = String::from("");
 
-      while chars.len() > 0 && chars[0] != '`' && chars[0] != '\n' {
+      while !chars.is_empty() && chars[0] != '`' && chars[0] != '\n' {
         value.push_str(&eat(&mut chars));
       }
 
@@ -271,7 +271,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
       let mut value = String::from("");
 
       // Repeat until end of quote, found new line or EOF
-      while chars[0] != '"' && chars[0] != '\n' && chars.len() > 0 {
+      while chars[0] != '"' && chars[0] != '\n' && !chars.is_empty() {
         let char = eat(&mut chars);
 
         // Check if escape
@@ -279,16 +279,16 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
           // It is escaping
           "\\" => {
             // Check if there is a character to escape
-            if chars.len() > 0 {
+            if !chars.is_empty() {
               let next_char = eat(&mut chars);
               match next_char.as_str() {
                 // Basic ones
-                "n" => value.push_str("\n"),
-                "r" => value.push_str("\r"),
-                "t" => value.push_str("\t"),
-                "\"" => value.push_str("\""),
-                "\\" => value.push_str("\\"),
-                "\n" => value.push_str("\n"),
+                "n" => value.push('\n'),
+                "r" => value.push('\r'),
+                "t" => value.push('\t'),
+                "\"" => value.push('\"'),
+                "\\" => value.push('\\'),
+                "\n" => value.push('\n'),
                 // Hex sequences, like x1b[31m, god knows how this work
                 // chatgpt did it
                 "x" => {
@@ -296,7 +296,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
                   if chars.len() < 2 {
                     return Err(ZephyrError::lexer(
                       "Invalid hexadecimal escape sequence".to_string(),
-                      location.clone(),
+                      location,
                     ));
                   }
 
@@ -304,21 +304,21 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
                   if let Ok(v) = u8::from_str_radix(&hex_digits, 16) {
                     value.push_str(String::from(v as char).as_str())
                   } else {
-                    value.push_str(String::from("\\x".to_string() + &hex_digits).as_str())
+                    value.push_str(("\\x".to_string() + &hex_digits).as_str())
                   }
                 }
                 // Cannot escape given character
                 _ => {
                   return Err(ZephyrError::lexer(
                     format!("Cannot escape the given character: {}", next_char),
-                    location.clone(),
+                    location,
                   ))
                 }
               };
             } else {
               return Err(ZephyrError::lexer(
                 "Expected character to escape".to_string(),
-                location.clone(),
+                location,
               ));
             }
           }
@@ -345,9 +345,9 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
       // Loop until not a number
       let mut allowed_chars = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         .iter()
-        .map(|v| v.to_string().chars().nth(0).unwrap())
+        .map(|v| v.to_string().chars().next().unwrap())
         .collect::<Vec<char>>();
-      while chars.len() > 0
+      while !chars.is_empty()
         && (allowed_chars.contains(&chars[0])
           || (value.len() == 1 && (chars[0] == 'x' || chars[0] == 'o' || chars[0] == 'b')))
       {
@@ -364,7 +364,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
       }
 
       // Check if the first number is 0, if it is then try other bases
-      if value.starts_with("0") && value.len() > 1 {
+      if value.starts_with('0') && value.len() > 1 {
         // Check the base
         let base = value.chars().nth(1).unwrap();
         let mut actual_number_chars = value.chars();
@@ -378,7 +378,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
               Err(err) => {
                 return Err(ZephyrError::lexer(
                   format!("Failed to parse hexadecimal string: {}", err),
-                  location.clone(),
+                  location,
                 ))
               }
             }
@@ -390,7 +390,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
               Err(err) => {
                 return Err(ZephyrError::lexer(
                   format!("Failed to parse octal string: {}", err),
-                  location.clone(),
+                  location,
                 ))
               }
             }
@@ -402,7 +402,7 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
               Err(err) => {
                 return Err(ZephyrError::lexer(
                   format!("Failed to parse binary string: {}", err),
-                  location.clone(),
+                  location,
                 ))
               }
             }
@@ -419,12 +419,12 @@ pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrErro
     else if chars[0].is_alphabetic() || chars[0] == '_' {
       let mut value: String = eat(&mut chars);
 
-      while chars.len() > 0 && (chars[0].is_alphanumeric() || chars[0] == '_') {
+      while !chars.is_empty() && (chars[0].is_alphanumeric() || chars[0] == '_') {
         value.push_str(&eat(&mut chars));
       }
 
       // Check for ?
-      if chars.len() > 0 && chars[0] == '?' {
+      if !chars.is_empty() && chars[0] == '?' {
         value.push_str(&eat(&mut chars));
         set_token(value, TokenType::PredicateIdentifier);
       } else {

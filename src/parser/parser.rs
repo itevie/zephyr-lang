@@ -35,7 +35,7 @@ impl Parser {
   }
 
   pub fn at(&self) -> Token {
-    if self.tokens.len() != 0 {
+    if !self.tokens.is_empty() {
       self.tokens[0].clone()
     } else {
       panic!("Tokens is empty");
@@ -55,7 +55,7 @@ impl Parser {
   ) -> Result<Token, ZephyrError> {
     let exists = discriminant(&self.at().token_type) == t;
     if !exists {
-      e.location = self.at().location.clone();
+      e.location = self.at().location;
       return Err(e);
     }
     Ok(self.eat())
@@ -75,7 +75,7 @@ impl Parser {
     }
 
     if !exists {
-      e.location = self.at().location.clone();
+      e.location = self.at().location;
       return Err(e);
     }
     Ok(self.eat())
@@ -168,7 +168,7 @@ impl Parser {
       ZephyrError::parser("Expected close parenthesis".to_string(), self.at().location),
     )?;
 
-    return Ok(arguments);
+    Ok(arguments)
   }
 
   pub fn parse_block(&mut self) -> Result<nodes::Block, ZephyrError> {
@@ -201,7 +201,7 @@ impl Parser {
     is_block_type: bool,
   ) -> Result<Vec<Box<nodes::Expression>>, ZephyrError> {
     let mut expressions: Vec<Box<nodes::Expression>> = vec![];
-    format!("{}", self.at().value);
+    self.at().value;
 
     while !matches!(self.at().token_type, TokenType::EOF)
       && !matches!(self.at().token_type, TokenType::CloseBrace)
@@ -281,7 +281,7 @@ impl Parser {
     let func = self.parse_function_literal()?;
 
     // Expect it to have a name
-    if let None = func.identifier {
+    if func.identifier.is_none() {
       return Err(ZephyrError::parser(
         "A function must have a name when used as a statement".to_string(),
         self.at().location
@@ -289,9 +289,9 @@ impl Parser {
     }
 
     Ok(nodes::Expression::VariableDeclaration(nodes::VariableDeclaration {
-      identifier: func.identifier.clone().unwrap().clone(),
-      location: (&func).location.clone(),
-      value: Box::from(nodes::Expression::FunctionLiteral(func.clone()))
+      identifier: func.identifier.clone().unwrap(),
+      location: func.location,
+      value: Box::from(nodes::Expression::FunctionLiteral(func))
     }))
   }}
 
@@ -495,7 +495,7 @@ impl Parser {
     let mut left = self.parse_comparison_operator()?;
 
     // Check if it is an comparison
-    while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::LogicalOperator(_)) {
+    while !self.tokens.is_empty() && matches!(self.at().token_type, TokenType::LogicalOperator(_)) {
       let oper = self.eat();
       let right = self.parse_comparison_operator()?;
 
@@ -517,7 +517,7 @@ impl Parser {
     let mut left = self.parse_is_expression()?;
 
     // Check if it is an comparison
-    while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::ComparisonTokenType(_)) {
+    while !self.tokens.is_empty() && matches!(self.at().token_type, TokenType::ComparisonTokenType(_)) {
       let oper = self.eat();
       let right = self.parse_is_expression()?;
 
@@ -543,10 +543,10 @@ impl Parser {
 
       // Get the right
       let right_prematch = self.parse_typeof_statement()?;
-      let _right = match right_prematch {
+      match right_prematch {
         nodes::Expression::Identifier(ident) => return self.call_with_inferred_first(left, ident),
         nodes::Expression::CallExpression(mut expr) => {
-          expr.arguments.insert(0, Box::from(left.clone()));
+          expr.arguments.insert(0, Box::from(left));
           return Ok(nodes::Expression::CallExpression(expr));
         }
         _ => {
@@ -630,7 +630,7 @@ impl Parser {
     let mut left = self.parse_multiplicative_expression()?;
 
     // Check if dual additive
-    while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::DualOperator(DualTokenType::Additive(_))) {
+    while !self.tokens.is_empty() && matches!(self.at().token_type, TokenType::DualOperator(DualTokenType::Additive(_))) {
       let oper = self.eat();
       let right = self.parse_unary_expression()?;
 
@@ -650,7 +650,7 @@ impl Parser {
     }
 
     // Check if it is an additive
-    while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::AdditiveOperator(_)) {
+    while !self.tokens.is_empty() && matches!(self.at().token_type, TokenType::AdditiveOperator(_)) {
       let oper = self.eat();
       let right = self.parse_multiplicative_expression()?;
 
@@ -672,7 +672,7 @@ impl Parser {
     let mut left = self.parse_unary_expression()?;
 
     // Check if dual additive
-    while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::DualOperator(DualTokenType::Multiplicative(_))) {
+    while !self.tokens.is_empty() && matches!(self.at().token_type, TokenType::DualOperator(DualTokenType::Multiplicative(_))) {
       let oper = self.eat();
       let right = self.parse_unary_expression()?;
 
@@ -692,7 +692,7 @@ impl Parser {
     }
 
     // Check if it is an additive
-    while self.tokens.len() > 0 && matches!(self.at().token_type, TokenType::MultiplicativeOperator(_)) {
+    while !self.tokens.is_empty() && matches!(self.at().token_type, TokenType::MultiplicativeOperator(_)) {
       let oper = self.eat();
       let right = self.parse_unary_expression()?;
 
@@ -761,7 +761,7 @@ impl Parser {
 
     // Check if it is a call
     if matches!(self.at().token_type, TokenType::OpenParen) {
-      let location = self.at().location.clone();
+      let location = self.at().location;
       let arguments = self.parse_argument_list()?;
       let expr = nodes::CallExpression {
         left: Box::new(left),
@@ -778,7 +778,7 @@ impl Parser {
       };
     }
 
-    return Ok(left);
+    Ok(left)
   }
 
   pub fn parser_member_expression(
@@ -844,7 +844,7 @@ impl Parser {
       }
     }
 
-    return Ok(left);
+    Ok(left)
   }
 
   // ----- Literals -----
@@ -1000,7 +1000,7 @@ impl Parser {
       },
       TokenType::Loop => nodes::Expression::NumericLiteral(nodes::NumericLiteral {
         value: 1.0,
-        location: token_location.clone()
+        location: token_location
       }),
       _ => unreachable!()
     };
@@ -1019,7 +1019,7 @@ impl Parser {
     Ok(nodes::Expression::WhileExpression(nodes::WhileExpression {
       test: Box::from(expression),
       body: Box::from(body),
-      location: token_location.clone(),
+      location: token_location,
       none: else_none
     }))
   }}
@@ -1091,13 +1091,13 @@ impl Parser {
     };
 
     // Done
-    return Ok(nodes::Expression::ForLoop(nodes::ForLoop {
+    Ok(nodes::Expression::ForLoop(nodes::ForLoop {
       identifier: self.create_identifier(ident)?,
       value_to_iter: Box::from(expr),
       body: block,
       location: token.location,
       none: else_none,
-    }));
+    }))
   }
 
   pub fn parse_object_literal(&mut self) -> Result<nodes::Expression, ZephyrError> {
@@ -1215,7 +1215,7 @@ impl Parser {
           where_clauses.push(match test {
             nodes::Expression::Identifier(ident) => {
               // Expect it to be predicate
-              if !ident.symbol.ends_with("?") {
+              if !ident.symbol.ends_with('?') {
                 return Err(ZephyrError::parser(
                   "Expected predicate identifier".to_string(),
                   ident.location,
@@ -1223,7 +1223,7 @@ impl Parser {
               }
 
               Box::from(nodes::Expression::CallExpression(nodes::CallExpression {
-                location: (&arg_ident).location.clone(),
+                location: arg_ident.location,
                 left: Box::from(nodes::Expression::Identifier(ident)),
                 arguments: vec![Box::from(nodes::Expression::Identifier(arg_ident))],
               }))
