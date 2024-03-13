@@ -74,7 +74,15 @@ pub fn repl(_args: crate::Args, directory: String) {
 
     match value {
       Err(err) => println!("{}", err.visualise(false)),
-      Ok(val) => println!("{}\n{}", val, time),
+      Ok(val) => println!(
+        "{}{}",
+        val,
+        if crate::ARGS.repl_time {
+          "\n".to_owned() + time
+        } else {
+          "".to_owned()
+        }
+      ),
     }
   }
 }

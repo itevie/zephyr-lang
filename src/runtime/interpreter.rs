@@ -1419,6 +1419,80 @@ impl Interpreter {
           Err(err) => return Err(err),
         },
       })),
+      Expression::UnaryRightExpression(expr) => {
+        let expr_value = *expr.value.clone();
+        let operator = expr.operator;
+
+        match operator {
+          TokenType::UnaryOperator(UnaryOperator::Increment) => {
+            // Expect an identifier (++a)
+            match expr_value.clone() {
+              Expression::Identifier(ident) => {
+                // Get the variable and expect it to be a number
+                let value = match self.scope.get_variable(&ident.symbol)? {
+                  RuntimeValue::Number(num) => num.value,
+                  val => {
+                    return Err(ZephyrError::runtime(
+                      format!(
+                        "Expected a number to increment, but got {}",
+                        val.type_name()
+                      ),
+                      expr_value.get_location(),
+                    ))
+                  }
+                };
+
+                self.scope.modify_variable(
+                  &ident.symbol,
+                  RuntimeValue::Number(Number { value: value + 1.0 }),
+                )?;
+
+                Ok(RuntimeValue::Number(Number { value: value }))
+              }
+              _ => {
+                return Err(ZephyrError::runtime(
+                  format!("Cannot increment a {:?}", expr_value),
+                  expr_value.get_location(),
+                ))
+              }
+            }
+          }
+          TokenType::UnaryOperator(UnaryOperator::Decrement) => {
+            // Expect an identifier (--a)
+            match expr_value.clone() {
+              Expression::Identifier(ident) => {
+                // Get the variable and expect it to be a number
+                let value = match self.scope.get_variable(&ident.symbol)? {
+                  RuntimeValue::Number(num) => num.value,
+                  val => {
+                    return Err(ZephyrError::runtime(
+                      format!(
+                        "Expected a number to decrement, but got {}",
+                        val.type_name()
+                      ),
+                      expr_value.get_location(),
+                    ))
+                  }
+                };
+
+                self.scope.modify_variable(
+                  &ident.symbol,
+                  RuntimeValue::Number(Number { value: value - 1.0 }),
+                )?;
+
+                Ok(RuntimeValue::Number(Number { value: value }))
+              }
+              _ => {
+                return Err(ZephyrError::runtime(
+                  format!("Cannot decrement a {:?}", expr_value),
+                  expr_value.get_location(),
+                ))
+              }
+            }
+          }
+          _ => unimplemented!(),
+        }
+      }
       Expression::UnaryExpression(expr) => {
         let expr_value = *expr.value.clone();
         let value = self.evaluate(expr_value.clone())?;

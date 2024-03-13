@@ -72,6 +72,12 @@ pub struct Args {
   pub verbose: bool,
 
   #[structopt(
+    long = "repl-time",
+    help = "Whether or not REPL mode should display how long an operation took"
+  )]
+  pub repl_time: bool,
+
+  #[structopt(
     long = "out",
     short = "o",
     value_name = "OUT_FILE",

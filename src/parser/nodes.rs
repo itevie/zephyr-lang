@@ -19,6 +19,7 @@ pub enum Expression {
   ComparisonOperator(ComparisonExpression),
   LogicalExpression(LogicalExpression),
   UnaryExpression(UnaryExpression),
+  UnaryRightExpression(UnaryRightExpression),
   MemberExpression(MemberExpression),
   CallExpression(CallExpression),
   IsExpression(IsExpression),
@@ -63,6 +64,7 @@ impl Expression {
       Expression::ComparisonOperator(x) => x.location,
       Expression::LogicalExpression(x) => x.location,
       Expression::UnaryExpression(x) => x.location,
+      Expression::UnaryRightExpression(x) => x.location,
       Expression::MemberExpression(x) => x.location,
       Expression::CallExpression(x) => x.location,
       Expression::IsExpression(x) => x.location,
@@ -70,9 +72,7 @@ impl Expression {
       Expression::VariableDeclaration(x) => x.location,
       Expression::FunctionLiteral(x) => x.location,
       Expression::TypeofExpression(x) => x.location,
-      Expression::Program(_) => panic!("Cannot get location of program"),
       Expression::Block(x) => x.location,
-      Expression::None => Location::no_location(),
       Expression::ObjectLiteral(x) => x.location,
       Expression::ForLoop(x) => x.location,
       Expression::AssignmentExpression(x) => x.location,
@@ -89,6 +89,8 @@ impl Expression {
       Expression::RangeExpression(x) => x.location,
       Expression::AssertStatement(x) => x.location,
       Expression::ThrowStatement(x) => x.location,
+      Expression::Program(_) => panic!("Cannot get location of program"),
+      Expression::None => Location::no_location(),
     }
   }
 }
@@ -231,6 +233,13 @@ pub struct LogicalExpression {
 
 #[derive(Debug, Clone)]
 pub struct UnaryExpression {
+  pub value: Box<Expression>,
+  pub operator: TokenType,
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct UnaryRightExpression {
   pub value: Box<Expression>,
   pub operator: TokenType,
   pub location: Location,

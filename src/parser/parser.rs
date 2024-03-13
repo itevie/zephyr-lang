@@ -733,10 +733,19 @@ impl Parser {
     let expr = self.parse_call_expression(None)?;
 
     // Check if it is a unary right expression
-    if matches!(self.at().token_type, TokenType::UnaryRightOperator(_)) {
+    if matches!(self.at().token_type, TokenType::UnaryOperator(_)) {
       let tok = self.eat();
 
-      return Ok(nodes::Expression::UnaryExpression(nodes::UnaryExpression {
+      // Check if it can be used as a postfix
+      if !matches!(tok.token_type, TokenType::UnaryOperator(UnaryOperator::Increment) | TokenType::UnaryOperator(UnaryOperator::Decrement)) {
+        return Err(ZephyrError::lexer(
+          format!("Cannot use {} as a postfix operator", tok.token_type),
+          tok.location
+        ));
+      }
+
+      // ay-ok
+      return Ok(nodes::Expression::UnaryRightExpression(nodes::UnaryRightExpression {
         value: Box::from(expr),
         location: tok.location,
         operator: match tok.token_type {
