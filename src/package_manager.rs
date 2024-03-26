@@ -25,7 +25,7 @@ pub fn new(options: NewPackage, directory: PathBuf) {
       "The folder {} already exists!",
       path.clone().display()
     ));
-    return ;
+    return;
   }
 
   // Create folder
@@ -37,7 +37,7 @@ pub fn new(options: NewPackage, directory: PathBuf) {
         path.display(),
         err
       ));
-      return ;
+      return;
     }
   }
 
@@ -57,7 +57,7 @@ pub fn new(options: NewPackage, directory: PathBuf) {
         index_file.display(),
         err
       ));
-      return ;
+      return;
     }
   }
 

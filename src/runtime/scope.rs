@@ -269,9 +269,9 @@ impl ScopeContainer {
   pub fn set_can_export(&self, to: bool) -> Result<(), ZephyrError> {
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => {
-          *ok.details.can_export.borrow_mut() = to;
-          Ok(())
-      },
+        *ok.details.can_export.borrow_mut() = to;
+        Ok(())
+      }
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
         Location::no_location(),
@@ -292,9 +292,9 @@ impl ScopeContainer {
   pub fn set_pure_functions_only(&self, to: bool) -> Result<(), ZephyrError> {
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => {
-          *ok.details.pure_functions_only.borrow_mut() = to;
-          Ok(())
-      },
+        *ok.details.pure_functions_only.borrow_mut() = to;
+        Ok(())
+      }
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
         Location::no_location(),
@@ -315,9 +315,9 @@ impl ScopeContainer {
   pub fn set_directory(&self, to: String) -> Result<(), ZephyrError> {
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => {
-          *ok.details.directory.borrow_mut() = to;
-          Ok(())
-      },
+        *ok.details.directory.borrow_mut() = to;
+        Ok(())
+      }
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
         Location::no_location(),
@@ -370,9 +370,9 @@ impl ScopeContainer {
     }
 
     crate::MEMORY
-        .lock()
-        .unwrap()
-        .get_value(self.get_variable_addr(name)?)
+      .lock()
+      .unwrap()
+      .get_value(self.get_variable_addr(name)?)
   }
 
   pub fn get_variable_address(&self, name: &str) -> Result<MemoryAddress, errors::ZephyrError> {

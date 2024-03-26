@@ -51,9 +51,7 @@ pub fn error(options: CallOptions) -> R {
       ("data".to_string(), data),
       (
         "type".to_string(),
-        RuntimeValue::StringValue(StringValue {
-          value: message,
-        }),
+        RuntimeValue::StringValue(StringValue { value: message }),
       ),
     ]),
   });
