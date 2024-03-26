@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use crate::NewPackage;
+use crate::cli::NewPackage;
 
 pub struct _Package {
   pub name: String,

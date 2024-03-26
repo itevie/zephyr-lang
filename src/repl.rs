@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crate::{lexer, parser, runtime::interpreter::Interpreter};
 
-pub fn repl(options: crate::Repl, directory: String) {
+pub fn repl(options: crate::cli::Repl, directory: String) {
   let mut interpreter = Interpreter::new(directory.clone());
   let scope = interpreter.scope;
 

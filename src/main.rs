@@ -30,6 +30,9 @@ mod basic_run;
 #[path = "./package_manager.rs"]
 mod package_manager;
 
+#[path = "./cli.rs"]
+pub mod cli;
+
 //use std::io::Write;
 
 pub mod errors;
@@ -38,125 +41,11 @@ pub mod parser;
 pub mod runtime;
 pub mod util;
 
-#[derive(StructOpt, Debug, Clone)]
-pub struct Args {
-  #[structopt(
-    long = "directory",
-    short = "d",
-    empty_values = false,
-    help = "The directory to run the project in",
-    value_name = "WORKING_DIRECTORY"
-  )]
-  pub directory: Option<String>,
-
-  #[structopt(long, help = "Whether or not to log special debug logs")]
-  pub debug: bool,
-
-  #[structopt(long, help = "Whether or not to log special verbose logs")]
-  pub verbose: bool,
-
-  #[structopt(
-    long = "stack-size",
-    value_name = "STACK_SIZE",
-    help = "The maximum stack size that the interpreter can use in bytes",
-    default_value = "33554432"
-  )]
-  pub stack_size: usize,
-
-  // ----- Subcommands -----
-  #[structopt(subcommand)]
-  pub subcommand: Option<Subcommands>,
-}
-
-#[derive(Debug, StructOpt, Clone)]
-pub enum Subcommands {
-  #[structopt(about = "Generate a new Zephyr project")]
-  New(NewPackage),
-  #[structopt(about = "Test a directory of Zephyr test files")]
-  Test(TestPackage),
-  #[structopt(about = "Execute a zephyr file")]
-  Run(RunFile),
-  #[structopt(about = "Minimise a Zephyr file")]
-  Minimise(MinimiseFile),
-  #[structopt(about = "Bundle a Zephyr project into one file")]
-  Bundle(BundleFile),
-  #[structopt(about = "Go into REPL mode")]
-  Repl(Repl),
-}
-
-#[derive(Debug, StructOpt, Clone)]
-pub struct Repl {
-  #[structopt(
-    long = "repl-time",
-    help = "Whether or not REPL mode should display how long an operation took"
-  )]
-  pub repl_time: bool,
-}
-
-#[derive(Debug, StructOpt, Clone)]
-pub struct MinimiseFile {
-  #[structopt(value_name = "PATH", empty_values = false)]
-  pub file: String,
-
-  #[structopt(value_name = "OUT", empty_values = false)]
-  pub out: String,
-}
-
-#[derive(Debug, StructOpt, Clone)]
-pub struct BundleFile {
-  #[structopt(value_name = "PATH", empty_values = false)]
-  pub file: String,
-
-  #[structopt(value_name = "OUT", empty_values = false)]
-  pub out: String,
-
-  #[structopt(
-    long = "executable",
-    short = "e",
-    help = "Whether or not to bundle the file into an executable"
-  )]
-  pub exe: bool,
-}
-
-#[derive(Debug, StructOpt, Clone)]
-pub struct RunFile {
-  #[structopt(
-    value_name = "PATH",
-    empty_values = false,
-    conflicts_with = "file-flag"
-  )]
-  pub file_pos: String,
-
-  #[structopt(raw(true))]
-  pub args: Vec<String>,
-}
-
-#[derive(Debug, StructOpt, Clone)]
-pub struct NewPackage {
-  #[structopt(value_name = "PACKAGE-NAME", empty_values = false)]
-  name_pos: String,
-}
-
-#[derive(Debug, StructOpt, Clone)]
-pub struct TestPackage {
-  #[structopt(value_name = "PATH-NAME", empty_values = false)]
-  name_pos: String,
-
-  #[structopt(
-    long = "pattern",
-    empty_values = false,
-    short = "p",
-    help = "The pattern to match with files",
-    value_name = "PATTERN",
-    default_value = "*.test.zr"
-  )]
-  pub pattern: String,
-}
 
 static MEMORY: Lazy<Arc<Mutex<Memory>>> = Lazy::new(|| Arc::from(Mutex::from(Memory::new())));
 static SCOPES: Lazy<Arc<Mutex<HashMap<u128, Arc<Mutex<runtime::scope::Scope>>>>>> =
   Lazy::new(|| Arc::from(Mutex::from(HashMap::new())));
-static ARGS: Lazy<Args> = Lazy::new(Args::from_args);
+static ARGS: Lazy<cli::Args> = Lazy::new(cli::Args::from_args);
 static ZEPHYR_ARGS: Lazy<Arc<RwLock<Vec<String>>>> = Lazy::new(|| Arc::from(RwLock::from(vec![])));
 
 static GLOBAL_THREAD_COUNT: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0));
@@ -223,10 +112,10 @@ fn main() {
   // Check for subcommands
   if let Some(subcommand) = ARGS.clone().subcommand {
     match subcommand {
-      Subcommands::New(new) => package_manager::new(new, dir),
-      Subcommands::Test(new) => tester::test(new),
-      Subcommands::Repl(repl) => repl::repl(repl, ".".to_string()),
-      Subcommands::Run(run) => {
+      cli::Subcommands::New(new) => package_manager::new(new, dir),
+      cli::Subcommands::Test(new) => tester::test(new),
+      cli::Subcommands::Repl(repl) => repl::repl(repl, ".".to_string()),
+      cli::Subcommands::Run(run) => {
         *ZEPHYR_ARGS.write().unwrap() = run.args;
         let input = match std::fs::read_to_string(run.file_pos.clone()) {
           Ok(ok) => ok,
@@ -243,7 +132,7 @@ fn main() {
 
         basic_run::basic_run(input, run.file_pos.clone(), dir);
       }
-      Subcommands::Minimise(minimise) => {
+      cli::Subcommands::Minimise(minimise) => {
         // Get the file contents and minimise it
         let input = read_file(minimise.file.clone());
         let output = mini::minimise(input, PathBuf::from(minimise.file).display().to_string());
@@ -251,7 +140,7 @@ fn main() {
         // Save it
         write_file(&minimise.out, output);
       }
-      Subcommands::Bundle(bundle) => {
+      cli::Subcommands::Bundle(bundle) => {
         // Get file contents
         let input = read_file(bundle.file.clone());
 

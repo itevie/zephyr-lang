@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use crate::TestPackage;
+use crate::cli::TestPackage;
 
 pub fn test(options: TestPackage) {
   let mut files: Vec<PathBuf> = vec![];
