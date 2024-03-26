@@ -1,0 +1,5 @@
+export let Process = .{
+  get_args: func get_args {
+    __zephyr_native.get_args();
+  }
+};

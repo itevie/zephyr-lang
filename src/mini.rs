@@ -35,6 +35,9 @@ pub fn compress_tokens(tokens: Vec<Token>) -> String {
       TokenType::Export => true,
       TokenType::Function => true,
       TokenType::Return => true,
+      TokenType::Else => true,
+      TokenType::For => true,
+      TokenType::Identifier => true,
       _ => false,
     };
     result_string.push_str(&(value + if needs_space_after { " " } else { "" }));

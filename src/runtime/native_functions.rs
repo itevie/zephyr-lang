@@ -61,6 +61,21 @@ pub fn error(options: CallOptions) -> R {
   }))
 }
 
+pub fn get_args(_: CallOptions) -> R {
+  Ok(to_array(
+    crate::ZEPHYR_ARGS
+      .read()
+      .unwrap()
+      .iter()
+      .map(|v| {
+        Box::from(RuntimeValue::StringValue(StringValue {
+          value: v.to_string(),
+        }))
+      })
+      .collect(),
+  ))
+}
+
 pub fn push_arr(options: CallOptions) -> R {
   match &options.args[..] {
     [RuntimeValue::ArrayContainer(container), value] => {

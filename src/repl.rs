@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crate::{lexer, parser, runtime::interpreter::Interpreter};
 
-pub fn repl(_args: crate::Args, directory: String) {
+pub fn repl(options: crate::Repl, directory: String) {
   let mut interpreter = Interpreter::new(directory.clone());
   let scope = interpreter.scope;
 
@@ -77,7 +77,7 @@ pub fn repl(_args: crate::Args, directory: String) {
       Ok(val) => println!(
         "{}{}",
         val,
-        if crate::ARGS.repl_time {
+        if options.repl_time {
           "\n".to_owned() + time
         } else {
           "".to_owned()

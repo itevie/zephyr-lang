@@ -49,5 +49,3 @@ export func format(text: string?) {
 export func say(text: string?) {
   print(format(text));
 }
-
-say("hello, how are you today?");

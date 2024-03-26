@@ -4,8 +4,16 @@ use crate::{lexer, parser, runtime::interpreter::Interpreter};
 
 pub fn basic_run(input: String, file_name: String, dir: PathBuf) {
   let builder = std::thread::Builder::new()
-    .name("reductor".into())
-    .stack_size(32 * 1024 * 1024);
+    .name("zephyr_runner".into())
+    .stack_size(crate::ARGS.stack_size);
+  crate::verbose(
+    &format!(
+      "Running file {} with {}b stack",
+      file_name.clone(),
+      crate::ARGS.stack_size
+    ),
+    "basic_run",
+  );
 
   let handler = builder
     .spawn(move || {

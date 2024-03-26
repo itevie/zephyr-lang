@@ -1,12 +1,13 @@
 use std::{
   collections::HashMap,
-  fs,
-  io::ErrorKind,
+  fs::{self, File},
+  io::{ErrorKind, Write},
   path::PathBuf,
-  sync::{Arc, Mutex, RwLock},
+  sync::{Arc, Mutex},
   time::Duration,
 };
 
+use basic_run::basic_run;
 use once_cell::sync::Lazy;
 use runtime::memory::Memory;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -41,6 +42,24 @@ pub mod util;
 #[derive(StructOpt, Debug, Clone)]
 pub struct Args {
   #[structopt(
+    long = "file",
+    empty_values = false,
+    short = "f",
+    help = "The index file to run",
+    value_name = "PATH_FLAG"
+  )]
+  pub file_flag: Option<String>,
+
+  #[structopt(
+    long = "args",
+    short = "a",
+    default_value = "",
+    value_name = "ZEPHYR_ARGS",
+    help = "The arguments to pass along to the Zephyr program"
+  )]
+  pub args: Vec<String>,
+
+  #[structopt(
     long = "directory",
     short = "d",
     empty_values = false,
@@ -56,12 +75,38 @@ pub struct Args {
   pub verbose: bool,
 
   #[structopt(
+    long = "repl-time",
+    help = "Whether or not REPL mode should display how long an operation took"
+  )]
+  pub repl_time: bool,
+
+  #[structopt(
     long = "stack-size",
     value_name = "STACK_SIZE",
     help = "The maximum stack size that the interpreter can use in bytes",
     default_value = "33554432"
   )]
   pub stack_size: usize,
+
+  #[structopt(
+    long = "out",
+    short = "o",
+    value_name = "OUT_FILE",
+    help = "The file to write the output of actions such as --bundle or --minimise"
+  )]
+  pub out_file: Option<String>,
+
+  #[structopt(long, help = "Bundle Zephyr project into one file.")]
+  pub bundle: bool,
+
+  #[structopt(
+    long = "bundle-executable",
+    help = "Bundle Zephyr project into one executable file."
+  )]
+  pub bundle_executable: bool,
+
+  #[structopt(long, help = "Minimise a Zephyr file.")]
+  pub minimise: bool,
 
   // ----- Subcommands -----
   #[structopt(subcommand)]
@@ -70,52 +115,9 @@ pub struct Args {
 
 #[derive(Debug, StructOpt, Clone)]
 pub enum Subcommands {
-  #[structopt(about = "Generate a new Zephyr project")]
   New(NewPackage),
-  #[structopt(about = "Test a directory of Zephyr test files")]
   Test(TestPackage),
-  #[structopt(about = "Execute a zephyr file")]
-  Run(RunFile),
-  #[structopt(about = "Minimise a Zephyr file")]
-  Minimise(MinimiseFile),
-  #[structopt(about = "Bundle a Zephyr project into one file")]
-  Bundle(BundleFile),
-  #[structopt(about = "Go into REPL mode")]
-  Repl(Repl),
-}
-
-#[derive(Debug, StructOpt, Clone)]
-pub struct Repl {
-  #[structopt(
-    long = "repl-time",
-    help = "Whether or not REPL mode should display how long an operation took"
-  )]
-  pub repl_time: bool,
-}
-
-#[derive(Debug, StructOpt, Clone)]
-pub struct MinimiseFile {
-  #[structopt(value_name = "PATH", empty_values = false)]
-  pub file: String,
-
-  #[structopt(value_name = "OUT", empty_values = false)]
-  pub out: String,
-}
-
-#[derive(Debug, StructOpt, Clone)]
-pub struct BundleFile {
-  #[structopt(value_name = "PATH", empty_values = false)]
-  pub file: String,
-
-  #[structopt(value_name = "OUT", empty_values = false)]
-  pub out: String,
-
-  #[structopt(
-    long = "executable",
-    short = "e",
-    help = "Whether or not to bundle the file into an executable"
-  )]
-  pub exe: bool,
+  Run(RunFile)
 }
 
 #[derive(Debug, StructOpt, Clone)]
@@ -128,7 +130,7 @@ pub struct RunFile {
   pub file_pos: String,
 
   #[structopt(raw(true))]
-  pub args: Vec<String>,
+  pub args: Vec<String>
 }
 
 #[derive(Debug, StructOpt, Clone)]
@@ -225,17 +227,13 @@ fn main() {
     match subcommand {
       Subcommands::New(new) => package_manager::new(new, dir),
       Subcommands::Test(new) => tester::test(new),
-      Subcommands::Repl(repl) => repl::repl(repl, ".".to_string()),
       Subcommands::Run(run) => {
-        *ZEPHYR_ARGS.write().unwrap() = run.args;
         let input = match std::fs::read_to_string(run.file_pos.clone()) {
           Ok(ok) => ok,
           Err(err) => {
             return die(match err.kind() {
               ErrorKind::NotFound => format!("File {} does not exist", run.file_pos),
-              ErrorKind::PermissionDenied => {
-                format!("Failed to read {}: permission denied", run.file_pos)
-              }
+              ErrorKind::PermissionDenied => format!("Failed to read {}: permission denied", run.file_pos),
               _ => format!("Failed to open {}: {}", run.file_pos, err),
             })
           }
@@ -243,69 +241,76 @@ fn main() {
 
         basic_run::basic_run(input, run.file_pos.clone(), dir);
       }
-      Subcommands::Minimise(minimise) => {
-        // Get the file contents and minimise it
-        let input = read_file(minimise.file.clone());
-        let output = mini::minimise(input, PathBuf::from(minimise.file).display().to_string());
-
-        // Save it
-        write_file(&minimise.out, output);
-      }
-      Subcommands::Bundle(bundle) => {
-        // Get file contents
-        let input = read_file(bundle.file.clone());
-
-        // Check if it is converting to an exe
-        if bundle.exe {
-          bundler::bundle_executable(
-            input,
-            PathBuf::from(bundle.file).display().to_string(),
-            bundle.out,
-          );
-
-          return;
-        }
-
-        // Otherwise just bundle it normally
-        let output = bundler::bundle(input, PathBuf::from(bundle.file).display().to_string());
-
-        // Save it
-        write_file(&bundle.out, output);
-      }
     }
 
     return;
   }
 
+  // By now it should just be special things or REPL mode
+  if matches!(args.file_flag, None) {
+    repl::repl(args, dir.display().to_string());
+  } else {
+    let file_name = args.file_flag.unwrap().clone();
+
+    // Now the user just wants to do special things ig
+    let mut input = match std::fs::read_to_string(file_name.clone()) {
+      Ok(ok) => ok,
+      Err(err) => {
+        return die(match err.kind() {
+          ErrorKind::NotFound => format!("File {} does not exist", file_name),
+          ErrorKind::PermissionDenied => format!("Failed to read {}: permission denied", file_name),
+          _ => format!("Failed to open {}: {}", file_name, err),
+        })
+      }
+    };
+
+    let proper_file_name = fs::canonicalize(file_name.clone()).unwrap();
+
+    // Check if should have out file
+    let should_out = if args.bundle || args.minimise || args.bundle_executable {
+      if !matches!(args.out_file, Some(_)) {
+        return die(
+          "The --bundle or --minimise flags were used, but no --out was provided".to_string(),
+        );
+      }
+      true
+    } else {
+      false
+    };
+
+    // Check if should bundle executable
+    if args.bundle_executable {
+      bundler::bundle_executable(
+        input,
+        proper_file_name.display().to_string(),
+        ARGS.clone().out_file.unwrap(),
+      );
+      return;
+    }
+
+    // Check if it should bundle
+    if args.bundle {
+      input = bundler::bundle(input, proper_file_name.display().to_string());
+    }
+
+    // Check if it should minimise
+    if args.minimise {
+      input = mini::minimise(input, proper_file_name.display().to_string());
+    }
+
+    // Check if it should output
+    if should_out {
+      // Write it
+      let mut f = File::create(ARGS.clone().out_file.unwrap()).unwrap();
+      f.write_all(input.as_bytes()).unwrap();
+      return;
+    }
+
+    basic_run::basic_run(input, file_name.clone(), dir);
+  }
+
   while GLOBAL_THREAD_COUNT.load(Ordering::SeqCst) != 0 {
     std::thread::sleep(Duration::from_millis(1));
-  }
-}
-
-fn read_file(path: String) -> String {
-  match std::fs::read_to_string(path.clone()) {
-    Ok(ok) => ok,
-    Err(err) => {
-      die(match err.kind() {
-        ErrorKind::NotFound => format!("File {} does not exist", path),
-        ErrorKind::PermissionDenied => format!("Failed to read {}: permission denied", path),
-        _ => format!("Failed to open {}: {}", path, err),
-      });
-      return "".to_string();
-    }
-  }
-}
-
-fn write_file(path: &str, contents: String) -> () {
-  match fs::write(path, contents) {
-    Ok(_) => (),
-    Err(err) => {
-      die(match err.kind() {
-        ErrorKind::NotFound => format!("File {} does not exist", path),
-        ErrorKind::PermissionDenied => format!("Failed to read {}: permission denied", path),
-        _ => format!("Failed to open {}: {}", path, err),
-      });
-    }
   }
 }
 

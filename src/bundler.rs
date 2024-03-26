@@ -45,13 +45,24 @@ pub fn extract(file_name: String) -> ExtractionResult {
   let proper_file_name = fs::canonicalize(file_name).unwrap();
 
   // Get the tokens
-  let tokens = match lexer::lexer::lex(input, proper_file_name.display().to_string()) {
+  let tokens: Vec<Token> = match lexer::lexer::lex(input, proper_file_name.display().to_string()) {
     Ok(val) => val,
     Err(err) => {
       crate::die(format!("\n{}", err.visualise(false)));
       panic!();
     }
-  };
+  }
+  .iter()
+  .map(|v| Token {
+    token_type: v.token_type,
+    value: if v.token_type == TokenType::String {
+      v.value.clone().replace("\n", "\n")
+    } else {
+      v.value.clone()
+    },
+    location: v.location,
+  })
+  .collect();
 
   // Parse to check if it's valid
   match parser::Parser::new(tokens.clone()).produce_ast() {
@@ -176,6 +187,13 @@ pub fn extract(file_name: String) -> ExtractionResult {
         token_type: TokenType::Semicolon,
         location: Location::no_location(),
       });
+    } else if tok.token_type == TokenType::String {
+      println!("{:?}", tok);
+      new_tokens.push(Token {
+        value: tok.value.replace("\n", "\\n"),
+        token_type: TokenType::String,
+        location: tok.location,
+      });
     } else {
       new_tokens.push(tok.clone());
     }
@@ -232,7 +250,7 @@ pub fn bundle(input: String, file_name: String) -> String {
   result.push_str("};\n");
 
   // Call the index
-  result.push_str(&format!("(__imports[`{}`])();\n", file_name));
+  result.push_str(&format!("(__imports[`{}`])();\n", PathBuf::from(file_name).canonicalize().unwrap().display().to_string()));
 
   result.clone()
 }

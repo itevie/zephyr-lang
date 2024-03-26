@@ -71,6 +71,7 @@ impl Interpreter {
       include_lib!("../lib/fs.zr"),
       include_lib!("../lib/number.zr"),
       include_lib!("../lib/error.zr"),
+      include_lib!("../lib/process.zr"),
     ];
     let scope = ScopeContainer::new(directory);
 
@@ -161,6 +162,12 @@ impl Interpreter {
             "push_arr".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::push_arr,
+            }),
+          ),
+          (
+            "get_args".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::get_args,
             }),
           ),
         ]),
