@@ -1,0 +1,9 @@
+export let Random = .{
+  random: __zephyr_native.random,
+  random_range: func random_range(min: number?, max: number?) {
+    __zephyr_native.random_range(min, max);
+  },
+  random_item: func random_item(what: array?) {
+    __zephyr_native.random_item(what);
+  }
+};

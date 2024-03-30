@@ -72,6 +72,7 @@ impl Interpreter {
       include_lib!("../lib/number.zr"),
       include_lib!("../lib/error.zr"),
       include_lib!("../lib/process.zr"),
+      include_lib!("../lib/random.zr"),
     ];
     let scope = ScopeContainer::new(directory);
 
@@ -168,6 +169,24 @@ impl Interpreter {
             "get_args".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::get_args,
+            }),
+          ),
+          (
+            "random".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::random,
+            }),
+          ),
+          (
+            "random_item".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::random_item,
+            }),
+          ),
+          (
+            "random_range".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::random_range,
             }),
           ),
         ]),

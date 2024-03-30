@@ -6,6 +6,8 @@ use std::{
   sync::{atomic::Ordering, Arc},
 };
 
+use rand::Rng;
+
 use crate::{errors::ZephyrError, lexer::location::Location};
 
 use super::{
@@ -74,6 +76,44 @@ pub fn get_args(_: CallOptions) -> R {
       })
       .collect(),
   ))
+}
+
+pub fn random(_: CallOptions) -> R {
+  Ok(RuntimeValue::Number(Number {
+    value: rand::random()
+  }))
+}
+
+pub fn random_range(options: CallOptions) -> R {
+  match &options.args[..] {
+    [RuntimeValue::Number(min), RuntimeValue::Number(max)] => {
+      Ok(RuntimeValue::Number(Number {
+        value: rand::thread_rng().gen_range(min.value..max.value)
+      }))
+    },
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
+  }
+}
+
+pub fn random_item(options: CallOptions) -> R {
+  match &options.args[..] {
+    [RuntimeValue::ArrayContainer(array)] => {
+      let items = match crate::MEMORY.lock().unwrap().get_value(array.location)? {
+        RuntimeValue::Array(arr) => arr,
+        _ => unreachable!()
+      };
+
+      let index = rand::thread_rng().gen_range(0..(items.items.len()));
+      Ok(*items.items[index].clone())
+    },
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
+  }
 }
 
 pub fn push_arr(options: CallOptions) -> R {
