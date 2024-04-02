@@ -250,7 +250,14 @@ pub fn bundle(input: String, file_name: String) -> String {
   result.push_str("};\n");
 
   // Call the index
-  result.push_str(&format!("(__imports[`{}`])();\n", PathBuf::from(file_name).canonicalize().unwrap().display().to_string()));
+  result.push_str(&format!(
+    "(__imports[`{}`])();\n",
+    PathBuf::from(file_name)
+      .canonicalize()
+      .unwrap()
+      .display()
+      .to_string()
+  ));
 
   result.clone()
 }

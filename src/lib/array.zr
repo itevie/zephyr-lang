@@ -68,5 +68,23 @@ export let Array = .{
     }
 
     true;
+  },
+
+  shallow_copy: func shallow_copy(what: array?) {
+    what[0.<$what];
+  },
+
+  deep_copy: func deep_copy(what: array?) {
+    let arr = [];
+
+    for el in what {
+      if el is array? {
+        arr.push(el.shallow_copy());
+      } else {
+        arr.push(el);
+      }
+    }
+
+    arr;
   }
 };

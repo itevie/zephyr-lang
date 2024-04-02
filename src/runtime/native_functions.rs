@@ -3,12 +3,13 @@ use std::{
   collections::HashMap,
   fs,
   io::Write,
+  path::PathBuf,
   sync::{atomic::Ordering, Arc},
 };
 
 use rand::Rng;
 
-use crate::{errors::ZephyrError, lexer::location::Location};
+use crate::{errors::ZephyrError, lexer::location::Location, util};
 
 use super::{
   interpreter::Interpreter,
@@ -80,17 +81,15 @@ pub fn get_args(_: CallOptions) -> R {
 
 pub fn random(_: CallOptions) -> R {
   Ok(RuntimeValue::Number(Number {
-    value: rand::random()
+    value: rand::random(),
   }))
 }
 
 pub fn random_range(options: CallOptions) -> R {
   match &options.args[..] {
-    [RuntimeValue::Number(min), RuntimeValue::Number(max)] => {
-      Ok(RuntimeValue::Number(Number {
-        value: rand::thread_rng().gen_range(min.value..max.value)
-      }))
-    },
+    [RuntimeValue::Number(min), RuntimeValue::Number(max)] => Ok(RuntimeValue::Number(Number {
+      value: rand::thread_rng().gen_range(min.value..max.value),
+    })),
     _ => Err(ZephyrError::runtime(
       "Invalid args".to_string(),
       options.location,
@@ -103,12 +102,12 @@ pub fn random_item(options: CallOptions) -> R {
     [RuntimeValue::ArrayContainer(array)] => {
       let items = match crate::MEMORY.lock().unwrap().get_value(array.location)? {
         RuntimeValue::Array(arr) => arr,
-        _ => unreachable!()
+        _ => unreachable!(),
       };
 
       let index = rand::thread_rng().gen_range(0..(items.items.len()));
       Ok(*items.items[index].clone())
-    },
+    }
     _ => Err(ZephyrError::runtime(
       "Invalid args".to_string(),
       options.location,
@@ -316,13 +315,24 @@ pub fn spawn_thread(options: CallOptions) -> R {
 // ----- File Management -----
 pub fn read_file(options: CallOptions) -> R {
   match &options.args[..] {
-    [RuntimeValue::StringValue(str)] => match fs::read_to_string(str.value.clone()) {
-      Ok(ok) => Ok(RuntimeValue::StringValue(StringValue { value: ok })),
-      Err(e) => Err(ZephyrError::runtime(
-        format!("Failed to read file {}: {}", str.value, e),
-        Location::no_location(),
-      )),
-    },
+    [RuntimeValue::StringValue(str)] => {
+      // Construct the path
+      let mut loc = PathBuf::from(options.interpreter.scope.clone().get_directory()?);
+      loc.push(str.value.clone());
+      let _thing = util::path_resolver::resolve(
+        PathBuf::from(options.interpreter.scope.clone().get_directory().unwrap()),
+        &str.value,
+      );
+
+      // Read and check if it was ok
+      match fs::read_to_string(loc.display().to_string()) {
+        Ok(ok) => Ok(RuntimeValue::StringValue(StringValue { value: ok })),
+        Err(e) => Err(ZephyrError::runtime(
+          format!("Failed to read file {}: {}", str.value, e),
+          Location::no_location(),
+        )),
+      }
+    }
     _ => Err(ZephyrError::runtime(
       "Invalid args".to_string(),
       options.location,

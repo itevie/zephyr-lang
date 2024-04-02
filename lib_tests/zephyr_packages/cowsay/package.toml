@@ -1,0 +1,5 @@
+name = "cowsay"
+author = ""
+description = ""
+version = "0.0.1"
+entry_point = "cowsay.zr"

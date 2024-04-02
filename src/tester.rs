@@ -24,7 +24,11 @@ pub fn test(options: TestPackage) {
   for file in files {
     println!("  Testing {}...", file.display());
     let contents = std::fs::read_to_string(file.clone()).unwrap();
-    crate::basic_run::basic_run(contents, file.display().to_string(), directory.clone());
+    crate::basic_run::basic_run(
+      contents,
+      file.canonicalize().unwrap().display().to_string(),
+      directory.clone(),
+    );
   }
 
   println!("All tests succeeded");

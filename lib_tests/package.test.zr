@@ -1,0 +1,11 @@
+// Check if it can load from zephyr_packages
+{
+  from "pkg:cowsay" import say;
+  assert typeof say == "function";
+}
+
+// Check if packages in zephyr_packages can load other packages
+{
+  from "pkg:test2" import say;
+  assert typeof say == "function";
+}

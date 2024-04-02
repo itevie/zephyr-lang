@@ -41,9 +41,9 @@ pub enum Subcommands {
   Test(TestPackage),
   #[structopt(about = "Execute a zephyr file")]
   Run(RunFile),
-  #[structopt(about = "Minimise a Zephyr file")]
+  #[structopt(about = "Minimise a Zephyr file (UNSTABLE)")]
   Minimise(MinimiseFile),
-  #[structopt(about = "Bundle a Zephyr project into one file")]
+  #[structopt(about = "Bundle a Zephyr project into one file (UNSTABLE)")]
   Bundle(BundleFile),
   #[structopt(about = "Go into REPL mode")]
   Repl(Repl),

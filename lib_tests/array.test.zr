@@ -1,0 +1,12 @@
+// Check if deep_copy works
+{
+  // Setup
+  let arr = [1, [5]];
+  let arr2 = arr.deep_copy();
+  arr[0] = "hello";
+  arr[1][0] = "bye";
+
+  // Tests
+  assert arr2[0] == 1;
+  assert arr2[1][0] == 5;
+}

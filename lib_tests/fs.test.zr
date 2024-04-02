@@ -1,0 +1,1 @@
+assert Fs.read_file("./test.txt") == "Hello World";

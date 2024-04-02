@@ -41,13 +41,15 @@ pub mod parser;
 pub mod runtime;
 pub mod util;
 
+// Basic configs
+static PACKAGE_FILE_NAME: &'static str = "package.toml";
 
+// Other static items
 static MEMORY: Lazy<Arc<Mutex<Memory>>> = Lazy::new(|| Arc::from(Mutex::from(Memory::new())));
 static SCOPES: Lazy<Arc<Mutex<HashMap<u128, Arc<Mutex<runtime::scope::Scope>>>>>> =
   Lazy::new(|| Arc::from(Mutex::from(HashMap::new())));
 static ARGS: Lazy<cli::Args> = Lazy::new(cli::Args::from_args);
 static ZEPHYR_ARGS: Lazy<Arc<RwLock<Vec<String>>>> = Lazy::new(|| Arc::from(RwLock::from(vec![])));
-
 static GLOBAL_THREAD_COUNT: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0));
 
 pub fn debug(contents: &str, what: &str) {

@@ -1,5 +1,6 @@
 use std::{
   collections::HashMap,
+  path::PathBuf,
   sync::{Arc, Mutex},
   time::Instant,
 };
@@ -861,9 +862,10 @@ impl Interpreter {
       }
       Expression::ImportStatement(stmt) => {
         // Create path
-        let mut path = std::path::PathBuf::new();
-        path.push(self.scope.get_directory()?);
-        path.push(stmt.from.value.clone());
+        let mut path = util::path_resolver::resolve(
+          PathBuf::from(self.scope.clone().get_directory().unwrap()),
+          &stmt.from.value.clone(),
+        )?;
 
         crate::debug(&format!("Importing {}", path.display()), "import");
 
