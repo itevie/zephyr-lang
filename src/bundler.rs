@@ -180,17 +180,14 @@ pub fn extract(file_name: String) -> ExtractionResult {
 
       // Check what was exported
       match *export.to_export {
-        Expression::VariableDeclaration(dec) => {
-          println!("{:?}", dec.identifier.symbol);
-          new_tokens.push(Token {
-            value: format!(
-              "__mod_exports[`{}`] = {}",
-              dec.identifier.symbol, dec.identifier.symbol
-            ),
-            token_type: TokenType::Identifier,
-            location: Location::no_location(),
-          })
-        }
+        Expression::VariableDeclaration(dec) => new_tokens.push(Token {
+          value: format!(
+            "__mod_exports[`{}`] = {}",
+            dec.identifier.symbol, dec.identifier.symbol
+          ),
+          token_type: TokenType::Identifier,
+          location: Location::no_location(),
+        }),
         _ => panic!("This cannot be used to export"),
       };
       new_tokens.push(Token {

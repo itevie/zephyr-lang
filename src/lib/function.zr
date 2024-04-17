@@ -1,0 +1,5 @@
+export let Function = .{
+  call: func call(what: function?, args: array?) {
+    __zephyr_native.call_zephyr_function(args);
+  }
+};

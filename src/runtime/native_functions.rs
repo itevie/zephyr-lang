@@ -266,6 +266,40 @@ pub fn str_to_number(options: CallOptions) -> R {
   }
 }
 
+pub fn call_zephyr_function(options: CallOptions) -> R {
+  match &options.args[..] {
+    [RuntimeValue::Function(func), RuntimeValue::ArrayContainer(array_container)] => {
+      let arr = array_container.deref();
+      options.interpreter.clone().evaluate_zephyr_function(
+        func.clone(),
+        arr.items,
+        options.location,
+      )
+    }
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
+  }
+}
+
+pub fn arr_ref_set(options: CallOptions) -> R {
+  match &options.args[..] {
+    [RuntimeValue::ArrayContainer(arr), RuntimeValue::ArrayContainer(new)] => {
+      let narr = new.deref();
+      crate::MEMORY
+        .lock()
+        .unwrap()
+        .set_value(arr.location, RuntimeValue::Array(narr))?;
+      Ok(RuntimeValue::Null(Null {}))
+    }
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
+  }
+}
+
 // ----- Time & Date -----
 pub fn get_time_nanos(_: CallOptions) -> R {
   let time = std::time::SystemTime::now();

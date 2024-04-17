@@ -73,6 +73,7 @@ impl Interpreter {
       include_lib!("../lib/error.zr"),
       include_lib!("../lib/process.zr"),
       include_lib!("../lib/random.zr"),
+      include_lib!("../lib/function.zr"),
     ];
     let scope = ScopeContainer::new(directory);
 
@@ -136,6 +137,12 @@ impl Interpreter {
             }),
           ),
           (
+            "arr_ref_set".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::arr_ref_set,
+            }),
+          ),
+          (
             "unescape".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::unescape,
@@ -181,6 +188,12 @@ impl Interpreter {
             "random".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::random,
+            }),
+          ),
+          (
+            "call_zephyr_function".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::call_zephyr_function,
             }),
           ),
           (
@@ -268,6 +281,7 @@ impl Interpreter {
       RuntimeValue::Number(_) => Some(self.global_scope.get_variable("Number")?),
       RuntimeValue::ArrayContainer(_) => Some(self.global_scope.get_variable("Array")?),
       RuntimeValue::ObjectContainer(_) => Some(self.global_scope.get_variable("Object")?),
+      RuntimeValue::Function(_) => Some(self.global_scope.get_variable("Function")?),
       _ => None,
     } {
       Some(s) => match s {

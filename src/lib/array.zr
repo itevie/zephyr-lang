@@ -8,6 +8,13 @@ export let Array = .{
     arr[amount.<$arr];
   },
 
+  insert: func insert(arr: array?, at: number?, what) {
+    let start = arr[0.<at];
+    let end = arr[at.<$arr];
+
+    __zephyr_native.arr_ref_set(arr, start.concat([what]).concat(end));
+  },
+
   // Joins an array into a string with an optional seperator
   join: func join(values: array?, by: null_or?(string?)) {
     let value = "";
@@ -17,6 +24,14 @@ export let Array = .{
     }
 
     value;
+  },
+
+  concat: func concat(arr: array?, arr2: array?) {
+    for i in arr2 {
+      arr.push(i);
+    }
+
+    arr;
   },
 
   // Creates a new array based on another array but calling f with each item

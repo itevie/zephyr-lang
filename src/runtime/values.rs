@@ -109,7 +109,10 @@ impl RuntimeValue {
           .unwrap()
         {
           RuntimeValue::Array(arr) => arr,
-          _ => unreachable!(),
+          x => {
+            println!("{:?}", x);
+            unreachable!()
+          }
         };
 
         for i in 0..array.items.len() {
@@ -230,9 +233,34 @@ pub struct ArrayContainer {
   pub location: MemoryAddress,
 }
 
+impl ArrayContainer {
+  pub fn deref(&self) -> Array {
+    let data = crate::MEMORY
+      .lock()
+      .unwrap()
+      .get_value(self.location)
+      .unwrap();
+    match data {
+      RuntimeValue::Array(arr) => arr,
+      _ => unreachable!(),
+    }
+  }
+}
+
 #[derive(Clone, Debug)]
 pub struct Array {
   pub items: Vec<Box<RuntimeValue>>,
+}
+
+impl Array {
+  pub fn create_container(self) -> ArrayContainer {
+    ArrayContainer {
+      location: crate::MEMORY
+        .lock()
+        .unwrap()
+        .add_value(RuntimeValue::Array(self.clone())),
+    }
+  }
 }
 
 #[derive(Clone, Debug)]
