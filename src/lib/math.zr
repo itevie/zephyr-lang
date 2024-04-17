@@ -24,7 +24,7 @@ export let Math = .{
     for i in __args__ {
       if typeof min == "null" { min = i; }
       else {
-        if i > min { min = i; }
+        if i < min { min = i; }
       }
     }
 

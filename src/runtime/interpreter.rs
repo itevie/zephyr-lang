@@ -20,7 +20,7 @@ use crate::{
   },
   parser::{
     self,
-    nodes::{Block, Expression, Identifier, MemberExpression},
+    nodes::{Block, ComparisonExpression, Expression, Identifier, MemberExpression},
     parser::Parser,
   },
   util,
@@ -28,8 +28,7 @@ use crate::{
 
 use super::{
   memory::MemoryAddress,
-  native_functions,
-  native_functions::CallOptions,
+  native_functions::{self, CallOptions},
   scope::ScopeContainer,
   values::{
     to_array, to_object, Array, ArrayContainer, Boolean, Function, NativeFunction, Null, Number,
@@ -110,6 +109,12 @@ impl Interpreter {
             "reverse".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::reverse,
+            }),
+          ),
+          (
+            "str_to_number".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::str_to_number,
             }),
           ),
           (
@@ -318,7 +323,10 @@ impl Interpreter {
     for expr in block.nodes {
       last_value = Some(match self.evaluate(*expr) {
         Ok(val) => val,
-        Err(err) => return Err(err),
+        Err(err) => {
+          let _ = std::mem::replace(&mut self.scope, prev_scope);
+          return Err(err);
+        }
       });
     }
 
@@ -340,6 +348,140 @@ impl Interpreter {
     }
 
     Ok(evalled_args)
+  }
+
+  pub fn is_equal(
+    left: &RuntimeValue,
+    right: &RuntimeValue,
+    expr: Option<ComparisonExpression>,
+  ) -> Result<bool, ZephyrError> {
+    let operator = if let Some(_expr) = expr.clone() {
+      _expr.operator
+    } else {
+      ComparisonTokenType::Equals
+    };
+    let location = if let Some(_expr) = expr.clone() {
+      _expr.location
+    } else {
+      Location::no_location()
+    };
+
+    // Check if they are the same type
+    if !util::varient_eq(&left.clone(), &right.clone()) {
+      return Ok(false);
+    }
+
+    let mut result = false;
+
+    // Numbers
+    if matches!(left, RuntimeValue::Number(_)) {
+      let left_number = match left {
+        RuntimeValue::Number(num) => num.value,
+        _ => unreachable!(),
+      };
+      let right_number = match right {
+        RuntimeValue::Number(num) => num.value,
+        _ => unreachable!(),
+      };
+
+      if let Some(_expr) = expr {
+        result = match _expr.operator {
+          ComparisonTokenType::Equals => left_number == right_number,
+          ComparisonTokenType::NotEquals => left_number == right_number,
+          ComparisonTokenType::GreaterThan => left_number > right_number,
+          ComparisonTokenType::GreaterThanOrEquals => left_number >= right_number,
+          ComparisonTokenType::LessThan => left_number < right_number,
+          ComparisonTokenType::LessThanOrEquals => left_number <= right_number,
+        };
+      } else {
+        result = left_number == right_number;
+      }
+    } else if matches!(expr, None)
+      || matches!(expr.clone().unwrap().operator, ComparisonTokenType::Equals)
+      || matches!(
+        expr.clone().unwrap().operator,
+        ComparisonTokenType::NotEquals
+      )
+    {
+      // Booleans
+      if matches!(left, RuntimeValue::Boolean(_)) {
+        let left_bool = match left {
+          RuntimeValue::Boolean(bool) => bool,
+          _ => unreachable!(),
+        };
+        let right_bool = match right {
+          RuntimeValue::Boolean(bool) => bool,
+          _ => unreachable!(),
+        };
+
+        if left_bool.value == right_bool.value {
+          result = true;
+        }
+      }
+      // Strings
+      else if matches!(left, RuntimeValue::StringValue(_)) {
+        let left_bool = match left {
+          RuntimeValue::StringValue(string) => string,
+          _ => unreachable!(),
+        };
+        let right_bool = match right {
+          RuntimeValue::StringValue(string) => string,
+          _ => unreachable!(),
+        };
+
+        if left_bool.value == right_bool.value {
+          result = true;
+        }
+      }
+      // Arrays
+      else if matches!(left, RuntimeValue::ArrayContainer(_)) {
+        let left_bool = match left {
+          RuntimeValue::ArrayContainer(arr) => arr,
+          _ => unreachable!(),
+        };
+        let right_bool = match right {
+          RuntimeValue::ArrayContainer(arr) => arr,
+          _ => unreachable!(),
+        };
+
+        if left_bool.location == right_bool.location {
+          result = true;
+        }
+      }
+      // Object
+      else if matches!(left, RuntimeValue::ObjectContainer(_)) {
+        println!("{:?} {:?}", left, right);
+        let left_bool = match left {
+          RuntimeValue::ObjectContainer(obj) => obj,
+          _ => unreachable!(),
+        };
+        let right_bool = match right {
+          RuntimeValue::ObjectContainer(obj) => obj,
+          _ => unreachable!(),
+        };
+
+        if left_bool.location == right_bool.location {
+          result = true;
+        }
+      }
+      // Null
+      else if matches!(left, RuntimeValue::Null(_)) {
+        // This will always be true
+        result = true;
+      } else {
+        return Err(ZephyrError::parser(
+          format!("Cannot handle {} {} {}", left, operator, right),
+          location,
+        ));
+      }
+    } else {
+      return Err(ZephyrError::parser(
+        format!("Cannot handle {} {} {}", left, operator, right),
+        location,
+      ));
+    }
+
+    Ok(result)
   }
 
   pub fn evaluate_zephyr_function(
@@ -699,10 +841,7 @@ impl Interpreter {
           Some(RuntimeValue::Number(num)) => num.value as usize,
           _ => {
             return Err(errors::ZephyrError::runtime(
-              format!(
-                "Can only index array with numbers, but got {}",
-                key.unwrap().type_name()
-              ),
+              format!("Can only index array with numbers, but got nothing?",),
               Location::no_location(),
             ))
           }
@@ -937,6 +1076,31 @@ impl Interpreter {
           let to_import = i.0.symbol;
           let import_as = i.1.symbol;
 
+          // Check if it is *
+          if to_import == "*" {
+            let exports = scope.get_exports()?;
+            let mut object = Object {
+              items: HashMap::new(),
+            };
+
+            for i in exports {
+              object
+                .items
+                .insert(i.0, crate::MEMORY.lock().unwrap().get_value(i.1)?);
+            }
+
+            // Add to memory
+            let obj = RuntimeValue::ObjectContainer(ObjectContainer {
+              location: crate::MEMORY
+                .lock()
+                .unwrap()
+                .add_value(RuntimeValue::Object(object)),
+            });
+
+            self.scope.declare_variable(&import_as, obj)?;
+            continue;
+          }
+
           // Check if scope contains it
           if !scope.has_variable(&to_import)? {
             return Err(ZephyrError::runtime(
@@ -1075,6 +1239,23 @@ impl Interpreter {
                   ))
                 }
               }
+            }
+            RuntimeValue::ArrayContainer(arr) => {
+              let arr: Array = match crate::MEMORY.lock().unwrap().get_value(arr.location)? {
+                RuntimeValue::Array(arr) => arr,
+                _ => unreachable!(),
+              };
+
+              let mut contains = false;
+
+              for i in arr.items {
+                if Interpreter::is_equal(&*i, &left, None)? {
+                  contains = true;
+                  break;
+                }
+              }
+
+              contains
             }
             _ => {
               return Err(ZephyrError::runtime(
@@ -1305,122 +1486,10 @@ impl Interpreter {
       }
       Expression::ComparisonOperator(expr) => {
         // Collect values
-        let left = self.evaluate(*expr.left)?;
-        let right = self.evaluate(*expr.right)?;
+        let left = self.evaluate(*expr.clone().left)?;
+        let right = self.evaluate(*expr.clone().right)?;
 
-        // Check if they are the same type
-        if !util::varient_eq(&left, &right) {
-          return Err(ZephyrError::parser(
-            format!(
-              "Types are not of same type, got {} {} {}",
-              left.type_name(),
-              expr.operator,
-              right.type_name(),
-            ),
-            expr.location,
-          ));
-        }
-
-        let mut result = false;
-
-        // Numbers
-        if matches!(left, RuntimeValue::Number(_)) {
-          let left_number = match left {
-            RuntimeValue::Number(num) => num.value,
-            _ => unreachable!(),
-          };
-          let right_number = match right {
-            RuntimeValue::Number(num) => num.value,
-            _ => unreachable!(),
-          };
-
-          result = match expr.operator {
-            ComparisonTokenType::Equals => left_number == right_number,
-            ComparisonTokenType::NotEquals => left_number == right_number,
-            ComparisonTokenType::GreaterThan => left_number > right_number,
-            ComparisonTokenType::GreaterThanOrEquals => left_number >= right_number,
-            ComparisonTokenType::LessThan => left_number < right_number,
-            ComparisonTokenType::LessThanOrEquals => left_number <= right_number,
-          };
-        } else if matches!(expr.operator, ComparisonTokenType::Equals)
-          || matches!(expr.operator, ComparisonTokenType::NotEquals)
-        {
-          // Booleans
-          if matches!(left, RuntimeValue::Boolean(_)) {
-            let left_bool = match left {
-              RuntimeValue::Boolean(bool) => bool,
-              _ => unreachable!(),
-            };
-            let right_bool = match right {
-              RuntimeValue::Boolean(bool) => bool,
-              _ => unreachable!(),
-            };
-
-            if left_bool.value == right_bool.value {
-              result = true;
-            }
-          }
-          // Strings
-          else if matches!(left, RuntimeValue::StringValue(_)) {
-            let left_bool = match left {
-              RuntimeValue::StringValue(string) => string,
-              _ => unreachable!(),
-            };
-            let right_bool = match right {
-              RuntimeValue::StringValue(string) => string,
-              _ => unreachable!(),
-            };
-
-            if left_bool.value == right_bool.value {
-              result = true;
-            }
-          }
-          // Arrays
-          else if matches!(left, RuntimeValue::ArrayContainer(_)) {
-            let left_bool = match left {
-              RuntimeValue::ArrayContainer(arr) => arr,
-              _ => unreachable!(),
-            };
-            let right_bool = match right {
-              RuntimeValue::ArrayContainer(arr) => arr,
-              _ => unreachable!(),
-            };
-
-            if left_bool.location == right_bool.location {
-              result = true;
-            }
-          }
-          // Object
-          else if matches!(left, RuntimeValue::ObjectContainer(_)) {
-            let left_bool = match left {
-              RuntimeValue::ObjectContainer(obj) => obj,
-              _ => unreachable!(),
-            };
-            let right_bool = match right {
-              RuntimeValue::ObjectContainer(obj) => obj,
-              _ => unreachable!(),
-            };
-
-            if left_bool.location == right_bool.location {
-              result = true;
-            }
-          }
-          // Null
-          else if matches!(left, RuntimeValue::Null(_)) {
-            // This will always be true
-            result = true;
-          } else {
-            return Err(ZephyrError::parser(
-              format!("Cannot handle {} {} {}", left, expr.operator, right),
-              expr.location,
-            ));
-          }
-        } else {
-          return Err(ZephyrError::parser(
-            format!("Cannot handle {} {} {}", left, expr.operator, right),
-            expr.location,
-          ));
-        }
+        let mut result = Interpreter::is_equal(&left, &right, Some(expr.clone()))?;
 
         // Check if it is negate
         if matches!(expr.operator, ComparisonTokenType::NotEquals) {

@@ -28,6 +28,8 @@ pub fn compress_tokens(tokens: Vec<Token>) -> String {
       TokenType::Let => true,
       TokenType::In => true,
       TokenType::If => true,
+      TokenType::Is => true,
+      TokenType::Not => true,
       TokenType::While => true,
       TokenType::Until => true,
       TokenType::Loop => true,

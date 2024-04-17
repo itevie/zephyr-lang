@@ -4,6 +4,10 @@ export let Array = .{
     __zephyr_native.push_arr(arr, value);
   },
 
+  skip: func skip(arr: array?, amount: number?) {
+    arr[amount.<$arr];
+  },
+
   // Joins an array into a string with an optional seperator
   join: func join(values: array?, by: null_or?(string?)) {
     let value = "";

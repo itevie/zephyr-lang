@@ -153,5 +153,19 @@ export let String = .{
 
     // Remove it
     return value.slice(0, $prefix);
+  },
+
+  // ----- Simple Checks -----
+  is_number: func is_number(value: string?) {
+    value in "0123456789".split("");
+  },
+
+  is_whitespace: func is_whitespace(value: string?) {
+    value in " ".split("");
+  },
+
+  // ----- Converstion -----
+  to_number: func to_number(value: string?) {
+    __zephyr_native.str_to_number(value);
   }
 };

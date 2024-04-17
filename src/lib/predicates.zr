@@ -51,9 +51,9 @@ export func array?(test) {
   typeof test == "array";
 }
 
-export func array_of?(test: array?, f: callable?) {
+export func array_of?(test: array?, f: callable?, args: array?) {
   for i in test {
-    if !f(i) { return false; }
+    if !f(i, if $args>0 {args[0];}) { return false; }
   }
 
   true;

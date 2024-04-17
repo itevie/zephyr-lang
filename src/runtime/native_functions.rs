@@ -253,6 +253,19 @@ pub fn reverse(options: CallOptions) -> R {
   }
 }
 
+pub fn str_to_number(options: CallOptions) -> R {
+  match &options.args[..] {
+    [RuntimeValue::StringValue(str)] => {
+      let val: f64 = str.value.parse().unwrap();
+      return Ok(RuntimeValue::Number(Number { value: val }));
+    }
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
+  }
+}
+
 // ----- Time & Date -----
 pub fn get_time_nanos(_: CallOptions) -> R {
   let time = std::time::SystemTime::now();

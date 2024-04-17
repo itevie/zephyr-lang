@@ -248,6 +248,7 @@ impl Parser {
       TokenType::Function => self.parse_function_declaration(),
       TokenType::Export => self.parse_export_statement(),
       TokenType::From => self.parse_import_statement(),
+      TokenType::Import => self.parse_import_statement(),
       TokenType::Assert => Ok(nodes::Expression::AssertStatement(nodes::AssertStatement {
         location: self.eat().location,
         value: Box::from(self.parse_expression()?),
@@ -324,6 +325,47 @@ impl Parser {
   }}
 
   parser_section! {parse_import_statement, self, {
+    // Check if it is an import keyword started
+    if matches!(self.at().token_type, TokenType::Import) {
+      let import_tok = self.eat();
+
+      let to_import = self.expect(
+        discriminant(&TokenType::String),
+        ZephyrError::parser(
+          "Expected string literal to import".to_string(),
+          self.at().location
+        )
+      )?;
+
+      // Check if it has an as
+      let _as = if matches!(self.at().token_type, TokenType::As) {
+        let _tok = self.eat();
+        let name = self.expect(
+          discriminant(&TokenType::Identifier),
+          ZephyrError::parser(
+            "Expected string literal to import".to_string(),
+            self.at().location
+          )
+        )?;
+        self.create_identifier(name)?
+      } else {
+        self.create_identifier(to_import.clone())?
+      };
+
+      return Ok(nodes::Expression::ImportStatement(nodes::ImportStatement {
+        from: nodes::StringLiteral {
+          value: to_import.value,
+          location: to_import.location
+        },
+        import: vec![(self.create_identifier(Token {
+          value: "*".to_string(),
+          token_type: TokenType::Identifier,
+          location: Location::no_location(),
+        })?, _as)],
+        location: import_tok.location
+      }));
+    }
+
     let token = self.expect(
       discriminant(&TokenType::From),
       ZephyrError::parser(

@@ -105,7 +105,6 @@ lazy_static! {
     tok!(".<", TokenType::RangeUninclusive);
     tok!(":", TokenType::Colon);
     tok!("?", TokenType::QuestionMark);
-    tok!("#", TokenType::BlockPrefix);
     tok!(";", TokenType::Semicolon);
     tok!("$", TokenType::UnaryOperator(UnaryOperator::LengthOf));
 
@@ -275,6 +274,7 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
       let mut value = String::from("");
 
       // Repeat until end of quote, found new line or EOF
+      let start = location.clone();
       while chars[0] != '"' && chars[0] != '\n' && !chars.is_empty() {
         let char = eat(&mut chars);
 
@@ -336,7 +336,11 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
 
       // Make sure current character is a "
       if chars[0] != '"' {
-        return Err(lexer_error!("Unexpected ending of string".to_string()));
+        return Err(ZephyrError::lexer_with_ref(
+          "Unexpected ending of string".to_string(),
+          location,
+          start,
+        ));
       }
 
       eat(&mut chars);

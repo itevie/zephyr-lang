@@ -9,3 +9,9 @@
   from "pkg:test2" import say;
   assert typeof say == "function";
 }
+
+// Check if can load other files from package
+{
+  from "pkg:test2/test3.zr" import value;
+  assert value == 2;
+}

@@ -72,6 +72,14 @@ impl ZephyrError {
     }
   }
 
+  pub fn lexer_with_ref(message: String, location: Location, refer: Location) -> ZephyrError {
+    ZephyrError {
+      error_message: message,
+      error_type: ErrorType::Lexer,
+      reference: Some(refer),
+      location,
+    }
+  }
   pub fn visualise(&self, _is_repl: bool) -> String {
     let mut result = String::new();
 

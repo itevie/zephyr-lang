@@ -56,7 +56,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
   .map(|v| Token {
     token_type: v.token_type,
     value: if v.token_type == TokenType::String {
-      v.value.clone().replace("\n", "\n")
+      v.value.clone().replace("\n", "\\\\n")
     } else {
       v.value.clone()
     },
@@ -166,16 +166,6 @@ pub fn extract(file_name: String) -> ExtractionResult {
         }
       };
 
-      // Check what was exported
-      match *export.to_export {
-        Expression::VariableDeclaration(dec) => new_tokens.push(Token {
-          value: format!("__mod_exports[`{}`] = ", dec.identifier.symbol),
-          token_type: TokenType::Identifier,
-          location: Location::no_location(),
-        }),
-        _ => panic!("This cannot be used to export"),
-      };
-
       // We need to add semicolon at end of this
       let removed = old - parser.tokens.len();
       for _ in 1..removed {
@@ -187,10 +177,30 @@ pub fn extract(file_name: String) -> ExtractionResult {
         token_type: TokenType::Semicolon,
         location: Location::no_location(),
       });
-    } else if tok.token_type == TokenType::String {
-      println!("{:?}", tok);
+
+      // Check what was exported
+      match *export.to_export {
+        Expression::VariableDeclaration(dec) => {
+          println!("{:?}", dec.identifier.symbol);
+          new_tokens.push(Token {
+            value: format!(
+              "__mod_exports[`{}`] = {}",
+              dec.identifier.symbol, dec.identifier.symbol
+            ),
+            token_type: TokenType::Identifier,
+            location: Location::no_location(),
+          })
+        }
+        _ => panic!("This cannot be used to export"),
+      };
       new_tokens.push(Token {
-        value: tok.value.replace("\n", "\\n"),
+        value: String::from(";"),
+        token_type: TokenType::Semicolon,
+        location: Location::no_location(),
+      });
+    } else if tok.token_type == TokenType::String {
+      new_tokens.push(Token {
+        value: tok.value.replace("\n", "\\\\n"),
         token_type: TokenType::String,
         location: tok.location,
       });
@@ -198,6 +208,11 @@ pub fn extract(file_name: String) -> ExtractionResult {
       new_tokens.push(tok.clone());
     }
     i += 1;
+    new_tokens.push(Token {
+      value: format!("\n"),
+      token_type: TokenType::Identifier,
+      location: Location::no_location(),
+    })
   }
 
   ExtractionResult {

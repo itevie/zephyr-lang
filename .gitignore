@@ -3,11 +3,13 @@
 /.vscode
 /zephyr-lang
 /bundler_executable_temp
+/meta_zephyr
 
 # Random test files
 test.zr
 test2.zr
 a.zr
+out
 out.zr
 out.exe
 Cargo.toml.old

@@ -8,13 +8,9 @@ export func iter(what) {
 }*/
 
 export func print(__args__: array?) {
-  let to_print = "";
-
-  for value in __args__ {
-    to_print += value;
-    to_print += " ";
+  for i in __args__ {
+    Console.write(i);
   }
 
-  to_print += "\n";
-  Console.write_line(to_print);
+  Console.write("\n");
 }
