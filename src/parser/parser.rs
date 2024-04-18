@@ -249,6 +249,7 @@ impl Parser {
       TokenType::Export => self.parse_export_statement(),
       TokenType::From => self.parse_import_statement(),
       TokenType::Import => self.parse_import_statement(),
+      TokenType::Enum => self.parse_enum_declaration(),
       TokenType::Assert => Ok(nodes::Expression::AssertStatement(nodes::AssertStatement {
         location: self.eat().location,
         value: Box::from(self.parse_expression()?),
@@ -276,6 +277,95 @@ impl Parser {
       })),
       _ => self.parse_expression()
     }
+  }}
+
+  parser_section! {parse_enum_declaration, self, {
+    let enum_token = self.eat();
+
+    // Expect name
+    let name = self.expect(
+      discriminant(&TokenType::Identifier),
+      parser_error!("Expected enum name here".to_string(), self.at().location)
+    )?;
+
+    // Expect {
+    self.expect(
+      discriminant(&TokenType::OpenBrace),
+      parser_error!("Expected open enum block here".to_string(), self.at().location)
+    )?;
+
+    let mut object = nodes::ObjectLiteral {
+      items: HashMap::new(),
+      location: enum_token.location,
+    };
+    let mut used_names: Vec<String> = vec![];
+    let mut use_identifiers = false;
+
+    while !matches!(self.at().token_type, TokenType::CloseBrace) {
+      // Check if current is "use_strings"
+      if matches!(self.at().token_type, TokenType::String) && use_identifiers == false {
+        let val = self.eat();
+
+        if val.value == "use_strings" {
+          use_identifiers = true;
+          if matches!(self.at().token_type, TokenType::Comma) {
+            self.eat();
+            continue;
+          } else {
+            break;
+          }
+        }
+      }
+
+      let current_identifier = self.expect(
+        discriminant(&TokenType::Identifier),
+        parser_error!("Expected identifier here".to_string(), self.at().location)
+      )?;
+
+      // Check if already in enum
+      if used_names.contains(&current_identifier.value) {
+        return Err(ZephyrError::parser_with_ref(
+          format!("Enum variant {} already used in enum", current_identifier.value),
+          current_identifier.location,
+          enum_token.location
+        ));
+      }
+
+      // Add to object
+      let value = Box::from(if use_identifiers == false {
+        nodes::Expression::NumericLiteral(nodes::NumericLiteral {
+          value: used_names.len() as f64,
+          location: current_identifier.location
+        })
+      } else {
+        nodes::Expression::StringLiteral(nodes::StringLiteral {
+          value: current_identifier.value.clone(),
+          location: current_identifier.location
+        })
+      });
+      object.items.insert(current_identifier.clone().value, value);
+      used_names.push(current_identifier.clone().value);
+
+      // Check for ,
+      if matches!(self.at().token_type, TokenType::Comma) {
+        self.eat();
+      } else {
+        break;
+      }
+    }
+
+    // Expect {
+    self.expect(
+      discriminant(&TokenType::CloseBrace),
+      parser_error!("Expected close enum block here".to_string(), self.at().location)
+    )?;
+
+    // Construct sugar
+    Ok(nodes::Expression::VariableDeclaration(nodes::VariableDeclaration {
+      identifier: self.create_identifier(name)?,
+      location: enum_token.location,
+      value: Box::from(nodes::Expression::ObjectLiteral(object))
+    }))
   }}
 
   parser_section! {parse_function_declaration, self, {

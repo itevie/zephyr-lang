@@ -85,6 +85,7 @@ lazy_static! {
     tok!("import", TokenType::Import);
     tok!("from", TokenType::From);
     tok!("as", TokenType::As);
+    tok!("enum", TokenType::Enum);
     tok!("func", TokenType::Function);
     //tok!("pure", TokenType::Pure);
     tok!("step", TokenType::Step);

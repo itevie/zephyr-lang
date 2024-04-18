@@ -72,6 +72,8 @@ pub enum TokenType {
   As,
   From,
 
+  Enum,
+
   Function,
   Pure,
   Where,
