@@ -26,6 +26,18 @@ pub struct Args {
   pub node_evaluation_times: bool,
 
   #[structopt(
+    long,
+    help = "Whether or not to display a list of Zephyr functions that took the longest to complete (only displayed with run verb)"
+  )]
+  pub function_evaluation_times: bool,
+
+  #[structopt(
+    long,
+    help = "Whether or not to skip times that took 0ms in node or function evaluation times (only displayed with run verb)"
+  )]
+  pub node_evaluation_skip_zeros: bool,
+
+  #[structopt(
     long = "stack-size",
     value_name = "STACK_SIZE",
     help = "The maximum stack size that the interpreter can use in bytes",

@@ -99,6 +99,7 @@ impl Expression {
 #[derive(Debug, Clone)]
 pub struct Program {
   pub nodes: Vec<Box<Expression>>,
+  pub file: Option<String>,
 }
 
 #[derive(Debug, Clone)]

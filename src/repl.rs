@@ -46,7 +46,7 @@ pub fn repl(options: crate::cli::Repl, directory: String) {
     // Parse
     let parser_timer = std::time::Instant::now();
     let mut parser = parser::parser::Parser::new(result);
-    let ast = match parser.produce_ast() {
+    let ast = match parser.produce_ast(Some("<repl>".to_string())) {
       Ok(val) => val,
       Err(err) => {
         println!("{}", err.visualise(false));

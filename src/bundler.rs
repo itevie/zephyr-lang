@@ -65,7 +65,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
   .collect();
 
   // Parse to check if it's valid
-  match parser::Parser::new(tokens.clone()).produce_ast() {
+  match parser::Parser::new(tokens.clone()).produce_ast(None) {
     Ok(_) => (),
     Err(err) => {
       crate::die(format!("\n{}", err.visualise(false)));

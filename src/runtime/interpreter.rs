@@ -231,7 +231,15 @@ impl Interpreter {
         global_scope: scope,
       };
       match lib_interpreter.evaluate(Expression::Program(
-        match Parser::new(lex(String::from(i.0), format!("(lib){}", i.1)).unwrap()).produce_ast() {
+        match Parser::new(
+          lex(
+            String::from(i.0),
+            format!("(lib){}", i.1.replace("../lib/", "")),
+          )
+          .unwrap(),
+        )
+        .produce_ast(Some(format!("<lib {}>", i.1.replace("../lib/", ""))))
+        {
           Ok(ok) => ok,
           Err(err) => {
             println!(
@@ -506,6 +514,7 @@ impl Interpreter {
     arguments: Vec<Box<RuntimeValue>>,
     location: Location,
   ) -> Result<RuntimeValue, ZephyrError> {
+    let start_time = std::time::Instant::now();
     /*if self.scope.get_pure_functions_only()? {
       self.scope.set_pure_functions_only(false)?;
       // Check if it is pure
@@ -602,7 +611,7 @@ impl Interpreter {
     let _ = std::mem::replace(&mut self.scope, prev);
 
     // Check if it is predicate
-    if let Some(f) = func.name {
+    if let Some(ref f) = func.name {
       // Check endswith ?
       if f.ends_with('?') {
         // Check for boolean
@@ -613,6 +622,36 @@ impl Interpreter {
           ));
         }
       }
+    }
+
+    // Check for debug
+    let end_time = start_time.elapsed();
+    if crate::ARGS.function_evaluation_times {
+      // Check if it has it
+      let name = &format!(
+        "#f#{}##{}",
+        func.name.clone().unwrap_or("?anonymous".to_string()),
+        func
+          .scope
+          .get_file()?
+          .unwrap_or("<unknown origin>".to_string())
+      );
+
+      // Check if thing contains if
+      if !NODE_EVALUATION_TIMES.lock().unwrap().contains_key(name) {
+        NODE_EVALUATION_TIMES
+          .lock()
+          .unwrap()
+          .insert(name.to_string(), vec![]);
+      }
+
+      // Add the time to it
+      NODE_EVALUATION_TIMES
+        .lock()
+        .unwrap()
+        .get_mut(name)
+        .unwrap()
+        .push(end_time.as_millis());
     }
 
     Ok(return_value)
@@ -890,6 +929,7 @@ impl Interpreter {
       ///////////////////////////////
       Expression::Program(program) => {
         let mut last_value: Option<RuntimeValue> = None;
+        self.scope.set_file(program.file)?;
 
         for expr in program.nodes {
           last_value = Some(match self.evaluate(*expr) {
@@ -1070,7 +1110,7 @@ impl Interpreter {
           // Lex & Parse
           let result = lexer::lexer::lex(file_contents, path_string.clone())?;
           let mut parser = parser::parser::Parser::new(result);
-          let ast = parser.produce_ast()?;
+          let ast = parser.produce_ast(Some(path_string.clone()))?;
 
           // Create scope
           let path_pre_pop = path_string;

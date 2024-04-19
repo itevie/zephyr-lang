@@ -56,6 +56,7 @@ impl ScopeContainer {
           can_export: RefCell::from(false),
           pure_functions_only: RefCell::from(false),
           directory: RefCell::from(directory),
+          file: RefCell::from(None),
         },
         parent_id: None,
         id,
@@ -325,6 +326,29 @@ impl ScopeContainer {
     }
   }
 
+  pub fn get_file(&self) -> Result<Option<String>, ZephyrError> {
+    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+      Ok(ok) => Ok((*ok.details.file.borrow()).clone()),
+      Err(_) => Err(ZephyrError::runtime(
+        format!("Failed to get scope with ID: {}", self.id),
+        Location::no_location(),
+      )),
+    }
+  }
+
+  pub fn set_file(&self, to: Option<String>) -> Result<(), ZephyrError> {
+    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+      Ok(ok) => {
+        *ok.details.file.borrow_mut() = to;
+        Ok(())
+      }
+      Err(_) => Err(ZephyrError::runtime(
+        format!("Failed to get scope with ID: {}", self.id),
+        Location::no_location(),
+      )),
+    }
+  }
+
   pub fn get_parent(&self) -> Result<Option<ScopeContainer>, ZephyrError> {
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(ok.parent_id.map(|parent| ScopeContainer { id: parent })),
@@ -442,6 +466,7 @@ pub struct ScopeDetails {
   pub can_export: RefCell<bool>,
   pub pure_functions_only: RefCell<bool>,
   pub directory: RefCell<String>,
+  pub file: RefCell<Option<String>>,
 }
 
 #[derive(Debug)]

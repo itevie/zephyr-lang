@@ -234,9 +234,10 @@ impl Parser {
     Ok(expressions)
   }
 
-  pub fn produce_ast(&mut self) -> Result<nodes::Program, ZephyrError> {
+  pub fn produce_ast(&mut self, file_name: Option<String>) -> Result<nodes::Program, ZephyrError> {
     Ok(nodes::Program {
       nodes: self.parse_inner_block(false)?,
+      file: file_name,
     })
   }
 
