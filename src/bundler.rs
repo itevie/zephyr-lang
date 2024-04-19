@@ -9,7 +9,7 @@ use std::{
 use pbr::ProgressBar;
 
 use crate::{
-  die,
+  cli, die,
   lexer::{
     self,
     location::Location,
@@ -205,11 +205,6 @@ pub fn extract(file_name: String) -> ExtractionResult {
       new_tokens.push(tok.clone());
     }
     i += 1;
-    new_tokens.push(Token {
-      value: format!("\n"),
-      token_type: TokenType::Identifier,
-      location: Location::no_location(),
-    })
   }
 
   ExtractionResult {
@@ -275,7 +270,12 @@ pub fn bundle(input: String, file_name: String) -> String {
 }
 
 // idk why i made this i was bored
-pub fn bundle_executable(input: String, file_name: String, _out_file: String) {
+pub fn bundle_executable(
+  input: String,
+  file_name: String,
+  _out_file: String,
+  options: cli::BundleFile,
+) {
   let parts = 7;
   let mut pb = ProgressBar::new(parts);
   pb.show_speed = false;
@@ -359,13 +359,29 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) {
     "bundler",
   );
 
+  let target = if let Some(target) = options.target {
+    Some(match target.as_str() {
+      "windows" => "x86_64-pc-windows-gnu".to_string(),
+      _ => target,
+    })
+  } else {
+    None
+  };
+
+  let mut args: Vec<String> = vec![
+    "build".to_string(),
+    "--release".to_string(),
+    "--manifest-path=./bundler_executable_temp/Cargo.toml".to_string(),
+  ];
+
+  // Check if should add target
+  if let Some(t) = target.clone() {
+    args.push(format!("--target={}", t));
+  }
+
   // Try to run cargo build
   match std::process::Command::new("cargo")
-    .args([
-      "build",
-      "--release",
-      "--manifest-path=./bundler_executable_temp/Cargo.toml",
-    ])
+    .args(args)
     .stdout(std::process::Stdio::piped())
     .output()
   {
@@ -373,17 +389,35 @@ pub fn bundle_executable(input: String, file_name: String, _out_file: String) {
     Err(err) => return crate::die(format!("Failed to run cargo, is cargo installed?: {}", err)),
   }
 
-  let path = if cfg!(windows) {
-    PathBuf::from("./bundler_executable_temp/target/release/rust-zephyr.exe")
-  } else if cfg!(unix) {
-    PathBuf::from("./bundler_executable_temp/target/release/rust-zephyr")
+  // Construct path
+  let mut path = PathBuf::from("./bundler_executable_temp/target/");
+  if let Some(t) = target.clone() {
+    path.push(t.clone());
+    path.push("release");
+
+    if t.contains("windows") {
+      path.push("rust-zephyr.exe");
+    } else {
+      path.push("rust-zephyr");
+    }
   } else {
-    return crate::die("Cannot bundle on this OS!".to_string());
-  };
+    path.push("release");
+    if cfg!(windows) {
+      path.push("rust-zephyr.exe");
+    } else {
+      path.push("rust-zephyr");
+    }
+  }
 
   // Check if it exists
   if !path.exists() {
-    panic!("Failed to compile, is cargo installed?");
+    panic!(
+      "{}",
+      format!(
+        "Failed to compile, is cargo installed? (the path {} was not found)",
+        path.display().to_string()
+      )
+    );
   }
   pb.inc();
 

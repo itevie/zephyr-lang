@@ -81,6 +81,9 @@ pub struct BundleFile {
     help = "Whether or not to bundle the file into an executable"
   )]
   pub exe: bool,
+
+  #[structopt(long = "target", short = "t", help = "Rust build target")]
+  pub target: Option<String>,
 }
 
 #[derive(Debug, StructOpt, Clone)]

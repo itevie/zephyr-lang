@@ -150,8 +150,9 @@ fn main() {
         if bundle.exe {
           bundler::bundle_executable(
             input,
-            PathBuf::from(bundle.file).display().to_string(),
-            bundle.out,
+            PathBuf::from(bundle.file.clone()).display().to_string(),
+            bundle.out.clone(),
+            bundle.clone(),
           );
 
           return;
