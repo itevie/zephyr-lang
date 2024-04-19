@@ -1,0 +1,8 @@
+let name = "template";
+let to_test = INSERT_OBJECT_HERE.keys();
+
+
+
+if $to_test != 0 {
+  throw error("All of " + name + " functions have not been tested: " + to_test.join(", "));
+}

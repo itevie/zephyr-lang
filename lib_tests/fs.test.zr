@@ -1,1 +1,12 @@
-assert Fs.read_file("./test.txt") == "Hello World";
+let name = "Fs";
+let to_test = Fs.keys();
+
+// Check read_file
+{
+  assert Fs.read_file("./test.txt") == "Hello World";
+  to_test.remove("read_file");
+}
+
+if $to_test != 0 {
+  throw error("All of " + name + " functions have not been tested: " + to_test.join(", "));
+}

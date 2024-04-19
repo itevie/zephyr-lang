@@ -20,6 +20,12 @@ pub struct Args {
   pub verbose: bool,
 
   #[structopt(
+    long,
+    help = "Whether or not to display a list of ast nodes that took the longest to complete (only displayed with run verb)"
+  )]
+  pub node_evaluation_times: bool,
+
+  #[structopt(
     long = "stack-size",
     value_name = "STACK_SIZE",
     help = "The maximum stack size that the interpreter can use in bytes",

@@ -1,0 +1,7 @@
+// This is tests that tests everything that should be possible
+
+// strings + ?
+assert "" + "a" == "a";
+assert "" + 1 == "1";
+assert "" + true == "true";
+assert "" + null == "null";

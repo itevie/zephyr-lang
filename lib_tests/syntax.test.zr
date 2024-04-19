@@ -1,0 +1,38 @@
+// ----- Operators -----
+
+// $
+{
+  assert $[1, 2, 3] == 3;
+  assert $"abcd" == 4;
+} 
+
+// ----- Indexing -----
+
+// via number
+{
+  assert [1, 2, 3][1] == 2;
+  assert "abc"[1] == "b";
+}
+
+// via strings
+{
+  let obj = .{
+    a: 2,
+    b: 3
+  };
+
+  assert obj["a"] == 2;
+}
+
+// via arrays
+{
+  let array = 0..100;
+  let new_array = array[[1, 2, 3]];
+  assert new_array.same_as([1, 2, 3]);
+
+  let new_array2 = array[50.<$array];
+  assert new_array2.same_as(50..100);
+
+  let new_array3 = array[50.<$array step 2];
+  assert new_array3.same_as(50..100 step 2);
+}

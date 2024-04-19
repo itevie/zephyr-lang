@@ -5,7 +5,8 @@ export let Array = .{
   },
 
   skip: func skip(arr: array?, amount: number?) {
-    arr[amount.<$arr];
+    let new_array = arr[amount.<$arr];
+    __zephyr_native.arr_ref_set(arr, new_array);
   },
 
   insert: func insert(arr: array?, at: number?, what) {
@@ -15,12 +16,24 @@ export let Array = .{
     __zephyr_native.arr_ref_set(arr, start.concat([what]).concat(end));
   },
 
+  remove: func remove(arr: array?, item) {
+    let new_arr = [];
+    for val in arr {
+      if val != item {
+        new_arr.push(val);
+      }
+    }
+
+    __zephyr_native.arr_ref_set(arr, new_arr);
+    arr;
+  },
+
   // Joins an array into a string with an optional seperator
   join: func join(values: array?, by: null_or?(string?)) {
     let value = "";
 
-    for i in values {
-      value = value + ("" + i) + (by is null? ? "" : by);
+    for i in 0.<$values {
+      value = value + ("" + values[i]) + if i < $values-1 { (by is null? ? "" : by); } else { ""; };
     }
 
     value;
@@ -59,10 +72,10 @@ export let Array = .{
     let new_array = [];
 
     for i in $array-1..0 {
-      new_array + array[i];
+      new_array.push(array[i]);
     }
 
-    new_array;
+    __zephyr_native.arr_ref_set(array, new_array);
   },
 
   // Checks if two arrays contain the exact same elements, this is because

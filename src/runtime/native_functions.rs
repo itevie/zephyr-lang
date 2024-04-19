@@ -291,7 +291,7 @@ pub fn arr_ref_set(options: CallOptions) -> R {
         .lock()
         .unwrap()
         .set_value(arr.location, RuntimeValue::Array(narr))?;
-      Ok(RuntimeValue::Null(Null {}))
+      Ok(RuntimeValue::ArrayContainer(arr.clone()))
     }
     _ => Err(ZephyrError::runtime(
       "Invalid args".to_string(),

@@ -38,6 +38,8 @@ use super::{
 
 static IMPORT_CACHE: Lazy<Arc<Mutex<HashMap<String, ScopeContainer>>>> =
   Lazy::new(|| Arc::from(Mutex::from(HashMap::new())));
+pub static NODE_EVALUATION_TIMES: Lazy<Arc<Mutex<HashMap<String, Vec<u128>>>>> =
+  Lazy::new(|| Arc::from(Mutex::from(HashMap::new())));
 
 #[derive(Clone, Copy)]
 pub struct Interpreter {
@@ -880,6 +882,7 @@ impl Interpreter {
   }
 
   pub fn evaluate(&mut self, _node: Expression) -> Result<RuntimeValue, errors::ZephyrError> {
+    let start_time = std::time::Instant::now();
     let node = &_node;
     let result = match node.clone() {
       /////////////////////////////////
@@ -1886,6 +1889,30 @@ impl Interpreter {
         Location::no_location(),
       )),
     };
+
+    // Check for debug
+    let end_time = start_time.elapsed();
+    if crate::ARGS.node_evaluation_times {
+      // Check if it has it
+      let val = format!("{:?}", node);
+      let name = val.split("(").collect::<Vec<&str>>()[0];
+
+      // Check if thing contains if
+      if !NODE_EVALUATION_TIMES.lock().unwrap().contains_key(name) {
+        NODE_EVALUATION_TIMES
+          .lock()
+          .unwrap()
+          .insert(name.to_string(), vec![]);
+      }
+
+      // Add the time to it
+      NODE_EVALUATION_TIMES
+        .lock()
+        .unwrap()
+        .get_mut(name)
+        .unwrap()
+        .push(end_time.as_millis());
+    }
 
     // Check if no location
     match result {

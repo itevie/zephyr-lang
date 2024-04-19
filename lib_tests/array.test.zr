@@ -1,3 +1,125 @@
+let to_test = Array.keys();
+
+// Check same_as
+{
+  let arr = [1, 2, 3];
+  let arr2 = [1, 2, 3];
+  let arr3 = [1, 2, 3, 4];
+
+  assert arr.same_as(arr2);
+  assert not arr.same_as(arr3);
+
+  to_test.remove("same_as");
+}
+
+// Check push
+{
+  let arr = [];
+  arr.push(1);
+  
+  assert arr.same_as([1]);
+  to_test.remove("push");
+}
+
+// Check insert
+{
+  // Check basic insertion
+  let arr = [1, 2, 3, 4, 5];
+  arr.insert(2, "hi");
+  assert arr.same_as([1, 2, "hi", 3, 4, 5]);
+
+  // Check -1
+  try {
+    arr.insert(-1, "hi");
+    throw error("Expected error at arr.insert -1");
+  }
+
+  to_test.remove("insert");
+}
+
+// Check remove
+{
+  // Check single occurance
+  let arr = [1, 2, 3, 4];
+  arr.remove(2);
+  assert arr.same_as([1, 3, 4]);
+
+  let arr2 = [1, 2, 3, 4, 4, 4, 4, 4, 5];
+  arr2.remove(4);
+  assert arr2.same_as([1, 2, 3, 5]);
+
+  to_test.remove("remove");
+}
+
+// Check reverse
+{
+  let arr = [1, 2, 3, 4];
+  arr.reverse();
+  
+  assert arr.same_as([4, 3, 2, 1]);
+  to_test.remove("reverse");
+}
+
+// Check filter
+{
+  let arr = [1, 2, 3, 4, 5];
+  let new_arr = arr.filter(func(x) { x > 3; });
+
+  assert new_arr.same_as([4, 5]);
+  to_test.remove("filter");
+}
+
+// Check join
+{
+  let arr = [1, 2, 3];
+  assert arr.join("") == "123";
+  assert arr.join(", ") == "1, 2, 3";
+
+  to_test.remove("join");
+}
+
+// Check concat
+{
+  let arr = [1, 2, 3];
+  let arr2 = [4, 5, 6];
+
+  assert arr.concat(arr2).same_as([1, 2, 3, 4, 5, 6]);
+
+  to_test.remove("concat");
+}
+
+// Check map
+{
+  let arr = [1, 2, 3, 4, 5];
+  let mapped = arr.map(func (x) { x.to_string(); });
+  assert mapped.same_as(["1", "2", "3", "4", "5"]);
+
+  to_test.remove("map");
+}
+
+// Check skip
+{
+  let arr = [1, 2, 3];
+  arr.skip(1);
+  assert arr.same_as([2, 3]);
+
+  to_test.remove("skip");
+}
+
+// Check shallow_copy
+{
+  let arr = [1, ["hi"]];
+  let arr2 = arr.shallow_copy();
+
+  arr[0] = 3;
+  arr[1][0] = "bye";
+
+  assert arr2[0] == 1;
+  assert arr2[1][0] == "bye";
+
+  to_test.remove("shallow_copy");
+}
+
 // Check if deep_copy works
 {
   // Setup
@@ -9,4 +131,9 @@
   // Tests
   assert arr2[0] == 1;
   assert arr2[1][0] == 5;
+  to_test.remove("deep_copy");
+}
+
+if $to_test != 0 {
+  throw error("All of array functions have not been tested: " + to_test.join(", "));
 }

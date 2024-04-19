@@ -1,4 +1,46 @@
-// Math.max
-assert Math.max(1, 2, 3) == 3;
-assert Math.max(38, 94, 284, 994, 2, 39) == 994;
-assert Math.max() == null;
+let name = "Math";
+let to_test = Math.keys().remove("pi");
+
+// Max
+{
+  assert Math.max(1, 2, 3) == 3;
+  assert Math.max(38, 94, 284, 994, 2, 39) == 994;
+  assert Math.max() == null;
+  to_test.remove("max");
+}
+
+// Min
+{
+  assert Math.min(1, 2, 3) == 1;
+  assert Math.min(38, 94, 284, 994, 2, 39) == 2;
+  assert Math.min() == null;
+  to_test.remove("min");
+}
+
+// Sum
+{
+  assert Math.sum(1, 2, 3) == 6;
+  to_test.remove("sum");
+}
+
+// Ceil
+{
+  // TODO: can't do this one because floats don't exist yet
+  to_test.remove("ceil"); 
+}
+
+// Floor
+{
+  // TODO: can't do this one because floats don't exist yet
+  to_test.remove("floor"); 
+}
+
+// Abs
+{
+  assert Math.abs(-5) == 5;
+  to_test.remove("abs");
+}
+
+if $to_test != 0 {
+  throw error("All of " + name + " functions have not been tested: " + to_test.join(", "));
+}

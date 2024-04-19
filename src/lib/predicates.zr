@@ -51,7 +51,9 @@ export func array?(test) {
   typeof test == "array";
 }
 
-export func array_of?(test: array?, f: callable?, args: array?) {
+export func array_of?(test: array?, f: callable?, args: null_or?(array?)) {
+  if args == null { args = []; };
+  
   for i in test {
     if !f(i, if $args>0 {args[0];}) { return false; }
   }

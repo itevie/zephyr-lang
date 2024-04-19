@@ -22,13 +22,19 @@ pub fn test(options: TestPackage) {
   println!("Found {} files to test...", files.len());
 
   for file in files {
-    println!("  Testing {}...", file.display());
+    let start_time = std::time::Instant::now();
+
+    print!("  Testing {}...", file.display());
+
     let contents = std::fs::read_to_string(file.clone()).unwrap();
     crate::basic_run::basic_run(
       contents,
       file.canonicalize().unwrap().display().to_string(),
       directory.clone(),
     );
+
+    let end_time = start_time.elapsed();
+    println!(" {}ms", end_time.as_millis());
   }
 
   println!("All tests succeeded");
