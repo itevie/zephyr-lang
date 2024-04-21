@@ -130,11 +130,13 @@ pub struct TypeofStatement {
 #[derive(Debug, Clone)]
 pub struct BreakStatement {
   pub location: Location,
+  pub name: Option<Identifier>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ContinueStatement {
   pub location: Location,
+  pub name: Option<Identifier>,
 }
 
 #[derive(Debug, Clone)]
@@ -252,6 +254,7 @@ pub struct ForLoop {
   pub identifier: Identifier,
   pub body: Block,
   pub location: Location,
+  pub name: Option<Identifier>,
   pub none: Option<Box<Block>>,
 }
 
@@ -289,6 +292,7 @@ pub struct WhileExpression {
   pub test: Box<Expression>,
   pub body: Box<Block>,
   pub none: Option<Box<Block>>,
+  pub name: Option<Identifier>,
   pub location: Location,
 }
 

@@ -426,7 +426,14 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
       set_token(value, TokenType::Number);
     }
     // Check if the current char is alpha
-    else if chars[0].is_alphabetic() || chars[0] == '_' {
+    else if chars[0].is_alphabetic() || chars[0] == '_' || chars[0] == '@' {
+      let is_special = if chars[0] == '@' {
+        eat(&mut chars);
+        true
+      } else {
+        false
+      };
+
       let mut value: String = eat(&mut chars);
 
       while !chars.is_empty() && (chars[0].is_alphanumeric() || chars[0] == '_') {
@@ -445,7 +452,14 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
         }
         // Set token
         else {
-          set_token(value, TokenType::Identifier)
+          set_token(
+            value,
+            if is_special {
+              TokenType::SpecialIdentifier
+            } else {
+              TokenType::Identifier
+            },
+          )
         };
       };
     }

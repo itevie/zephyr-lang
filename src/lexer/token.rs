@@ -28,6 +28,7 @@ pub enum TokenType {
   // ----- Literals -----
   Number,
   Identifier,
+  SpecialIdentifier,
   PredicateIdentifier,
   String,
 

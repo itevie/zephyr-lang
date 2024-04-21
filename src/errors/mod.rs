@@ -7,7 +7,7 @@ use std::cmp::max;
 
 const REPL_OFFSET: usize = 2;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ZephyrError {
   pub location: Location,
   pub error_message: String,
@@ -15,12 +15,12 @@ pub struct ZephyrError {
   pub reference: Option<Location>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ErrorType {
   Runtime,
-  Break,
+  Break(Option<String>),
   Return(Box<RuntimeValue>),
-  Continue,
+  Continue(Option<String>),
   Parser,
   Lexer,
   UserDefined(Box<RuntimeValue>),

@@ -106,6 +106,10 @@ impl Parser {
         symbol: val.value,
         location: val.location,
       }),
+      TokenType::SpecialIdentifier => Ok(Identifier {
+        symbol: val.value,
+        location: val.location,
+      }),
       TokenType::String => Ok(Identifier {
         symbol: val.value,
         location: val.location,
@@ -264,9 +268,17 @@ impl Parser {
       }
       TokenType::Break => Ok(nodes::Expression::BreakStatement(nodes::BreakStatement {
         location: self.eat().location,
+        name: if matches!(self.at().token_type, TokenType::SpecialIdentifier) {
+          let tok = self.eat();
+          Some(self.create_identifier(tok)?)
+        } else { None }
       })),
       TokenType::Continue => Ok(nodes::Expression::ContinueStatement(nodes::ContinueStatement {
         location: self.eat().location,
+        name: if matches!(self.at().token_type, TokenType::SpecialIdentifier) {
+          let tok = self.eat();
+          Some(self.create_identifier(tok)?)
+        } else { None }
       })),
       TokenType::Return => Ok(nodes::Expression::ReturnStatement(nodes::ReturnStatement {
         location: self.eat().location,
@@ -1147,6 +1159,15 @@ impl Parser {
       _ => unreachable!()
     };
 
+    // Check for name
+    let name = if matches!(self.at().token_type, TokenType::SpecialIdentifier) {
+      let tok = self.eat();
+      Some(self.create_identifier(tok)?)
+
+    } else {
+      None
+    };
+
     // Expect body of while
     let body = self.parse_block()?;
 
@@ -1162,7 +1183,8 @@ impl Parser {
       test: Box::from(expression),
       body: Box::from(body),
       location: token_location,
-      none: else_none
+      none: else_none,
+      name
     }))
   }}
 
@@ -1223,6 +1245,15 @@ impl Parser {
 
     // Expect expression
     let expr = self.parse_expression()?;
+
+    // Check for name
+    let name = if matches!(self.at().token_type, TokenType::SpecialIdentifier) {
+      let tok = self.eat();
+      Some(self.create_identifier(tok)?)
+    } else {
+      None
+    };
+
     let block = self.parse_block()?;
 
     let else_none = if matches!(self.at().token_type, TokenType::Else) {
@@ -1239,6 +1270,7 @@ impl Parser {
       body: block,
       location: token.location,
       none: else_none,
+      name,
     }))
   }
 

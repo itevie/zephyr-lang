@@ -1025,13 +1025,21 @@ impl Interpreter {
       }
       Expression::BreakStatement(stmt) => Err(ZephyrError {
         error_message: "Cannot break here".to_string(),
-        error_type: ErrorType::Break,
+        error_type: ErrorType::Break(if let Some(ident) = stmt.name {
+          Some(ident.symbol)
+        } else {
+          None
+        }),
         reference: None,
         location: stmt.location,
       }),
       Expression::ContinueStatement(stmt) => Err(ZephyrError {
         error_message: "Cannot continue here".to_string(),
-        error_type: ErrorType::Continue,
+        error_type: ErrorType::Continue(if let Some(ident) = stmt.name {
+          Some(ident.symbol)
+        } else {
+          None
+        }),
         reference: None,
         location: stmt.location,
       }),
@@ -1821,11 +1829,45 @@ impl Interpreter {
           // Check if continue or break
           if let Err(err) = res {
             match err.error_type {
-              ErrorType::Break => {
-                break;
+              ErrorType::Break(ref _name) => {
+                // Check if returned a name
+                if let Some(name) = _name {
+                  // Check if self has a name
+                  if let Some(while_name) = expr.name.clone() {
+                    // Check if same
+                    if name.clone() == while_name.symbol {
+                      break;
+                    } else {
+                      // Propogate
+                      return Err(err.clone());
+                    }
+                  } else {
+                    // Propogate
+                    return Err(err.clone());
+                  }
+                } else {
+                  break;
+                }
               }
-              ErrorType::Continue => {
-                continue;
+              ErrorType::Continue(ref _name) => {
+                // Check if returned a name
+                if let Some(name) = _name {
+                  // Check if self has a name
+                  if let Some(while_name) = expr.name.clone() {
+                    // Check if same
+                    if name.clone() == while_name.symbol {
+                      continue;
+                    } else {
+                      // Propogate
+                      return Err(err.clone());
+                    }
+                  } else {
+                    // Propogate
+                    return Err(err.clone());
+                  }
+                } else {
+                  continue;
+                }
               }
               _ => return Err(err),
             }
@@ -1848,8 +1890,8 @@ impl Interpreter {
           Err(err) => {
             // Check if it is a return one
             match err.error_type {
-              ErrorType::Continue => return Err(err),
-              ErrorType::Break => return Err(err),
+              ErrorType::Continue(_) => return Err(err),
+              ErrorType::Break(_) => return Err(err),
               ErrorType::Return(_) => return Err(err),
               _ => (),
             };
@@ -1906,8 +1948,46 @@ impl Interpreter {
           let res = match self.evaluate_block(expr.body.clone(), scope) {
             Ok(ok) => ok,
             Err(err) => match err.error_type {
-              ErrorType::Break => break,
-              ErrorType::Continue => continue,
+              ErrorType::Break(ref _name) => {
+                // Check if returned a name
+                if let Some(name) = _name {
+                  // Check if self has a name
+                  if let Some(while_name) = expr.name.clone() {
+                    // Check if same
+                    if name.clone() == while_name.symbol {
+                      break;
+                    } else {
+                      // Propogate
+                      return Err(err.clone());
+                    }
+                  } else {
+                    // Propogate
+                    return Err(err.clone());
+                  }
+                } else {
+                  break;
+                }
+              }
+              ErrorType::Continue(ref _name) => {
+                // Check if returned a name
+                if let Some(name) = _name {
+                  // Check if self has a name
+                  if let Some(while_name) = expr.name.clone() {
+                    // Check if same
+                    if name.clone() == while_name.symbol {
+                      continue;
+                    } else {
+                      // Propogate
+                      return Err(err.clone());
+                    }
+                  } else {
+                    // Propogate
+                    return Err(err.clone());
+                  }
+                } else {
+                  continue;
+                }
+              }
               _ => return Err(err),
             },
           };
