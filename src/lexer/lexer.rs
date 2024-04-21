@@ -427,12 +427,7 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
     }
     // Check if the current char is alpha
     else if chars[0].is_alphabetic() || chars[0] == '_' || chars[0] == '@' {
-      let is_special = if chars[0] == '@' {
-        eat(&mut chars);
-        true
-      } else {
-        false
-      };
+      let is_special = chars[0] == '@';
 
       let mut value: String = eat(&mut chars);
 
