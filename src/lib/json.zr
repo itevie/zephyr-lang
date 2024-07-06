@@ -1,0 +1,8 @@
+export let Json = .{
+    parse: func parse(text: string?) {
+        __zephyr_native.parse_json(text);
+    },
+    stringify: func stringify(value: object?) {
+        __zephyr_native.zephyr_to_json_n(value);
+    }
+}

@@ -29,6 +29,7 @@ pub enum Expression {
   TryExpression(TryExpression),
   SpreadExpression(SpreadExpression),
   RangeExpression(RangeExpression),
+  PipeExpression(PipeExpression),
 
   // ----- Statement like expressions -----
   ForLoop(ForLoop),
@@ -89,6 +90,7 @@ impl Expression {
       Expression::RangeExpression(x) => x.location,
       Expression::AssertStatement(x) => x.location,
       Expression::ThrowStatement(x) => x.location,
+      Expression::PipeExpression(x) => x.location,
       Expression::Program(_) => panic!("Cannot get location of program"),
       Expression::None => Location::no_location(),
     }
@@ -184,6 +186,13 @@ pub struct MemberExpression {
 pub struct CallExpression {
   pub left: Box<Expression>,
   pub arguments: Vec<Box<Expression>>,
+  pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct PipeExpression {
+  pub left: Box<Expression>,
+  pub right: Box<Expression>,
   pub location: Location,
 }
 

@@ -32,6 +32,8 @@ lazy_static! {
     tok!("//", TokenType::MultiplicativeOperator(MultiplicativeTokenType::IntegerDivide));
     tok!("%", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Modulo));
     tok!("??", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Coalesce));
+    tok!("|>", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Pipe));
+    tok!("!!?", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Banginterrobang));
 
     // Dual operators
     tok!("+=", TokenType::DualOperator(DualTokenType::Additive(AdditiveTokenType::Plus)));
@@ -232,6 +234,9 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
           eat(&mut chars);
           closed = true;
           break;
+        }
+        if chars[0] == '\n' {
+          current_line += 1;
         }
         eat(&mut chars);
       }

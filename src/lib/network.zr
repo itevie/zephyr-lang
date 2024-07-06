@@ -1,7 +1,43 @@
-export let Network = .{
-  http: .{
-    get: func get(url: string?) {
-      __zephyr_native.http_get(url, .{});
-    }
-  }
+func tcp_connect(host: string?, on_data: callable?) {
+    let stream = __zephyr_native.rlt(host);
+
+    //let on_data = null;
+    let on_close = null;
+
+    __zephyr_native.spawn_thread(func {
+        loop {
+            try {
+                let value = stream.read();
+                if value == null { continue; };
+                on_data(value);
+            } catch e {
+                on_close();
+                break;
+            }
+        }
+    });
+
+    return .{
+        write: func (buffer: array_of?(number?)) {
+            stream.write(buffer);
+            Console.write_line("WROTE: " + Buffer.to_utf8(buffer));
+        },
+        on: func (type: string?, value: callable?) {
+            if type == "close" {
+                on_close = value;
+            } else {
+                throw error("Invalid event type");
+            }
+        }
+    };
 }
+
+func tcp_connect_unhandled(host: string?) {
+    let stream = __zephyr_native.rlt(host);
+    return stream;
+}
+
+export let Net = .{
+  open_tcp_client: tcp_connect,
+  open_tcp_client_unhandled: tcp_connect_unhandled
+};

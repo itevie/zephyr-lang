@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::atomic::Ordering, time::Duration};
 
 use crate::{
   lexer, parser,
@@ -40,6 +40,10 @@ pub fn basic_run(input: String, file_name: String, dir: PathBuf) {
       match value {
         Err(err) => crate::die(err.visualise(false)),
         Ok(_) => (),
+      }
+
+      while crate::GLOBAL_THREAD_COUNT.load(Ordering::SeqCst) != 0 {
+        std::thread::sleep(Duration::from_millis(1));
       }
     })
     .unwrap();

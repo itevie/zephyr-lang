@@ -142,7 +142,11 @@ impl ScopeContainer {
   }
 
   pub fn has_variable(&self, name: &str) -> Result<bool, errors::ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    crate::verbose(&format!("Scope has variable {}", name), "test");
+    match { crate::SCOPES.lock().unwrap().get(&self.id) }
+      .unwrap()
+      .lock()
+    {
       Ok(ok) => Ok(ok.variables.borrow().contains_key(name)),
       Err(_) => Err(ZephyrError::runtime(
         format!("Failed to get scope with ID: {}", self.id),
@@ -156,7 +160,9 @@ impl ScopeContainer {
     name: &str,
     value: RuntimeValue,
   ) -> Result<(), errors::ZephyrError> {
-    match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
+    crate::verbose(&format!("Scope insert variable {}", name), "test");
+    let scope = { crate::SCOPES.lock().unwrap().get(&self.id).cloned() };
+    match scope.unwrap().lock() {
       Ok(ok) => {
         ok.variables.borrow_mut().insert(
           name.to_string(),
@@ -176,6 +182,10 @@ impl ScopeContainer {
     name: &str,
     value: MemoryAddress,
   ) -> Result<(), errors::ZephyrError> {
+    crate::verbose(
+      &format!("Scope insert variable with address {}", name),
+      "test",
+    );
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => {
         ok.variables.borrow();
@@ -218,6 +228,7 @@ impl ScopeContainer {
     name: &str,
     value: RuntimeValue,
   ) -> Result<(), errors::ZephyrError> {
+    crate::verbose(&format!("Scope declare variable {}", name), "test");
     // Check if disregard
     if name == "_" {
       return Ok(());
@@ -238,6 +249,7 @@ impl ScopeContainer {
   }
 
   pub fn get_self_details(&self) -> Result<ScopeDetails, ZephyrError> {
+    crate::verbose(&format!("Scope get self details"), "test");
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(ok.details.clone()),
       Err(_) => Err(ZephyrError::runtime(
@@ -350,6 +362,7 @@ impl ScopeContainer {
   }
 
   pub fn get_parent(&self) -> Result<Option<ScopeContainer>, ZephyrError> {
+    crate::verbose(&format!("Scope get parent"), "test");
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(ok.parent_id.map(|parent| ScopeContainer { id: parent })),
       Err(_) => Err(ZephyrError::runtime(
@@ -380,6 +393,7 @@ impl ScopeContainer {
   }
 
   pub fn get_variable(&self, name: &str) -> Result<RuntimeValue, errors::ZephyrError> {
+    crate::verbose(&format!("Scope get variable {}", name), "test");
     if !(self.has_variable(name)?) {
       // Check if it has a parent
       if let Some(parent) = self.get_parent()? {

@@ -23,6 +23,7 @@ pub enum TokenType {
   Dot,
   Spread,
   Semicolon,
+  Pipe,
   EOF,
 
   // ----- Literals -----
@@ -100,6 +101,8 @@ pub enum MultiplicativeTokenType {
   IntegerDivide,
   Modulo,
   Coalesce,
+  Pipe,
+  Banginterrobang,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -14,6 +14,22 @@ To see the old C# version, go [here](https://github.com/itevie/ZephyrLanguage)
 To run this on any platform (only Linux tested), simply run cargo run, this will land you in the REPL mode.  
 To run a file run `cargo run -- run <file name>.zr`
 
+## Quick Example
+
+```
+func reverse_array(array: array?) {
+    let new_array = [];
+
+    for i in $array-1..0 {
+        new_array.push(array[i]);
+    }
+
+    return new_array;
+}
+
+reverse_array(1..5); // [5, 4, 3, 2, 1]
+```
+
 ## Learning
 
 At the moment, there won't be any tutorials or anything, to see working examples, look in "src/lib" or "examples", these contain the global variables for every Zephyr application.

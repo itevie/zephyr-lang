@@ -93,6 +93,16 @@ export func one_of?(value, __args__) where __args__[1.<$__args__] is array_of?(c
   return false;
 }
 
+export func one_of_values?(value, __args__) {
+  for value in __args__[1.<$__args__] {
+    if value == __args__ {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export func callable?(test) {
   typeof test == "function" || typeof test == "native_function";
 }

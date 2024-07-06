@@ -1,0 +1,170 @@
+func parse_http_response(data: string?) {
+    // Parse the response
+    let http_version = "";
+    let status = null;
+    let status_text = null;
+    let headers = .{};
+
+    func invalid(why) {
+        throw error("Server sent an invalid response: " + why);
+    }
+
+    let d = data;
+
+    // Parse HTTP version
+    if !d.starts_with("HTTP/") {
+        invalid("Does not start with HTTP/");
+    }
+    d = d.replace("^(HTTP/)", "");
+
+    // Check for version
+    if !d.is_match("^([0-9]\\.[0-9])") {
+        invalid("HTTP version is invalid");
+    }
+
+    // Parse version
+    let version = d.matches("^([0-9]\\.[0-9])")[0];
+    d = d.replace(version, "").trim_start();
+    http_version = version;
+
+    // Check for status code
+    if !d.is_match("^([0-9]{3})") {
+        invalid("Invalid or missing HTTP status code");
+    }
+
+    // Parse status code
+    let code = d.matches("^([0-9]{3})")[0];
+    d = d.replace(code, "").trim();
+    status = code;
+
+    // Now should be able to just read line by line
+    let lines = d.split("\n");
+
+    // First line should just be status text
+    if !lines[0].is_match("^([a-zA-Z ]+)") {
+        invalid("Invalid status text");
+    }
+    status_text = lines[0];
+    lines.skip(1);
+
+    // Read headers
+    until lines[0].trim() == "" {
+        let temp = lines[0];
+        // Validate:
+        if !temp.is_match("^([a-zA-Z\\-]+: .*\r?)$") {
+            invalid("Invalid header: " + temp);
+        }
+
+        // Parse it
+        let header_name = temp.matches("^([a-zA-Z\\-]+)")[0];
+        temp = temp.replace(header_name, "");
+        temp = temp.replace(": ", "");
+
+        // Set
+        headers[header_name] = temp.trim_end();
+        lines.skip(1);
+    }
+
+    lines.skip(1);
+
+    let content = lines.join("\n");
+
+    // Check what type the content is
+    if "Content-Type" in headers {
+        if headers["Content-Type"].is_match("application/json") {
+            content = Json.parse(content);
+        }
+    }
+
+    return .{
+        http_version,
+        status_code: status,
+        status_text: status_text.trim(),
+        headers,
+        body: content,
+        ok: status.starts_with("2"),
+    };
+}
+
+func underlying(url: string?, method: string?, headers: object?, gdata) {
+    // Parse url, hostname & path
+    url = url.replace("^(https?://)", "");
+
+    let parts = url.split("/");
+    let host = parts[0];
+    parts.skip(1);
+
+    let path = "/" + parts.join("/");
+
+    // Create the data
+    let data = method + " " + path.replace("^([^/]+)", "") + " HTTP/1.1";
+    data += ("\r\nHost: " + host);
+    for name in headers.keys() {
+        data += ("\r\n" + name + ": " + headers[name]);
+    }
+
+    data += "\r\n\r\n";
+    if gdata { data += gdata; }
+
+    // Variables
+    let collected_data = "";
+    let connection = Net.open_tcp_client_unhandled(host);
+    let done = false;
+
+    // Send the request
+    connection.write(Buffer.to_buffer(data));
+
+    // Read data till done
+    until done {
+        let this_time = connection.read();
+        if this_time == null { done = true; }
+        else { collected_data += Buffer.to_utf8(this_time); }
+    }
+
+    return collected_data;
+}
+
+func http_get(url: string?, options) {
+    // Create the request
+    let headers = .{
+        Accept: "application/json, text/plain",
+    }
+
+    if options != null {
+        if "headers" in options {
+            for header in options.headers.keys() {
+                headers[header] = options.headers[header];
+            }
+        }
+    }
+
+    let collected_data = underlying(url, "GET", headers);
+
+    return parse_http_response(collected_data);
+}
+
+func http_post(url: string?, data, options) {
+    let headers = .{
+        Accept: "application/json, text/plain",
+        "Content-Length": $data,
+        "Content-Type": "text/plain",
+    };
+
+    if options != null {
+        if "headers" in options {
+            for header in options.headers.keys() {
+                headers[header] = options.headers[header];
+            }
+        }
+    }
+
+    let collected_data = underlying(url, "POST", headers, data);
+
+    return parse_http_response(collected_data);
+}
+
+export let Http = .{
+    get: http_get,
+    post: http_post,
+    parse_http_response,
+};

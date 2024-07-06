@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 use crate::{
   errors::ZephyrError,
@@ -20,6 +20,8 @@ pub enum RuntimeValue {
   ArrayContainer(ArrayContainer),
   Function(Function),
   NativeFunction(NativeFunction),
+  NativeFunction2(NativeFunction2),
+  NativeClosureFunction(NativeClosureFunction),
   Object(Object),
   ObjectContainer(ObjectContainer),
 }
@@ -41,6 +43,8 @@ impl RuntimeValue {
       RuntimeValue::ObjectContainer(_) => "object",
       RuntimeValue::Function(_) => "function",
       RuntimeValue::NativeFunction(_) => "native_function",
+      RuntimeValue::NativeClosureFunction(_) => "native_function",
+      RuntimeValue::NativeFunction2(_) => "native_function",
     }
   }
 
@@ -95,7 +99,8 @@ impl RuntimeValue {
         if is_alone {
           string.value.clone()
         } else {
-          format!("\"{}\"", string.value.clone())
+          let v = format!("{:?}", string.value.clone());
+          v
         }
       }
       RuntimeValue::Reference(refer) => format!("&{}", refer.value),
@@ -150,9 +155,11 @@ impl RuntimeValue {
             "\"{}\": {}",
             key,
             if pretty && item_length > 1 {
-              value.stringify(false, pretty).replace('\n', "\n  ")
+              let v = value.stringify(false, pretty);
+              v.replace('\n', "\n  ")
             } else {
-              value.stringify(false, pretty)
+              let v = value.stringify(false, pretty);
+              v
             }
           ));
         }
@@ -167,6 +174,8 @@ impl RuntimeValue {
       RuntimeValue::Object(_) => "object".to_string(),
       RuntimeValue::Function(_) => "function".to_string(),
       RuntimeValue::NativeFunction(_) => "native_function".to_string(),
+      RuntimeValue::NativeFunction2(_) => "native_function".to_string(),
+      RuntimeValue::NativeClosureFunction(_) => "native_function".to_string(),
     }
   }
 }
@@ -183,6 +192,7 @@ impl RuntimeValue {
     match self {
       RuntimeValue::Number(number) => number.value > 0.0,
       RuntimeValue::Boolean(boolean) => boolean.value,
+      RuntimeValue::StringValue(string) => string.value.len() != 0,
       _ => false,
     }
   }
@@ -209,18 +219,40 @@ pub fn to_object(values: HashMap<String, RuntimeValue>) -> RuntimeValue {
 pub struct Number {
   pub value: f64,
 }
+impl Number {
+  pub fn make(number: f64) -> RuntimeValue {
+    RuntimeValue::Number(Number { value: number })
+  }
+}
 
 #[derive(Clone, Debug)]
 pub struct StringValue {
   pub value: String,
 }
 
+impl StringValue {
+  pub fn make(value: String) -> RuntimeValue {
+    RuntimeValue::StringValue(StringValue { value })
+  }
+}
+
 #[derive(Clone, Debug)]
 pub struct Null {}
+impl Null {
+  pub fn make() -> RuntimeValue {
+    RuntimeValue::Null(Null {})
+  }
+}
 
 #[derive(Clone, Debug)]
 pub struct Boolean {
   pub value: bool,
+}
+
+impl Boolean {
+  pub fn make(value: bool) -> RuntimeValue {
+    RuntimeValue::Boolean(Boolean { value })
+  }
 }
 
 #[derive(Clone, Debug)]
@@ -268,9 +300,38 @@ pub struct ObjectContainer {
   pub location: MemoryAddress,
 }
 
+impl ObjectContainer {
+  pub fn deref(&self) -> Object {
+    let data = crate::MEMORY
+      .lock()
+      .unwrap()
+      .get_value(self.location)
+      .unwrap();
+    match data {
+      RuntimeValue::Object(obj) => obj,
+      _ => unreachable!(),
+    }
+  }
+}
+
 #[derive(Clone, Debug)]
 pub struct Object {
   pub items: HashMap<String, RuntimeValue>,
+}
+
+impl Object {
+  pub fn make(items: HashMap<String, RuntimeValue>) -> Object {
+    Object { items }
+  }
+
+  pub fn create_container(self) -> ObjectContainer {
+    ObjectContainer {
+      location: crate::MEMORY
+        .lock()
+        .unwrap()
+        .add_value(RuntimeValue::Object(self.clone())),
+    }
+  }
 }
 
 #[derive(Clone)]
@@ -289,7 +350,28 @@ pub struct NativeFunction {
   pub func: &'static dyn Fn(CallOptions) -> Result<RuntimeValue, ZephyrError>,
 }
 
+#[derive(Clone)]
+pub struct NativeFunction2 {
+  pub func: Arc<dyn Fn(CallOptions) -> Result<RuntimeValue, ZephyrError> + Send + Sync>,
+}
+
+#[derive(Clone, Debug)]
+pub struct NativeClosureFunction {
+  pub id: u128,
+}
+impl NativeClosureFunction {
+  pub fn make(id: u128) -> RuntimeValue {
+    RuntimeValue::NativeClosureFunction(NativeClosureFunction { id })
+  }
+}
+
 impl fmt::Debug for NativeFunction {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "NativeFunction")
+  }
+}
+
+impl fmt::Debug for NativeFunction2 {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "NativeFunction")
   }

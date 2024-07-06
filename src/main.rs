@@ -4,12 +4,11 @@ use std::{
   io::ErrorKind,
   path::PathBuf,
   sync::{Arc, Mutex, RwLock},
-  time::Duration,
 };
 
 use once_cell::sync::Lazy;
 use runtime::memory::Memory;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 use structopt::StructOpt;
 
 #[path = "./repl.rs"]
@@ -54,7 +53,12 @@ static GLOBAL_THREAD_COUNT: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0)
 
 pub fn debug(contents: &str, what: &str) {
   if ARGS.debug || ARGS.verbose {
-    println!("[DEBUG:{}]: {}", what, contents);
+    println!(
+      "[DEBUG:{} THREAD: {:?}]: {}",
+      what,
+      std::thread::current().id(),
+      contents
+    );
   }
 }
 
@@ -167,10 +171,6 @@ fn main() {
     }
 
     return;
-  }
-
-  while GLOBAL_THREAD_COUNT.load(Ordering::SeqCst) != 0 {
-    std::thread::sleep(Duration::from_millis(1));
   }
 }
 

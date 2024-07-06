@@ -76,6 +76,9 @@ impl Interpreter {
       include_lib!("../lib/process.zr"),
       include_lib!("../lib/random.zr"),
       include_lib!("../lib/function.zr"),
+      include_lib!("../lib/buffer.zr"),
+      include_lib!("../lib/http.zr"),
+      include_lib!("../lib/json.zr"),
     ];
     let scope = ScopeContainer::new(directory);
 
@@ -115,6 +118,30 @@ impl Interpreter {
             }),
           ),
           (
+            "rg_is_match".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::rg_is_match,
+            }),
+          ),
+          (
+            "rg_replace".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::rg_replace,
+            }),
+          ),
+          (
+            "buff_to_utf8".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::buff_to_utf8,
+            }),
+          ),
+          (
+            "utf8_to_buff".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::utf8_to_buff,
+            }),
+          ),
+          (
             "str_to_number".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::str_to_number,
@@ -139,6 +166,12 @@ impl Interpreter {
             }),
           ),
           (
+            "rlt".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::rust_lambda_test,
+            }),
+          ),
+          (
             "arr_ref_set".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::arr_ref_set,
@@ -148,6 +181,12 @@ impl Interpreter {
             "unescape".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::unescape,
+            }),
+          ),
+          (
+            "zephyr_to_json_n".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::zephyr_to_json_n,
             }),
           ),
           (
@@ -163,9 +202,21 @@ impl Interpreter {
             }),
           ),
           (
+            "slice".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::slice,
+            }),
+          ),
+          (
             "ceil".to_string(),
             RuntimeValue::NativeFunction(NativeFunction {
               func: &native_functions::ceil,
+            }),
+          ),
+          (
+            "parse_json".to_string(),
+            RuntimeValue::NativeFunction(NativeFunction {
+              func: &native_functions::json_parse,
             }),
           ),
           (
@@ -703,7 +754,7 @@ impl Interpreter {
     }?;
 
     // Get key
-    let key = if expr.is_computed {
+    let mut key = if expr.is_computed {
       Some(self.evaluate((*expr.key).clone())?)
     } else {
       None
@@ -729,6 +780,13 @@ impl Interpreter {
       let mut mutfunc = func;
       mutfunc.type_call = Some(Box::from(value.clone()));
       return Ok(RuntimeValue::Function(mutfunc));
+    }
+
+    if matches!(key, None) {
+      key = match (*expr.key).clone() {
+        Expression::Identifier(ident) => Some(StringValue::make(ident.symbol)),
+        _ => None,
+      };
     }
 
     match value {
@@ -896,9 +954,9 @@ impl Interpreter {
           Some(RuntimeValue::Number(num)) => num.value as usize,
           _ => {
             return Err(errors::ZephyrError::runtime(
-              format!("Can only index array with numbers, but got nothing?",),
-              Location::no_location(),
-            ))
+              format!("Can only index array with numbers, but got {:?}", key),
+              expr.location,
+            ));
           }
         };
 
@@ -1337,6 +1395,20 @@ impl Interpreter {
 
         match callee {
           RuntimeValue::NativeFunction(func) => {
+            let caller_args = expr2.arguments.clone();
+            let args = caller_args
+              .iter()
+              .map(|e| self.evaluate(*e.clone()))
+              .collect::<Result<Vec<_>, _>>()?;
+
+            (func.func)(CallOptions {
+              args,
+              location: expr2.location,
+              interpreter: *self,
+            })
+          }
+
+          RuntimeValue::NativeFunction2(func) => {
             let caller_args = expr2.arguments.clone();
             let args = caller_args
               .iter()

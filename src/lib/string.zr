@@ -18,7 +18,7 @@ export let String = .{
     }
 
     if by != "" {
-      result + current;
+      result.push(current);
     }
 
     result;
@@ -46,6 +46,42 @@ export let String = .{
     }
 
     result;
+  },
+
+  matches: func matches(value: string?, regex: string?) {
+    __zephyr_native.rg_is_match(value, regex);
+  },
+
+  is_match: func is_match(value: string?, regex: string?) {
+    $__zephyr_native.rg_is_match(value, regex) > 0;
+  },
+
+  replace_all: func replace_all(value: string?, regex: string?, with_what: string?) {
+    __zephyr_native.rg_replace(value, regex, with_what, 0);
+  },
+
+  replace: func replace_all(value: string?, regex: string?, with_what: string?) {
+    __zephyr_native.rg_replace(value, regex, with_what, 1);
+  },
+
+  replace_amount: func replace_all(value: string?, regex: string?, with_what: string?, amount: number?) {
+    __zephyr_native.rg_replace(value, regex, with_what, amount);
+  },
+
+  trim: func trim(value: string?) {
+    value = value.replace("^([[:space:]]*)", "");
+    value = value.replace("([[:space:]]*)$", "");
+    value;
+  },
+
+  trim_start: func trim(value: string?) {
+    value = value.replace("^([[:space:]]*)", "");
+    value;
+  },
+
+  trim_end: func trim(value: string?) {
+    value = value.replace("([[:space:]]*)$", "");
+    value;
   },
 
   reverse: func reverse(value: string?) {
@@ -97,32 +133,8 @@ export let String = .{
     return null;
   },
 
-  slice: func slice(value: string?, start: number?, amount: number?) {
-    // Check for negatives
-    if start < 0 {
-      start = $value - start.abs();
-    }
-    if amount < 0 {
-      amount = $value - amount;
-    }
-
-    let finished_value = "";
-    let in_skip = false;
-    for i in 0.<$value {
-      // Check if should skip this one
-      if i == start {
-        in_skip = true;
-      }
-      
-      if in_skip && amount > 0 {
-        amount = amount - 1;
-        continue;
-      }
-
-      finished_value = finished_value + value[i];
-    }
-
-    return finished_value;
+  slice: func slice(value: string?, start: number?, end: number?) {
+    __zephyr_native.slice(value, start, amount);
   },
 
   starts_with: func starts_with(value: string?, what: string?) {

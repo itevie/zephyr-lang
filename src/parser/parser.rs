@@ -3,11 +3,11 @@ use std::mem::{discriminant, Discriminant};
 
 use super::nodes::{
   self, ArithmeticExpression, AssignmentExpression, ComparisonExpression, Expression,
-  FunctionLiteral, Identifier, InExpression, LogicalExpression, TypeofStatement,
+  FunctionLiteral, Identifier, InExpression, LogicalExpression, TryExpression, TypeofStatement,
   VariableDeclaration,
 };
 use crate::lexer::location::Location;
-use crate::lexer::token::{DualTokenType, UnaryOperator};
+use crate::lexer::token::{DualTokenType, MultiplicativeTokenType, UnaryOperator};
 use crate::{
   errors::{parser_error, ZephyrError},
   lexer::token::{Token, TokenType},
@@ -841,15 +841,31 @@ impl Parser {
       let oper = self.eat();
       let right = self.parse_unary_expression()?;
 
-      left = nodes::Expression::ArithmeticOperator(ArithmeticExpression {
-        left: Box::from(left),
-        right: Box::from(right),
-        location: oper.location,
-        operator: match oper.token_type {
-          TokenType::MultiplicativeOperator(val) => TokenType::MultiplicativeOperator(val),
-          _ => unreachable!()
-        }
-      });
+      if matches!(oper.token_type, TokenType::MultiplicativeOperator(MultiplicativeTokenType::Banginterrobang)) {
+        left = nodes::Expression::TryExpression(TryExpression {
+          main: Box::from(nodes::Block {
+            nodes: vec![Box::from(left.clone())],
+            location: left.get_location(),
+          }),
+          catch_identifier: None,
+          finally: None,
+          catch: Some(Box::from(nodes::Block {
+            nodes: vec![Box::from(right.clone())],
+            location: right.get_location(),
+          })),
+          location: oper.location
+        })
+      } else {
+        left = nodes::Expression::ArithmeticOperator(ArithmeticExpression {
+          left: Box::from(left),
+          right: Box::from(right),
+          location: oper.location,
+          operator: match oper.token_type {
+            TokenType::MultiplicativeOperator(val) => TokenType::MultiplicativeOperator(val),
+            _ => unreachable!()
+          }
+        });
+      }
     }
 
     Ok(left)
