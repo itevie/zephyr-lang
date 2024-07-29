@@ -1,6 +1,6 @@
 export let Console = .{
   write_line: func print(__args__) {
-    for i in __args__ {
+    for _, i in __args__ {
       __zephyr_native.print(i);
     }
 

@@ -1,0 +1,22 @@
+let name = "buffer";
+let to_test = Buffer.keys();
+
+Test.describe("is_buffer", func {
+    assert Buffer.is_buffer([72, 73]) == true;
+    assert Buffer.is_buffer([2, "a"]) == false;
+    to_test.remove!("is_buffer");
+});
+
+Test.describe("to_buffer", func {
+    assert Buffer.to_buffer("HI").same_as([72, 73]);
+    to_test.remove!("to_buffer");
+});
+
+Test.describe("to_utf8", func {
+    assert Buffer.to_utf8([72, 73]) == "HI";
+    to_test.remove!("to_utf8");
+});
+
+if $to_test != 0 {
+  throw error("All of " + name + " functions have not been tested: " + to_test.join(", "));
+}

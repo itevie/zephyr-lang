@@ -1,9 +1,11 @@
 func tcp_connect(host: string?, on_data: callable?) {
+    // Initiate the stream
     let stream = __zephyr_native.rlt(host);
 
-    //let on_data = null;
+    // Events
     let on_close = null;
 
+    // Create thread to listen for data
     __zephyr_native.spawn_thread(func {
         loop {
             try {
@@ -20,7 +22,6 @@ func tcp_connect(host: string?, on_data: callable?) {
     return .{
         write: func (buffer: array_of?(number?)) {
             stream.write(buffer);
-            Console.write_line("WROTE: " + Buffer.to_utf8(buffer));
         },
         on: func (type: string?, value: callable?) {
             if type == "close" {

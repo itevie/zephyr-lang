@@ -57,6 +57,7 @@ pub enum TokenType {
   Catch,
   Finally,
   Throw,
+  Rethrow,
 
   For,
   While,

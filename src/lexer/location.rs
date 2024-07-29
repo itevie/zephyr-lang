@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::runtime::values::{to_object, Number, RuntimeValue};
+use crate::runtime::values::{Number, Object, RuntimeValue};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Location {
@@ -30,7 +30,7 @@ impl Location {
   }
 
   pub fn to_object(&self) -> RuntimeValue {
-    to_object(HashMap::from([
+    Object::make(HashMap::from([
       (
         "char_start".to_string(),
         RuntimeValue::Number(Number {
@@ -56,5 +56,6 @@ impl Location {
         }),
       ),
     ]))
+    .create_container()
   }
 }

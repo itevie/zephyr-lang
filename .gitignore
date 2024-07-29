@@ -6,14 +6,10 @@
 /meta_zephyr
 
 # Random test files
-test.zr
-test2.zr
-test3.zr
-a.zr
-out
-out.zr
-out.exe
-Cargo.toml.old
-lmao.zr
-test.mzr
+test*.zr
+test*.mzr
+out*
+promise_test.zr
 rust-zephyr
+lmao.zr
+syrenity/

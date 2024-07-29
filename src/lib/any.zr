@@ -1,5 +1,9 @@
 export let Any = .{
   to_string: func to_string(what) {
     "" + what;
+  },
+
+  or_else: func or_else(what, value) {
+    what ? what : value;
   }
 };

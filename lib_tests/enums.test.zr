@@ -1,0 +1,23 @@
+Test.describe("enums", func {
+    enum Test {
+        a,
+        b,
+        c
+    }
+
+    assert typeof Test == "object";
+    assert Test.a == 0;
+    assert Test.c == 2;
+});
+
+Test.describe("string enums", func {
+    enum Test {
+        "use_strings",
+        a,
+        b,
+        c
+    }
+
+    assert Test.a == "a";
+    assert Test.c == "c";
+});

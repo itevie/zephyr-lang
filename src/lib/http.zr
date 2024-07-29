@@ -87,6 +87,9 @@ func parse_http_response(data: string?) {
 }
 
 func underlying(url: string?, method: string?, headers: object?, gdata) {
+    let use_scure = false;
+    if url.starts_with("https") { use_scure = true; }
+
     // Parse url, hostname & path
     url = url.replace("^(https?://)", "");
 
@@ -116,7 +119,7 @@ func underlying(url: string?, method: string?, headers: object?, gdata) {
 
     // Read data till done
     until done {
-        let this_time = connection.read();
+        let this_time = try { connection.read(); };
         if this_time == null { done = true; }
         else { collected_data += Buffer.to_utf8(this_time); }
     }

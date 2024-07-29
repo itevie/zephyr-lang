@@ -1,45 +1,39 @@
 let name = "Math";
 let to_test = Math.keys().remove("pi");
 
-// Max
-{
+Test.describe("max", func {
   assert Math.max(1, 2, 3) == 3;
   assert Math.max(38, 94, 284, 994, 2, 39) == 994;
   assert Math.max() == null;
-  to_test.remove("max");
-}
+  to_test.remove!("max");
+});
 
-// Min
-{
+Test.describe("min", func {
   assert Math.min(1, 2, 3) == 1;
   assert Math.min(38, 94, 284, 994, 2, 39) == 2;
   assert Math.min() == null;
-  to_test.remove("min");
-}
+  to_test.remove!("min");
+});
 
-// Sum
-{
+Test.describe("sum", func {
   assert Math.sum(1, 2, 3) == 6;
-  to_test.remove("sum");
-}
+  to_test.remove!("sum");
+});
 
-// Ceil
-{
+Test.describe("ceil", func {
   // TODO: can't do this one because floats don't exist yet
-  to_test.remove("ceil"); 
-}
+  to_test.remove!("ceil"); 
+});
 
-// Floor
-{
+Test.describe("floor", func {
   // TODO: can't do this one because floats don't exist yet
-  to_test.remove("floor"); 
-}
+  to_test.remove!("floor"); 
+});
 
-// Abs
-{
+Test.describe("abs", func {
   assert Math.abs(-5) == 5;
-  to_test.remove("abs");
-}
+  to_test.remove!("abs");
+});
 
 if $to_test != 0 {
   throw error("All of " + name + " functions have not been tested: " + to_test.join(", "));

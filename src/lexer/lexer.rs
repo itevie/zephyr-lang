@@ -15,6 +15,7 @@ use super::{
 };
 
 lazy_static! {
+  static ref RAW_PREFIX: &'static str = "r#";
   static ref OPERATORS: HashMap<&'static str, &'static TokenType> = {
     let mut operators: HashMap<&'static str, &'static TokenType> = HashMap::new();
 
@@ -33,7 +34,7 @@ lazy_static! {
     tok!("%", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Modulo));
     tok!("??", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Coalesce));
     tok!("|>", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Pipe));
-    tok!("!!?", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Banginterrobang));
+    //tok!("!!?", TokenType::MultiplicativeOperator(MultiplicativeTokenType::Banginterrobang));
 
     // Dual operators
     tok!("+=", TokenType::DualOperator(DualTokenType::Additive(AdditiveTokenType::Plus)));
@@ -73,6 +74,7 @@ lazy_static! {
     tok!("catch", TokenType::Catch);
     tok!("finally", TokenType::Finally);
     tok!("throw", TokenType::Throw);
+    tok!("rethrow", TokenType::Rethrow);
     tok!("if", TokenType::If);
     tok!("else", TokenType::Else);
     tok!("break", TokenType::Break);
@@ -204,6 +206,19 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
       token_type = Some(t);
     };
 
+    /*let starts_with = |chars: &Vec<char>, what: &str| -> bool {
+      // Check lengths
+      if chars.len() < what.len() {
+        return false;
+      }
+
+      if chars.iter().collect::<String>().starts_with(what) {
+        return true;
+      }
+
+      return false;
+    };*/
+
     // Check for whitespace
     if chars[0] == ' ' || chars[0] == '\t' || chars[0] == '\r' {
       eat(&mut chars);
@@ -274,6 +289,13 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
     }
     // Check for string literal
     else if chars[0] == '"' {
+      /*// Check if it was raw
+      if starts_with(&chars, &(RAW_PREFIX.to_string() + "\"")) {
+        for _ in 0..RAW_PREFIX.to_string().len() - 1 {
+          eat(&mut chars);
+        }
+      }*/
+
       // Remove quote mark
       eat(&mut chars);
 
@@ -436,7 +458,8 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
 
       let mut value: String = eat(&mut chars);
 
-      while !chars.is_empty() && (chars[0].is_alphanumeric() || chars[0] == '_') {
+      while !chars.is_empty() && (chars[0].is_alphanumeric() || chars[0] == '_' || chars[0] == '!')
+      {
         value.push_str(&eat(&mut chars));
       }
 

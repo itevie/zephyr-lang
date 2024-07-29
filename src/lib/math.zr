@@ -21,7 +21,7 @@ export let Math = .{
   min: func min(__args__: array_of?(number?)) {
     let min = null;
 
-    for i in __args__ {
+    for _, i in __args__ {
       if typeof min == "null" { min = i; }
       else {
         if i < min { min = i; }
@@ -34,7 +34,7 @@ export let Math = .{
   max: func max(__args__: array_of?(number?)) {
     let max = null;
 
-    for i in __args__ {
+    for _, i in __args__ {
       if typeof max == "null" { max = i; }
       else {
         if i > max { max = i; }
@@ -46,7 +46,7 @@ export let Math = .{
 
   sum: func sum(__args__: array_of?(number?)) {
     let sum = 0;
-    for i in __args__ { sum = sum + i; }
+    for _, i in __args__ { sum = sum + i; }
     sum;
   },
 };

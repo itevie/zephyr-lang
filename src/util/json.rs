@@ -114,9 +114,7 @@ pub fn parse_object(tokens: &mut Vec<Token>, data: Vec<u8>) -> Result<RuntimeVal
   }
   tokens.remove(0);
 
-  return Ok(values::RuntimeValue::ObjectContainer(
-    values::Object { items: keys }.create_container(),
-  ));
+  return Ok(values::Object::make(keys).create_container());
 }
 
 pub fn token_to_zephyr(
@@ -180,7 +178,7 @@ pub fn token_to_zephyr(
 
       tokens.remove(0);
 
-      RuntimeValue::ArrayContainer(items.create_container())
+      items.create_container()
     }
     _ => return gen_err!("Unexpected token", tokens[0]),
   })
@@ -230,7 +228,7 @@ pub fn zephyr_value_to_json(what: RuntimeValue) -> Result<String, ZephyrError> {
     }
     _ => {
       return Err(ZephyrError::runtime(
-        format!("Cannot convert a {} a JSON value", what.type_name()),
+        format!("Cannot convert a {} to a JSON value", what.type_name()),
         Location::no_location(),
       ))
     }

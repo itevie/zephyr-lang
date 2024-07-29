@@ -6,7 +6,12 @@ use crate::{
   parser::nodes::{Block, Identifier, WhereClause},
 };
 
-use super::{memory::MemoryAddress, native_functions::CallOptions, scope::ScopeContainer};
+use super::{
+  interpreter::{get_symbol, Interpreter},
+  memory::MemoryAddress,
+  native_functions::CallOptions,
+  scope::ScopeContainer,
+};
 
 // ----- Base -----
 #[derive(Clone, Debug)]
@@ -15,15 +20,14 @@ pub enum RuntimeValue {
   Null(Null),
   Boolean(Boolean),
   StringValue(StringValue),
-  Reference(Reference),
   Array(Array),
   ArrayContainer(ArrayContainer),
   Function(Function),
   NativeFunction(NativeFunction),
   NativeFunction2(NativeFunction2),
-  NativeClosureFunction(NativeClosureFunction),
   Object(Object),
   ObjectContainer(ObjectContainer),
+  ErrorValue(ErrorValue),
 }
 
 unsafe impl Send for RuntimeValue {}
@@ -36,15 +40,14 @@ impl RuntimeValue {
       RuntimeValue::Null(_) => "null",
       RuntimeValue::Boolean(_) => "boolean",
       RuntimeValue::StringValue(_) => "string",
-      RuntimeValue::Reference(_) => "reference",
       RuntimeValue::Array(_) => "inner_array",
       RuntimeValue::ArrayContainer(_) => "array",
       RuntimeValue::Object(_) => "inner_object",
       RuntimeValue::ObjectContainer(_) => "object",
       RuntimeValue::Function(_) => "function",
       RuntimeValue::NativeFunction(_) => "native_function",
-      RuntimeValue::NativeClosureFunction(_) => "native_function",
       RuntimeValue::NativeFunction2(_) => "native_function",
+      RuntimeValue::ErrorValue(_) => "error",
     }
   }
 
@@ -90,7 +93,12 @@ impl RuntimeValue {
     Ok(value)
   }
 
-  pub fn stringify(&self, is_alone: bool, pretty: bool) -> String {
+  pub fn stringify(
+    &self,
+    is_alone: bool,
+    pretty: bool,
+    interpreter: Option<Interpreter>,
+  ) -> String {
     match self {
       RuntimeValue::Number(number) => format!("{}", number.value),
       RuntimeValue::Null(_) => "null".to_string(),
@@ -103,7 +111,6 @@ impl RuntimeValue {
           v
         }
       }
-      RuntimeValue::Reference(refer) => format!("&{}", refer.value),
       RuntimeValue::Array(_) => "array".to_string(),
       RuntimeValue::ArrayContainer(arr) => {
         let mut res = String::from("[");
@@ -121,7 +128,11 @@ impl RuntimeValue {
         };
 
         for i in 0..array.items.len() {
-          res.push_str(&array.items[i].stringify(false, pretty).to_string());
+          res.push_str(
+            &array.items[i]
+              .stringify(false, pretty, interpreter)
+              .to_string(),
+          );
 
           // Check if should add comma
           if i < array.items.len() - 1 {
@@ -145,6 +156,25 @@ impl RuntimeValue {
           _ => unreachable!(),
         };
 
+        // Check for PrettyPrint
+        if object.items.contains_key(&get_symbol("PrettyPrint")) {
+          if let Some(mut inter) = interpreter {
+            let func = match object.items.get(&get_symbol("PrettyPrint")).unwrap() {
+              RuntimeValue::Function(func) => func,
+              _ => return "<Stringify Err>".to_string(),
+            };
+
+            return inter
+              .evaluate_zephyr_function(
+                func.clone(),
+                vec![Box::from(RuntimeValue::ObjectContainer(obj.clone()))],
+                Location::no_location(),
+              )
+              .unwrap()
+              .stringify(is_alone, pretty, interpreter);
+          }
+        }
+
         let item_length = object.items.len();
 
         for (key, value) in object.items {
@@ -155,10 +185,10 @@ impl RuntimeValue {
             "\"{}\": {}",
             key,
             if pretty && item_length > 1 {
-              let v = value.stringify(false, pretty);
+              let v = value.stringify(false, pretty, interpreter);
               v.replace('\n', "\n  ")
             } else {
-              let v = value.stringify(false, pretty);
+              let v = value.stringify(false, pretty, interpreter);
               v
             }
           ));
@@ -171,11 +201,11 @@ impl RuntimeValue {
 
         res
       }
+      RuntimeValue::ErrorValue(_) => "error".to_string(),
       RuntimeValue::Object(_) => "object".to_string(),
       RuntimeValue::Function(_) => "function".to_string(),
       RuntimeValue::NativeFunction(_) => "native_function".to_string(),
       RuntimeValue::NativeFunction2(_) => "native_function".to_string(),
-      RuntimeValue::NativeClosureFunction(_) => "native_function".to_string(),
     }
   }
 }
@@ -183,7 +213,7 @@ impl RuntimeValue {
 // ----- Util -----
 impl fmt::Display for RuntimeValue {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", self.stringify(false, true))
+    write!(f, "{}", self.stringify(false, true, None))
   }
 }
 
@@ -198,27 +228,12 @@ impl RuntimeValue {
   }
 }
 
-pub fn to_array(values: Vec<Box<RuntimeValue>>) -> RuntimeValue {
-  let array = RuntimeValue::Array(Array { items: values });
-
-  RuntimeValue::ArrayContainer(ArrayContainer {
-    location: crate::MEMORY.lock().unwrap().add_value(array),
-  })
-}
-
-pub fn to_object(values: HashMap<String, RuntimeValue>) -> RuntimeValue {
-  let object = RuntimeValue::Object(Object { items: values });
-
-  RuntimeValue::ObjectContainer(ObjectContainer {
-    location: crate::MEMORY.lock().unwrap().add_value(object),
-  })
-}
-
 // ----- Actual Values -----
 #[derive(Clone, Debug)]
 pub struct Number {
   pub value: f64,
 }
+
 impl Number {
   pub fn make(number: f64) -> RuntimeValue {
     RuntimeValue::Number(Number { value: number })
@@ -256,11 +271,6 @@ impl Boolean {
 }
 
 #[derive(Clone, Debug)]
-pub struct Reference {
-  pub value: MemoryAddress,
-}
-
-#[derive(Clone, Debug)]
 pub struct ArrayContainer {
   pub location: MemoryAddress,
 }
@@ -285,13 +295,17 @@ pub struct Array {
 }
 
 impl Array {
-  pub fn create_container(self) -> ArrayContainer {
-    ArrayContainer {
+  pub fn create_container(self) -> RuntimeValue {
+    RuntimeValue::ArrayContainer(ArrayContainer {
       location: crate::MEMORY
         .lock()
         .unwrap()
         .add_value(RuntimeValue::Array(self.clone())),
-    }
+    })
+  }
+
+  pub fn make(items: Vec<Box<RuntimeValue>>) -> Array {
+    Array { items }
   }
 }
 
@@ -324,15 +338,32 @@ impl Object {
     Object { items }
   }
 
-  pub fn create_container(self) -> ObjectContainer {
-    ObjectContainer {
+  pub fn create_container(self) -> RuntimeValue {
+    RuntimeValue::ObjectContainer(ObjectContainer {
       location: crate::MEMORY
         .lock()
         .unwrap()
         .add_value(RuntimeValue::Object(self.clone())),
+    })
+  }
+}
+
+#[derive(Clone, Debug)]
+pub struct ErrorValue {
+  pub error: ZephyrError,
+  pub data: Box<RuntimeValue>,
+}
+
+impl ErrorValue {
+  pub fn make(error: ZephyrError, data: RuntimeValue) -> ErrorValue {
+    ErrorValue {
+      error,
+      data: Box::from(data),
     }
   }
 }
+
+// ----- Function Mess -----
 
 #[derive(Clone)]
 pub struct Function {
@@ -353,16 +384,6 @@ pub struct NativeFunction {
 #[derive(Clone)]
 pub struct NativeFunction2 {
   pub func: Arc<dyn Fn(CallOptions) -> Result<RuntimeValue, ZephyrError> + Send + Sync>,
-}
-
-#[derive(Clone, Debug)]
-pub struct NativeClosureFunction {
-  pub id: u128,
-}
-impl NativeClosureFunction {
-  pub fn make(id: u128) -> RuntimeValue {
-    RuntimeValue::NativeClosureFunction(NativeClosureFunction { id })
-  }
 }
 
 impl fmt::Debug for NativeFunction {

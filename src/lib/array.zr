@@ -1,122 +1,187 @@
 export let Array = .{
-  // Adds an item to the end of the array
-  push: func push(arr: array?, value) {
-    __zephyr_native.push_arr(arr, value);
-  },
+    // ----- Mutable & Immuntable -----
+    push: func push(arr: array?, value) {
+        let new_arr = arr.shallow_copy();
+        new_arr.push!(value);
+        new_arr;
+    },
 
-  skip: func skip(arr: array?, amount: number?) {
-    let new_array = arr[amount.<$arr];
-    __zephyr_native.arr_ref_set(arr, new_array);
-  },
+    push!: func push!(arr: array?, value) {
+        __zephyr_native.push_arr(arr, value);
+        arr;
+    },
 
-  insert: func insert(arr: array?, at: number?, what) {
-    let start = arr[0.<at];
-    let end = arr[at.<$arr];
+    remove: func remove(arr: array?, value) {
+        let new_arr = [];
 
-    __zephyr_native.arr_ref_set(arr, start.concat([what]).concat(end));
-  },
+        for _, v in arr {
+            if v == value {
+                continue;
+            }
 
-  remove: func remove(arr: array?, item) {
-    let new_arr = [];
-    for val in arr {
-      if val != item {
-        new_arr.push(val);
-      }
+            new_arr.push!(v);
+        }
+
+        new_arr;
+    },
+
+    remove!: func remove!(arr: array?, value) {
+        __zephyr_native.arr_ref_set(arr, arr.remove(value));
+    },
+
+    // Returns the removed elements, does not modify original array
+    skip: func skip(arr: array?, amount: number?) {
+        let new_array = arr[amount.<$arr];
+        new_array;
+    },
+
+    // Returns the removed elements, whilst also removing them from the array
+    skip!: func skip!(arr: array?, amount: number?) {
+        let new_array = arr[amount.<$arr];
+        __zephyr_native.arr_ref_set(arr, new_array);
+        arr;
+    },
+
+    // Returns a part of an array
+    slice: func slice(arr: array?, start: number?, end: null_or?(number?)) {
+        end = end == null ? $arr-1 : end;
+        arr[start..end];
+    },
+
+    // Returns a part of an array, removing it from the original array
+    slice!: func slice!(arr: array?, start: number?, end: null_or?(number?)) {
+        end = end == null ? $arr-1 : end;
+        // The start is 0 to start
+        let s = arr[0.<start];
+
+        // The end is end + 1 to the end of the array
+        let e = arr[end+1.<$arr];
+
+        // Concat the arrays
+        let new_arr = s.concat(e);
+
+        // Create the wanted slice
+        let slice = arr[start..end];
+
+        // Update reference and finish
+        __zephyr_native.arr_ref_set(arr, new_arr);
+        slice;
+    },
+
+    take: func take(arr: array?, amount: number?) {
+        let new_array = arr[0.<($arr-amount)];
+        new_array;
+    },
+
+    take!: func take!(arr: array?, amount: number?) {
+        __zephyr_native.arr_ref_set(arr, arr.take(amount));
+        arr;
+    },
+
+    concat: func concat(arr: array?, arr2: array?) {
+        let new_arr = arr[0.<$arr];
+        for _, v in arr2 {
+            new_arr.push!(v);
+        }
+        new_arr;
+    },
+
+    concat!: func concat!(arr: array?, arr2: array?) {
+        for _, v in arr2 {
+            arr.push!(v);
+        }
+
+        arr;
+    },
+
+    map: func map(values: array?, f: callable?) {
+        for _, v in values {
+            f(v);
+        };
+    },
+
+    map!: func map!(values: array?, f: callable?) {
+        for i, v in values {
+            values[i] = f(v);
+        };
+
+        values;
+    },
+
+    // ----- Others -----
+    join: func join(values: array?, by: null_or?(string?)) {
+        let value = "";
+
+        for i in values {
+            value = value + values[i].to_string();
+
+            // Check if it should add the sperator
+            if !(by is null?) && i < $values-1 {
+                value = value + by;
+            }
+        }
+
+        value;
+    },
+
+    // ----- Util Functions -----
+    first: func first(arr: array?) {
+        if $arr == 0 {
+            null;
+        } else {
+            arr[0];
+        };
+    },
+
+    last: func last(arr: array?) {
+        if $arr == 0 {
+            null;
+        } else {
+            arr[$arr-1];
+        }
+    },
+
+    same_as: func same_as(what: array?, compare_to: array?) {
+        // Check lengths
+        if $what != $compare_to {
+            return false;
+        }
+
+        // Loop through the elements
+        for i in what {
+            // Check types
+            if typeof what[i] != typeof compare_to[i] {
+                return false;
+            }
+
+            // Check values
+            if what[i] != compare_to[i] {
+                return false;
+            }
+        }
+
+        true;
+    },
+
+    shallow_copy: func shallow_copy(what: array?) {
+        what[0.<$what];
+    },
+
+    deep_copy: func deep_copy(what: array?) {
+        let arr = [];
+
+        for _, el in what {
+            if el is array? {
+                arr.push!(el.deep_copy());
+            } else {
+                arr.push!(el);
+            }
+        }
+
+        arr;
+    },
+
+    ref_replace: func ref_replace(arr: array?, replace_with: array?) {
+        __zephyr_native.arr_ref_set(arr, replace_with);
     }
-
-    __zephyr_native.arr_ref_set(arr, new_arr);
-    arr;
-  },
-
-  // Joins an array into a string with an optional seperator
-  join: func join(values: array?, by: null_or?(string?)) {
-    let value = "";
-
-    for i in 0.<$values {
-      value = value + ("" + values[i]) + if i < $values-1 { (by is null? ? "" : by); } else { ""; };
-    }
-
-    value;
-  },
-
-  concat: func concat(arr: array?, arr2: array?) {
-    for i in arr2 {
-      arr.push(i);
-    }
-
-    arr;
-  },
-
-  // Creates a new array based on another array but calling f with each item
-  map: func map(value: array?, f: callable?) {
-    for i in value { f(i); };
-  },
-
-  filter: func filter(value: array?, f: callable?) {
-    let result = [];
-
-    for v in value {
-      if f(v) {
-        result.push(v);
-      }
-    }
-
-    result;
-  },
-
-  // Reverses the items in an array
-  reverse: func reverse(array: array?) {
-    // Check if empty array
-    if $array == 0 { return array; }
-
-    let new_array = [];
-
-    for i in $array-1..0 {
-      new_array.push(array[i]);
-    }
-
-    __zephyr_native.arr_ref_set(array, new_array);
-  },
-
-  // Checks if two arrays contain the exact same elements, this is because
-  // arrays are references so [1, 2, 3] == [1, 2, 3] is false because
-  // they are two different references.
-  same_as: func same_as(what: array?, compare_to: array?) {
-    // Check lengths
-    if $what != $compare_to {
-      return false;
-    }
-
-    for i in 0.<$what {
-      // Check types
-      if typeof what[i] != typeof compare_to[i] {
-        return false;
-      }
-
-      // Check values
-      if what[i] != compare_to[i] {
-        return false;
-      }
-    }
-
-    true;
-  },
-
-  shallow_copy: func shallow_copy(what: array?) {
-    what[0.<$what];
-  },
-
-  deep_copy: func deep_copy(what: array?) {
-    let arr = [];
-
-    for el in what {
-      if el is array? {
-        arr.push(el.shallow_copy());
-      } else {
-        arr.push(el);
-      }
-    }
-
-    arr;
-  }
 };

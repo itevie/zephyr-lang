@@ -5,7 +5,7 @@ export let String = .{
     let current = "";
 
     // Loop through the string
-    for i in iter(value) {
+    for _, i in value {
       // Check if it has encountered the delimiter
       if i == by || by == "" {
         // Check if it should add the current char if the delimiter is ""
@@ -31,7 +31,7 @@ export let String = .{
     let result = [];
     let temp = "";
 
-    for i in 0.<$value {
+    for i in value {
       temp += value[i];
 
       if i != 0 && (i+1) % amount == 0 {
@@ -103,7 +103,7 @@ export let String = .{
       return null;
     }
 
-    for i in 0.<$value {
+    for i in value {
       // If the index of value > what, value cannot contain what
       if i > $what {
         return null;
@@ -117,7 +117,7 @@ export let String = .{
       }
 
       // Try find if the what is at current index
-      for x in i.<$what {
+      for x in what {
         // If it isn't then this index isn't it
         if value[x] != what[x-i] {
           is_index = false;
@@ -133,7 +133,7 @@ export let String = .{
     return null;
   },
 
-  slice: func slice(value: string?, start: number?, end: number?) {
+  slice: func slice(value: string?, start: number?, amount: number?) {
     __zephyr_native.slice(value, start, amount);
   },
 

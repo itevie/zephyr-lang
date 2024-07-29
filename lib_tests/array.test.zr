@@ -1,138 +1,208 @@
 let to_test = Array.keys();
 
-// Check same_as
-{
-  let arr = [1, 2, 3];
-  let arr2 = [1, 2, 3];
-  let arr3 = [1, 2, 3, 4];
+Test.describe("remove", func {
+  let arr = [1, 2, 3, 3, 4];
+  let new_arr = arr.remove(3);
 
-  assert arr.same_as(arr2);
-  assert not arr.same_as(arr3);
+  assert arr.same_as([1, 2, 3, 3, 4]);
+  assert new_arr.same_as([1, 2, 4]);
 
-  to_test.remove("same_as");
-}
+  to_test.remove!("remove");
+});
 
-// Check push
-{
-  let arr = [];
-  arr.push(1);
-  
-  assert arr.same_as([1]);
-  to_test.remove("push");
-}
+Test.describe("remove!", func {
+  let arr = [1, 2, 3, 3, 4];
+  let new_arr = arr.remove!(3);
 
-// Check insert
-{
-  // Check basic insertion
-  let arr = [1, 2, 3, 4, 5];
-  arr.insert(2, "hi");
-  assert arr.same_as([1, 2, "hi", 3, 4, 5]);
+  assert arr.same_as([1, 2, 4]);
+  assert new_arr.same_as([1, 2, 4]);
 
-  // Check -1
-  try {
-    arr.insert(-1, "hi");
-    throw error("Expected error at arr.insert -1");
-  }
+  to_test.remove!("remove!");
+});
 
-  to_test.remove("insert");
-}
-
-// Check remove
-{
-  // Check single occurance
+Test.describe("push", func {
   let arr = [1, 2, 3, 4];
-  arr.remove(2);
-  assert arr.same_as([1, 3, 4]);
+  let new_arr = arr.push(5);
 
-  let arr2 = [1, 2, 3, 4, 4, 4, 4, 4, 5];
-  arr2.remove(4);
-  assert arr2.same_as([1, 2, 3, 5]);
+  assert arr.same_as([1, 2, 3, 4]);
+  assert new_arr.same_as([1, 2, 3, 4, 5]);
 
-  to_test.remove("remove");
-}
+  to_test.remove!("push");
+});
 
-// Check reverse
-{
+Test.describe("push!", func {
   let arr = [1, 2, 3, 4];
-  arr.reverse();
+  let new_arr = arr.push!(5);
+
+  assert arr.same_as([1, 2, 3, 4, 5]);
+  assert new_arr.same_as([1, 2, 3, 4, 5]);
+
+  to_test.remove!("push!");
+});
+
+Test.describe("map", func {
+  let arr = [1, 2, 3, 4];
+  let mapped = arr.map(func (v) { v.to_string(); });
+
+  assert arr.same_as([1, 2, 3, 4]);
+  assert mapped.same_as(["1", "2", "3", "4"]);
+
+  to_test.remove!("map");
+});
+
+Test.describe("map!", func {
+  let arr = [1, 2, 3, 4];
+  let mapped = arr.map!(func (v) { v.to_string(); });
+
+  assert arr.same_as(["1", "2", "3", "4"]);
+  assert mapped.same_as(["1", "2", "3", "4"]);
+
+  to_test.remove!("map!");
+});
+
+Test.describe("skip", func {
+  let arr = [1, 2, 3, 4];
+  let new_arr = arr.skip(2);
+
+  assert new_arr.same_as([3, 4]);
+  assert arr.same_as([1, 2, 3, 4]);
+
+  to_test.remove!("skip");
+});
+
+Test.describe("skip!", func {
+  let arr = [1, 2, 3, 4];
+  let new_arr = arr.skip!(2);
+
+  assert new_arr.same_as([3, 4]);
+  assert arr.same_as([3, 4]);
+
+  to_test.remove!("skip!");
+});
+
+Test.describe("slice", func {
+  let arr = [1, 2, 3, 4];
+  let slice = arr.slice(1, 2);
+
+  assert slice.same_as([2, 3]);
+  assert arr.same_as([1, 2, 3, 4]);
+
+  to_test.remove!("slice");
+});
+
+Test.describe("slice!", func {
+  let arr = [1, 2, 3, 4];
+  let slice = arr.slice!(1, 2);
+
+  assert slice.same_as([2, 3]);
+  assert arr.same_as([1, 4]);
+
+  to_test.remove!("slice!");
+});
+
+Test.describe("take", func {
+  let arr = [1, 2, 3, 4];
+  let new_arr = arr.take(2);
+
+  assert arr.same_as([1, 2, 3, 4]);
+  assert new_arr.same_as([1, 2]);
+
+  to_test.remove!("take");
+});
+
+Test.describe("take!", func {
+  let arr = [1, 2, 3, 4];
+  let new_arr = arr.take!(2);
+
+  assert arr.same_as([1, 2]);
+  assert new_arr.same_as([1, 2]);
+
+  to_test.remove!("take!");
+});
+
+Test.describe("concat", func {
+  let arr = [1, 2, 3, 4];
+  let new_arr = arr.concat([5, 6, 7]);
+
+  assert arr.same_as([1, 2, 3, 4]);
+  assert new_arr.same_as([1, 2, 3, 4, 5, 6, 7]);
+
+  to_test.remove!("concat");
+});
+
+Test.describe("concat!", func {
+  let arr = [1, 2, 3, 4];
+  let new_arr = arr.concat!([5, 6, 7]);
+
+  assert arr.same_as([1, 2, 3, 4, 5, 6, 7]);
+  assert new_arr.same_as([1, 2, 3, 4, 5, 6, 7]);
+
+  to_test.remove!("concat!");
+});
+
+Test.describe("join", func {
+  let arr = [1, 2, 3, 4];
+  let str = arr.join("");
+  let str2 = arr.join(",");
+
+  Test.match(str, "1234");
+  Test.match(str2, "1,2,3,4");
+
+  to_test.remove!("join");
+});
+
+Test.describe("same_as", func {
+  let arr = [1, 2, "hi"];
+  let arr2 = [[1]];
   
-  assert arr.same_as([4, 3, 2, 1]);
-  to_test.remove("reverse");
-}
+  assert arr.same_as([1, 2, "hi"]);
+  assert !arr.same_as([]);
+  assert !arr.same_as([1, 2, "hi", []]);
+  assert !arr2.same_as([1]);
 
-// Check filter
-{
-  let arr = [1, 2, 3, 4, 5];
-  let new_arr = arr.filter(func(x) { x > 3; });
+  to_test.remove!("same_as");
+});
 
-  assert new_arr.same_as([4, 5]);
-  to_test.remove("filter");
-}
+Test.describe("quick things", func {
+  assert [1, 2, 3, 4].first() == 1;
+  to_test.remove!("first");
 
-// Check join
-{
-  let arr = [1, 2, 3];
-  assert arr.join("") == "123";
-  assert arr.join(", ") == "1, 2, 3";
+  assert [1, 2, 3, 4].last() == 4;
+  to_test.remove!("last");
+});
 
-  to_test.remove("join");
-}
-
-// Check concat
-{
-  let arr = [1, 2, 3];
-  let arr2 = [4, 5, 6];
-
-  assert arr.concat(arr2).same_as([1, 2, 3, 4, 5, 6]);
-
-  to_test.remove("concat");
-}
-
-// Check map
-{
-  let arr = [1, 2, 3, 4, 5];
-  let mapped = arr.map(func (x) { x.to_string(); });
-  assert mapped.same_as(["1", "2", "3", "4", "5"]);
-
-  to_test.remove("map");
-}
-
-// Check skip
-{
-  let arr = [1, 2, 3];
-  arr.skip(1);
-  assert arr.same_as([2, 3]);
-
-  to_test.remove("skip");
-}
-
-// Check shallow_copy
-{
-  let arr = [1, ["hi"]];
+Test.describe("shallow_copy", func {
+  let arr = [1, 2, 3, 4, [1]];
   let arr2 = arr.shallow_copy();
 
-  arr[0] = 3;
-  arr[1][0] = "bye";
+  assert arr != arr2;
+  assert arr.same_as(arr2);
 
-  assert arr2[0] == 1;
-  assert arr2[1][0] == "bye";
+  to_test.remove!("shallow_copy");
+});
 
-  to_test.remove("shallow_copy");
-}
-
-// Check if deep_copy works
-{
-  // Setup
-  let arr = [1, [5]];
+Test.describe("deep_copy", func {
+  let arr = [1, 2, [1]];
   let arr2 = arr.deep_copy();
-  arr[0] = "hello";
-  arr[1][0] = "bye";
 
-  // Tests
-  assert arr2[0] == 1;
-  assert arr2[1][0] == 5;
-  to_test.remove("deep_copy");
-}
+  assert arr != arr2;
+  assert arr[2] != arr2[2];
+  assert arr[2].same_as(arr2[2]);
+  assert !arr.same_as(arr2);
+
+  to_test.remove!("deep_copy");
+});
+
+Test.describe("ref_replace", func {
+  let arr1 = [1, 2, 3, 4];
+  let arr2 = [1, 2, 3, 4, 5];
+
+  assert !arr1.same_as(arr2);
+  arr1.ref_replace(arr2);
+  assert arr1.same_as(arr2);
+
+  to_test.remove!("ref_replace");
+});
 
 if $to_test != 0 {
   throw error("All of array functions have not been tested: " + to_test.join(", "));

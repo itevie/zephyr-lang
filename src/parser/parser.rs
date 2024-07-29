@@ -264,6 +264,7 @@ impl Parser {
         Ok(nodes::Expression::ThrowStatement(nodes::ThrowStatement {
           location: tok.location,
           what: Box::from(self.parse_expression()?),
+          is_rethrow: false,
         }))
       }
       TokenType::Break => Ok(nodes::Expression::BreakStatement(nodes::BreakStatement {
@@ -1253,6 +1254,17 @@ impl Parser {
       ZephyrError::parser("Expected identifier".to_string(), self.at().location),
     )?;
 
+    // Check if there is a comma (for the value identifier)
+    let mut value_ident: Option<Identifier> = None;
+    if matches!(self.at().token_type, TokenType::Comma) {
+      self.eat();
+      let vident = self.expect(
+        discriminant(&TokenType::Identifier),
+        ZephyrError::parser("Expected an identifier".to_string(), self.at().location),
+      )?;
+      value_ident = Some(self.create_identifier(vident)?);
+    }
+
     // Expect in token
     self.expect(
       discriminant(&TokenType::In),
@@ -1281,7 +1293,8 @@ impl Parser {
 
     // Done
     Ok(nodes::Expression::ForLoop(nodes::ForLoop {
-      identifier: self.create_identifier(ident)?,
+      index_identifier: self.create_identifier(ident)?,
+      value_identifier: value_ident,
       value_to_iter: Box::from(expr),
       body: block,
       location: token.location,

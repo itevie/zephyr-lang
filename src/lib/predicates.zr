@@ -54,7 +54,7 @@ export func array?(test) {
 export func array_of?(test: array?, f: callable?, args: null_or?(array?)) {
   if args == null { args = []; };
   
-  for i in test {
+  for _, i in test {
     if !f(i, if $args>0 {args[0];}) { return false; }
   }
 
@@ -62,9 +62,8 @@ export func array_of?(test: array?, f: callable?, args: null_or?(array?)) {
 }
 
 // ----- Special Ones -----
-
 export func not?(value, __args__) where __args__[1.<$__args__] is array_of?(callable?) {
-  for predicate in __args__[1.<$__args__] {
+  for _, predicate in __args__[1.<$__args__] {
     if predicate(value) {
       return false;
     }
@@ -74,7 +73,7 @@ export func not?(value, __args__) where __args__[1.<$__args__] is array_of?(call
 }
 
 export func all_of?(value, __args__) where __args__[1.<$__args__] is array_of?(callable?) {
-  for predicate in __args__[1.<$__args__] {
+  for _, predicate in __args__[1.<$__args__] {
     if !predicate(value) {
       return false;
     }
@@ -84,7 +83,7 @@ export func all_of?(value, __args__) where __args__[1.<$__args__] is array_of?(c
 }
 
 export func one_of?(value, __args__) where __args__[1.<$__args__] is array_of?(callable?) {
-  for predicate in __args__[1.<$__args__] {
+  for _, predicate in __args__[1.<$__args__] {
     if predicate(value) {
       return true;
     }
@@ -94,7 +93,7 @@ export func one_of?(value, __args__) where __args__[1.<$__args__] is array_of?(c
 }
 
 export func one_of_values?(value, __args__) {
-  for value in __args__[1.<$__args__] {
+  for _, value in __args__[1.<$__args__] {
     if value == __args__ {
       return true;
     }
@@ -114,7 +113,7 @@ export func iterable?(what) {
 // Checks if an object matches a "struct", for example:
 // object_matches?(.{a:2, b:null}, .{a:number?, b:string?}) will fail
 export func object_matches?(test_with: object?, test: object?) {
-  for key in test {
+  for _, key in test {
     // Check if test_with has the key
     if !(key in test_with) {
       // Check if optional 

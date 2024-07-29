@@ -1,6 +1,6 @@
 use crate::{
   lexer::{lexer::get_location_contents, location::Location},
-  runtime::values::RuntimeValue,
+  runtime::values::{ErrorValue, Null, RuntimeValue},
   util::{self},
 };
 use std::cmp::max;
@@ -13,6 +13,7 @@ pub struct ZephyrError {
   pub error_message: String,
   pub error_type: ErrorType,
   pub reference: Option<Location>,
+  pub backtrace: Vec<Location>,
 }
 
 #[derive(Debug, Clone)]
@@ -32,6 +33,7 @@ impl ZephyrError {
       error_message: message,
       error_type: ErrorType::Runtime,
       reference: None,
+      backtrace: vec![],
       location,
     }
   }
@@ -41,6 +43,7 @@ impl ZephyrError {
       error_message: message,
       error_type: ErrorType::Runtime,
       reference: Some(reference),
+      backtrace: vec![],
       location,
     }
   }
@@ -50,6 +53,7 @@ impl ZephyrError {
       error_message: message,
       error_type: ErrorType::Parser,
       reference: None,
+      backtrace: vec![],
       location,
     }
   }
@@ -59,6 +63,7 @@ impl ZephyrError {
       error_message: message,
       error_type: ErrorType::Parser,
       reference: Some(reference),
+      backtrace: vec![],
       location,
     }
   }
@@ -68,6 +73,7 @@ impl ZephyrError {
       error_message: message,
       error_type: ErrorType::Lexer,
       reference: None,
+      backtrace: vec![],
       location,
     }
   }
@@ -77,6 +83,7 @@ impl ZephyrError {
       error_message: message,
       error_type: ErrorType::Lexer,
       reference: Some(refer),
+      backtrace: vec![],
       location,
     }
   }
@@ -95,11 +102,29 @@ impl ZephyrError {
     // Add location
     result += &(ZephyrError::visualise_location(self.location, false, false));
 
+    // Add backtraces
+    for b in self.backtrace.clone() {
+      result += &("\n".to_string() + &ZephyrError::visualise_location(b, false, false));
+    }
+
     // Check if it has a reference
     if let Some(reference) = &self.reference {
       result += "\nIn reference to:\n";
       result += &(ZephyrError::visualise_location(*reference, false, true))
     }
+
+    // Check if there is a provided value
+    match &self.error_type {
+      ErrorType::UserDefined(val) => {
+        result += &format!(
+          "\n{}Thrown Value:{}\n",
+          &util::colors::fg_red(),
+          &util::colors::reset()
+        );
+        result += &format!("\n  {}\n", &val.stringify(false, true, None));
+      }
+      _ => (),
+    };
 
     result
   }
@@ -192,6 +217,16 @@ impl ZephyrError {
 
     // Done
     result
+  }
+
+  pub fn to_runtime_error(&self) -> RuntimeValue {
+    RuntimeValue::ErrorValue(ErrorValue::make(
+      self.clone(),
+      match &self.error_type {
+        ErrorType::UserDefined(val) => *val.clone(),
+        _ => Null::make(),
+      },
+    ))
   }
 }
 

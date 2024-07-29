@@ -26,8 +26,7 @@ use crate::{
 use super::{
   interpreter::Interpreter,
   values::{
-    to_array, Array, NativeFunction2, Null, Number, Object, ObjectContainer, RuntimeValue,
-    StringValue,
+    Array, NativeFunction2, Null, Number, Object, ObjectContainer, RuntimeValue, StringValue,
   },
 };
 
@@ -80,24 +79,27 @@ pub fn error(options: CallOptions) -> R {
 }
 
 pub fn get_args(_: CallOptions) -> R {
-  Ok(to_array(
-    crate::ZEPHYR_ARGS
-      .read()
-      .unwrap()
-      .iter()
-      .map(|v| {
-        Box::from(RuntimeValue::StringValue(StringValue {
-          value: v.to_string(),
-        }))
-      })
-      .collect(),
-  ))
+  Ok(
+    Array::make(
+      crate::ZEPHYR_ARGS
+        .read()
+        .unwrap()
+        .iter()
+        .map(|v| {
+          Box::from(RuntimeValue::StringValue(StringValue {
+            value: v.to_string(),
+          }))
+        })
+        .collect(),
+    )
+    .create_container(),
+  )
 }
 
 // ----- Console -----
 pub fn print(options: CallOptions) -> R {
   for i in options.args {
-    println!("{} ", i.stringify(false, true));
+    println!("{} ", i.stringify(false, true, Some(options.interpreter)));
   }
   Ok(RuntimeValue::Null(Null {}))
 }
@@ -123,7 +125,7 @@ pub fn read_line(options: CallOptions) -> R {
 pub fn write(options: CallOptions) -> R {
   match &options.args[..] {
     [val] => {
-      print!("{}", val.stringify(true, true));
+      print!("{}", val.stringify(true, true, Some(options.interpreter)));
     }
     _ => unreachable!(),
   }
@@ -260,9 +262,7 @@ pub fn rg_is_match(options: CallOptions) -> R {
         .map(|x| Box::from(StringValue::make(x.to_string())))
         .collect::<Vec<Box<RuntimeValue>>>();
 
-      Ok(RuntimeValue::ArrayContainer(
-        Array { items: captures }.create_container(),
-      ))
+      Ok(Array::make(captures).create_container())
     }
     _ => Err(ZephyrError::runtime(
       "Invalid args".to_string(),
@@ -363,11 +363,14 @@ pub fn arr_ref_set(options: CallOptions) -> R {
 
 pub fn reverse(options: CallOptions) -> R {
   if options.args.len() == 1 {
-    Ok(to_array({
-      let mut args = options.args[0].iterate()?;
-      args.reverse();
-      args
-    }))
+    Ok(
+      Array::make({
+        let mut args = options.args[0].iterate()?;
+        args.reverse();
+        args
+      })
+      .create_container(),
+    )
   } else {
     Err(ZephyrError::runtime(
       "Cannot reverse provided args".to_string(),
@@ -378,7 +381,7 @@ pub fn reverse(options: CallOptions) -> R {
 
 pub fn iter(options: CallOptions) -> R {
   if options.args.len() == 1 {
-    Ok(to_array(options.args[0].iterate()?))
+    Ok(Array::make(options.args[0].iterate()?).create_container())
   } else {
     Err(ZephyrError::runtime(
       "Cannot iter provided args".to_string(),
@@ -421,9 +424,7 @@ pub fn utf8_to_buff(options: CallOptions) -> R {
         .iter()
         .map(|x| Box::from(RuntimeValue::Number(Number { value: *x as f64 })))
         .collect::<Vec<Box<RuntimeValue>>>();
-      return Ok(RuntimeValue::ArrayContainer(
-        Array { items: bytes }.create_container(),
-      ));
+      return Ok(Array::make(bytes).create_container());
     }
     _ => {
       return Err(ZephyrError::runtime(
@@ -664,20 +665,18 @@ pub fn rust_lambda_test(o: CallOptions) -> R {
       let mut vec_bytes = Vec::from(bytes);
       vec_bytes.truncate(value);
 
-      let arr = RuntimeValue::ArrayContainer(
-        Array {
-          items: vec_bytes
-            .iter()
-            .map(|x| Box::from(RuntimeValue::Number(Number { value: *x as f64 })))
-            .collect::<Vec<Box<RuntimeValue>>>(),
-        }
-        .create_container(),
-      );
+      let arr = Array::make(
+        vec_bytes
+          .iter()
+          .map(|x| Box::from(RuntimeValue::Number(Number { value: *x as f64 })))
+          .collect::<Vec<Box<RuntimeValue>>>(),
+      )
+      .create_container();
       Ok(arr)
     })
   };
 
-  Ok(RuntimeValue::ObjectContainer(
+  Ok(
     Object::make(HashMap::from([
       (
         "write".to_string(),
@@ -689,5 +688,5 @@ pub fn rust_lambda_test(o: CallOptions) -> R {
       ),
     ]))
     .create_container(),
-  ))
+  )
 }

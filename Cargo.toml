@@ -16,6 +16,7 @@ serde = { version = "1.0.197", features = ["derive"] }
 structopt = "0.3.26"
 toml = "0.8.12"
 json-tools = "*"
+uuid = { version = "1.9.1", features = ["v4"] }
 
 [profile.release]
 opt-level = 3

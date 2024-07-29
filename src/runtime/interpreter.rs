@@ -5,7 +5,9 @@ use std::{
   time::Instant,
 };
 
+use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
+use uuid::Uuid;
 
 use crate::{
   errors::{self, runtime_error, ErrorType, ZephyrError},
@@ -31,8 +33,8 @@ use super::{
   native_functions::{self, CallOptions},
   scope::ScopeContainer,
   values::{
-    to_array, to_object, Array, ArrayContainer, Boolean, Function, NativeFunction, Null, Number,
-    Object, ObjectContainer, Reference, RuntimeValue, StringValue,
+    Array, ArrayContainer, Boolean, Function, NativeFunction, Null, Number, Object,
+    ObjectContainer, RuntimeValue, StringValue,
   },
 };
 
@@ -49,6 +51,18 @@ pub struct Interpreter {
 
 unsafe impl Send for Interpreter {}
 unsafe impl Sync for Interpreter {}
+
+lazy_static! {
+  pub static ref SYMBOLS: HashMap<&'static str, Uuid> = {
+    let mut h = HashMap::new();
+    h.insert("PrettyPrint", Uuid::new_v4());
+    h
+  };
+}
+
+pub fn get_symbol(name: &str) -> String {
+  SYMBOLS.get(name).unwrap().to_string()
+}
 
 macro_rules! include_lib {
   ($what:expr) => {
@@ -79,6 +93,7 @@ impl Interpreter {
       include_lib!("../lib/buffer.zr"),
       include_lib!("../lib/http.zr"),
       include_lib!("../lib/json.zr"),
+      include_lib!("../lib/tests.zr"),
     ];
     let scope = ScopeContainer::new(directory);
 
@@ -272,6 +287,16 @@ impl Interpreter {
         }),
       )
       .unwrap();
+
+    // Create symbol object
+    let mut items: HashMap<String, RuntimeValue> = HashMap::new();
+    for (key, val) in SYMBOLS.clone() {
+      items.insert(key.to_string(), StringValue::make(val.to_string()));
+    }
+    match scope.declare_variable("Symbols", Object::make(items).create_container()) {
+      Err(_) => panic!("FAILED TO LOAD SYMBOLS!"),
+      Ok(_) => (),
+    };
 
     // Load libs
     for i in libs {
@@ -594,7 +619,10 @@ impl Interpreter {
     for i in 0..func.arguments.len() {
       // Check if it is __args__
       if func.arguments[i].symbol == "__args__" {
-        scope.declare_variable("__args__", to_array(evalled_args.clone()))?;
+        scope.declare_variable(
+          "__args__",
+          Array::make(evalled_args.clone()).create_container(),
+        )?;
         continue;
       }
       let assigned = if i < arguments.len() {
@@ -1009,8 +1037,23 @@ impl Interpreter {
       ///////////////////////////
       Expression::ThrowStatement(stmt) => {
         let value = self.evaluate(*stmt.what.clone())?;
+
+        Err(match value {
+          RuntimeValue::ErrorValue(old_err) => {
+            let mut err = old_err.error.clone();
+            err.backtrace.push(stmt.location);
+            err
+          }
+          val => ZephyrError {
+            error_message: "An exception was thrown".to_string(),
+            location: stmt.what.get_location(),
+            error_type: ErrorType::UserDefined(Box::from(val)),
+            reference: None,
+            backtrace: vec![],
+          },
+        })
         // Get the error_struct? func
-        let error_struct = match self.global_scope.get_variable("error_struct?")? {
+        /*let error_struct = match self.global_scope.get_variable("error_struct?")? {
           RuntimeValue::Function(func) => func,
           _ => unreachable!(),
         };
@@ -1062,8 +1105,9 @@ impl Interpreter {
           location: stmt.location,
           error_message: message,
           error_type: ErrorType::UserDefined(Box::from(data)),
+          backtrace: vec![],
           reference: None,
-        });
+        });*/
       }
       Expression::VariableDeclaration(stmt) => {
         // Collect data
@@ -1088,6 +1132,7 @@ impl Interpreter {
         } else {
           None
         }),
+        backtrace: vec![],
         reference: None,
         location: stmt.location,
       }),
@@ -1098,6 +1143,7 @@ impl Interpreter {
         } else {
           None
         }),
+        backtrace: vec![],
         reference: None,
         location: stmt.location,
       }),
@@ -1108,6 +1154,7 @@ impl Interpreter {
         } else {
           Box::from(RuntimeValue::Null(Null {}))
         }),
+        backtrace: vec![],
         reference: None,
         location: stmt.location,
       }),
@@ -1179,7 +1226,7 @@ impl Interpreter {
           let ast = parser.produce_ast(Some(path_string.clone()))?;
 
           // Create scope
-          let path_pre_pop = path_string;
+          let path_pre_pop = path_string.clone();
           path.pop();
           let scope = self.global_scope.create_child()?;
           scope.set_directory(path.display().to_string())?;
@@ -1391,16 +1438,22 @@ impl Interpreter {
       }
       Expression::CallExpression(expr) => {
         let expr2 = expr.clone();
+
+        // Get the function to call
         let callee = self.evaluate(*expr.left)?;
 
-        match callee {
+        // Check which type of function it is
+        let result = match callee {
+          // Normal native function
           RuntimeValue::NativeFunction(func) => {
+            // Collect arguments
             let caller_args = expr2.arguments.clone();
             let args = caller_args
               .iter()
               .map(|e| self.evaluate(*e.clone()))
               .collect::<Result<Vec<_>, _>>()?;
 
+            // Call it
             (func.func)(CallOptions {
               args,
               location: expr2.location,
@@ -1408,13 +1461,16 @@ impl Interpreter {
             })
           }
 
+          // Arc'd function
           RuntimeValue::NativeFunction2(func) => {
+            // Collect arguments
             let caller_args = expr2.arguments.clone();
             let args = caller_args
               .iter()
               .map(|e| self.evaluate(*e.clone()))
               .collect::<Result<Vec<_>, _>>()?;
 
+            // Call it
             (func.func)(CallOptions {
               args,
               location: expr2.location,
@@ -1422,13 +1478,24 @@ impl Interpreter {
             })
           }
           RuntimeValue::Function(func) => {
+            // Collect arguments
             let mut args = self.expr_to_runtime(expr2.arguments)?;
             if let Some(t) = func.clone().type_call {
               args.insert(0, t);
             }
+
+            // Collect it
             self.evaluate_zephyr_function(func, args, expr2.left.get_location())
           }
           _ => Err(runtime_error!("Expected a function to call".to_string())),
+        };
+
+        match result {
+          Ok(ok) => Ok(ok),
+          Err(mut err) => {
+            err.backtrace.push(_node.get_location());
+            Err(err)
+          }
         }
       }
       Expression::AssignmentExpression(expr) => {
@@ -1510,7 +1577,7 @@ impl Interpreter {
           }
         }
 
-        Ok(to_array(array))
+        Ok(Array::make(array).create_container())
       }
       Expression::ArithmeticOperator(expr) => {
         // Collect values
@@ -1587,7 +1654,6 @@ impl Interpreter {
                 RuntimeValue::Number(ref number_value) => Some(number_value.value.to_string()),
                 RuntimeValue::Boolean(ref bool_value) => Some(bool_value.value.to_string()),
                 RuntimeValue::Null(_) => Some("null".to_string()),
-                RuntimeValue::Reference(ref refer) => Some(refer.value.to_string()),
                 _ => {
                   return Err(ZephyrError::runtime_with_ref(
                     format!("Cannot coerce a {} to a string", right.type_name()),
@@ -1770,7 +1836,6 @@ impl Interpreter {
             }))
           }
           TokenType::UnaryOperator(UnaryOperator::Dereference) => match value {
-            RuntimeValue::Reference(refer) => crate::MEMORY.lock().unwrap().get_value(refer.value),
             RuntimeValue::Number(num) => crate::MEMORY
               .lock()
               .unwrap()
@@ -1783,25 +1848,6 @@ impl Interpreter {
               expr.value.get_location(),
             )),
           },
-          TokenType::UnaryOperator(UnaryOperator::Reference) => {
-            Ok(RuntimeValue::Reference(Reference {
-              value: match expr_value {
-                Expression::Identifier(ident) => {
-                  match self.scope.get_variable_address(&ident.symbol) {
-                    Ok(val) => val,
-                    Err(err) => return Err(err),
-                  }
-                }
-                Expression::NumericLiteral(ident) => ident.value as MemoryAddress,
-                _ => {
-                  return Err(ZephyrError::runtime(
-                    "Cannot reference this".to_string(),
-                    expr.value.get_location(),
-                  ))
-                }
-              },
-            }))
-          }
           TokenType::UnaryOperator(UnaryOperator::LengthOf) => Ok(RuntimeValue::Number(Number {
             value: value.iterate()?.len() as f64,
           })),
@@ -1972,29 +2018,7 @@ impl Interpreter {
               // Check if it defines ident
               let scope = self.scope.create_child()?;
               if let Some(ident) = expr.catch_identifier {
-                let err_obj = to_object(HashMap::from([
-                  (
-                    "message".to_string(),
-                    RuntimeValue::StringValue(StringValue {
-                      value: err.error_message,
-                    }),
-                  ),
-                  (
-                    "type".to_string(),
-                    RuntimeValue::StringValue(StringValue {
-                      value: format!("{:?}", err.error_type),
-                    }),
-                  ),
-                  (
-                    "data".to_string(),
-                    match err.error_type {
-                      ErrorType::UserDefined(val) => *val,
-                      _ => RuntimeValue::Null(Null {}),
-                    },
-                  ),
-                  ("location".to_string(), err.location.to_object()),
-                ]));
-                scope.declare_variable(&ident.symbol, err_obj)?;
+                scope.declare_variable(&ident.symbol, err.to_runtime_error())?;
               }
               self.evaluate_block(*catch, scope)?
             } else {
@@ -2014,9 +2038,15 @@ impl Interpreter {
         let value = self.evaluate(*expr.value_to_iter)?.iterate()?;
         let mut values: Vec<Box<RuntimeValue>> = vec![];
 
-        for i in value {
+        // Loop through the provided values
+        for (i, v) in value.iter().enumerate() {
+          // Create the scope and assign the loop variables
           let scope = self.scope.create_child()?;
-          scope.declare_variable(&expr.identifier.symbol, *i.clone())?;
+          scope.declare_variable(&expr.index_identifier.symbol, Number::make(i as f64))?;
+          if let Some(ref value_ident) = expr.value_identifier {
+            scope.declare_variable(&value_ident.symbol, *v.clone())?;
+          }
+
           let res = match self.evaluate_block(expr.body.clone(), scope) {
             Ok(ok) => ok,
             Err(err) => match err.error_type {
@@ -2074,7 +2104,7 @@ impl Interpreter {
           }
         }
 
-        return Ok(to_array(values));
+        return Ok(Array::make(values).create_container());
       }
       _ => Err(errors::ZephyrError::runtime(
         String::from("Cannot handle this AST node"),

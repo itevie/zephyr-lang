@@ -1,3 +1,13 @@
 defer keyword like go (ew go)
 matches like rust cause rust godly :sunglasses: :pleading_face: :rocket: :crab:
 make it so when bundle -e is used it stops it from using args or wahtever
+
+rework the lexer
+add r# for raw shit
+
+rethrow keyword
+or just improve errors
+
+stacktraces
+
+passing no subcommands gives help

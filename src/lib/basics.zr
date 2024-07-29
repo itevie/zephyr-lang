@@ -2,14 +2,13 @@ export func iter(what) {
   __zephyr_native.iter(what);
 }
 
-// Use $ instead, $[1, 2, 3] $"" etc.
-/*export func len(what: iterable?) {
-  Array.len(iter(what));
-}*/
+export func len(what: iterable?) {
+  $what;
+}
 
 export func print(__args__: array?) {
-  for i in __args__ {
-    Console.write(i);
+  for _, v in __args__ {
+    Console.write(v);
   }
 
   Console.write("\n");

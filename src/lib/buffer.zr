@@ -1,13 +1,13 @@
 let Buffer = .{
-    is_buffer: func (what) {
+    is_buffer: func is_buffer (what) {
         what is array_of?(number?);
     },
 
-    to_utf8: func (what: array_of?(number?)) {
+    to_utf8: func to_utf8 (what: array_of?(number?)) {
         __zephyr_native.buff_to_utf8(what);
     },
 
-    to_buffer: func (what: string?) {
+    to_buffer: func to_buffer (what: string?) {
         __zephyr_native.utf8_to_buff(what);
     }
 };

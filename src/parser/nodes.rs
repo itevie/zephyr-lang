@@ -171,6 +171,7 @@ pub struct ImportStatement {
 pub struct ThrowStatement {
   pub location: Location,
   pub what: Box<Expression>,
+  pub is_rethrow: bool,
 }
 
 // ----- Expressions -----
@@ -260,7 +261,8 @@ pub struct UnaryRightExpression {
 #[derive(Debug, Clone)]
 pub struct ForLoop {
   pub value_to_iter: Box<Expression>,
-  pub identifier: Identifier,
+  pub index_identifier: Identifier,
+  pub value_identifier: Option<Identifier>,
   pub body: Block,
   pub location: Location,
   pub name: Option<Identifier>,

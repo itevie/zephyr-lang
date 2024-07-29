@@ -6,8 +6,8 @@ export let Object = .{
   values: func values(obj: object?) {
     let values = [];
 
-    for i in Object.keys(obj) {
-      values + obj[i];
+    for _, v in Object.keys(obj) {
+      values.push!(obj[v]);
     }
 
     values;
@@ -16,7 +16,7 @@ export let Object = .{
   deep_copy: func deep_copy(what: object?) {
     let new_object = .{};
 
-    for key in what {
+    for _, key in what {
       if what[key] is one_of?(array?, object?) {
         new_object[key] = what[key].deep_copy();
       } else {

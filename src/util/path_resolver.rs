@@ -24,7 +24,7 @@ pub fn resolve(directory: PathBuf, new: &str) -> Result<PathBuf, ZephyrError> {
   let mut resolved = directory.clone();
   resolved.push(new);
 
-  return Ok(resolved);
+  return Ok(resolved.canonicalize().unwrap());
 }
 
 pub fn resolve_package_folder(directory: PathBuf) -> Result<PathBuf, ZephyrError> {
