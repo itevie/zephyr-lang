@@ -2,14 +2,13 @@ use std::{collections::HashMap, fmt, sync::Arc};
 
 use crate::{
   errors::ZephyrError,
-  lexer::location::Location,
-  parser::nodes::{Block, Identifier, WhereClause},
+  lexer::{location::Location, token::ComparisonTokenType},
+  parser::nodes::{Block, ComparisonExpression, Identifier, WhereClause},
+  util,
 };
 
 use super::{
-  interpreter::{get_symbol, Interpreter},
-  memory::MemoryAddress,
-  native_functions::CallOptions,
+  interpreter::Interpreter, memory::MemoryAddress, native_functions::CallOptions,
   scope::ScopeContainer,
 };
 
@@ -93,6 +92,93 @@ impl RuntimeValue {
     Ok(value)
   }
 
+  pub fn is_equal_to(
+    &self,
+    right: RuntimeValue,
+    expr: Option<ComparisonExpression>,
+  ) -> Result<bool, ZephyrError> {
+    // Collect operator
+    let operator = if let Some(expression) = expr.clone() {
+      expression.operator
+    } else {
+      ComparisonTokenType::Equals
+    };
+
+    // Check if they are the same type
+    if !util::varient_eq(&self.clone(), &right.clone()) {
+      return Ok(false);
+    }
+
+    // Check for numbers
+    if let (RuntimeValue::Number(left_number), RuntimeValue::Number(right_number)) = (self, &right)
+    {
+      return Ok(match operator {
+        ComparisonTokenType::Equals => left_number.value == right_number.value,
+        ComparisonTokenType::NotEquals => left_number.value != right_number.value,
+        ComparisonTokenType::GreaterThan => left_number.value > right_number.value,
+        ComparisonTokenType::GreaterThanOrEquals => left_number.value >= right_number.value,
+        ComparisonTokenType::LessThan => left_number.value < right_number.value,
+        ComparisonTokenType::LessThanOrEquals => left_number.value <= right_number.value,
+      });
+    } else if matches!(operator, ComparisonTokenType::Equals)
+      || matches!(operator, ComparisonTokenType::NotEquals)
+    {
+      let result = match (self, &right) {
+        // Booleans
+        (&RuntimeValue::Boolean(ref left_value), &RuntimeValue::Boolean(ref right_value)) => {
+          Some(left_value.value == right_value.value)
+        }
+
+        // Strings
+        (
+          &RuntimeValue::StringValue(ref left_value),
+          &RuntimeValue::StringValue(ref right_value),
+        ) => Some(left_value.value == right_value.value),
+
+        // Null - this will always be true
+        (&RuntimeValue::Null(_), _) => Some(true),
+
+        // Arrays
+        (
+          &RuntimeValue::ArrayContainer(ref left_value),
+          &RuntimeValue::ArrayContainer(ref right_value),
+        ) => Some(left_value.location == right_value.location),
+
+        // Objects
+        (
+          &RuntimeValue::ObjectContainer(ref left_value),
+          &RuntimeValue::ObjectContainer(ref right_value),
+        ) => Some(left_value.location == right_value.location),
+        _ => None,
+      };
+
+      match result {
+        Some(ok) => {
+          return Ok(if matches!(operator, ComparisonTokenType::NotEquals) {
+            !ok
+          } else {
+            ok
+          })
+        }
+        _ => (),
+      }
+    }
+
+    Err(ZephyrError::runtime(
+      format!(
+        "Cannot handle {} {} {}",
+        self.type_name(),
+        operator,
+        right.type_name()
+      ),
+      if let Some(expression) = expr {
+        expression.location
+      } else {
+        Location::no_location()
+      },
+    ))
+  }
+
   pub fn stringify(
     &self,
     is_alone: bool,
@@ -157,7 +243,7 @@ impl RuntimeValue {
         };
 
         // Check for PrettyPrint
-        if object.items.contains_key(&get_symbol("PrettyPrint")) {
+        /*if object.items.contains_key(&get_symbol("PrettyPrint")) {
           if let Some(mut inter) = interpreter {
             let func = match object.items.get(&get_symbol("PrettyPrint")).unwrap() {
               RuntimeValue::Function(func) => func,
@@ -173,7 +259,7 @@ impl RuntimeValue {
               .unwrap()
               .stringify(is_alone, pretty, interpreter);
           }
-        }
+        }*/
 
         let item_length = object.items.len();
 
@@ -372,13 +458,20 @@ pub struct Function {
   pub name: Option<String>,
   pub arguments: Vec<Identifier>,
   pub where_clause: Box<WhereClause>,
-  pub pure: bool,
   pub type_call: Option<Box<RuntimeValue>>,
 }
 
 #[derive(Clone)]
 pub struct NativeFunction {
   pub func: &'static dyn Fn(CallOptions) -> Result<RuntimeValue, ZephyrError>,
+}
+
+impl NativeFunction {
+  pub fn make(
+    func: &'static dyn Fn(CallOptions) -> Result<RuntimeValue, ZephyrError>,
+  ) -> RuntimeValue {
+    RuntimeValue::NativeFunction(Self { func })
+  }
 }
 
 #[derive(Clone)]

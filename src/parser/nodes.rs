@@ -91,7 +91,7 @@ impl Expression {
       Expression::AssertStatement(x) => x.location,
       Expression::ThrowStatement(x) => x.location,
       Expression::PipeExpression(x) => x.location,
-      Expression::Program(_) => panic!("Cannot get location of program"),
+      Expression::Program(_) => Location::no_location(),
       Expression::None => Location::no_location(),
     }
   }

@@ -1,5 +1,0 @@
-export let Any = .{
-  to_string: func pure to_string(what) {
-    "" + what;
-  }
-};

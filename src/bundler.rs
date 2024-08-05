@@ -9,7 +9,7 @@ use std::{
 use pbr::ProgressBar;
 
 use crate::{
-  cli, die,
+  cli,
   lexer::{
     self,
     location::Location,
@@ -33,7 +33,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
   let input = match std::fs::read_to_string(file_name.clone()) {
     Ok(ok) => ok,
     Err(err) => {
-      die(match err.kind() {
+      crate::util::die(match err.kind() {
         ErrorKind::NotFound => format!("File {} does not exist", file_name),
         ErrorKind::PermissionDenied => format!("Failed to read {}: permission denied", file_name),
         _ => format!("Failed to open {}: {}", file_name, err),
@@ -48,7 +48,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
   let tokens: Vec<Token> = match lexer::lexer::lex(input, proper_file_name.display().to_string()) {
     Ok(val) => val,
     Err(err) => {
-      crate::die(format!("\n{}", err.visualise(false)));
+      crate::util::die(format!("\n{}", err.visualise(false)));
       panic!();
     }
   }
@@ -68,7 +68,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
   match parser::Parser::new(tokens.clone()).produce_ast(None) {
     Ok(_) => (),
     Err(err) => {
-      crate::die(format!("\n{}", err.visualise(false)));
+      crate::util::die(format!("\n{}", err.visualise(false)));
       panic!();
     }
   }
@@ -105,7 +105,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
 
       // Check if it exists
       if !path.exists() {
-        die(format!("The path {} does not exist", path.display()));
+        crate::util::die(format!("The path {} does not exist", path.display()));
         panic!();
       }
 
@@ -218,7 +218,7 @@ pub fn bundle(input: String, file_name: String) -> String {
   let _result = match lexer::lexer::lex(input.clone(), file_name.clone()) {
     Ok(val) => val,
     Err(err) => {
-      crate::die(err.visualise(false));
+      crate::util::die(err.visualise(false));
       return "".to_string();
     }
   };
@@ -291,7 +291,7 @@ pub fn bundle_executable(
   }
   match fs::create_dir("bundler_executable_temp") {
     Ok(_) => (),
-    Err(err) => return crate::die(format!("Failed to create temporary directory: {}", err)),
+    Err(err) => return crate::util::die(format!("Failed to create temporary directory: {}", err)),
   };
   pb.inc();
 
@@ -307,7 +307,7 @@ pub fn bundle_executable(
     .output()
   {
     Ok(_) => (),
-    Err(err) => return crate::die(format!("Failed to run git, is git installed?: {}", err)),
+    Err(err) => return crate::util::die(format!("Failed to run git, is git installed?: {}", err)),
   };
 
   // Expect file to exist
@@ -315,7 +315,7 @@ pub fn bundle_executable(
 
   // Check if it exists
   if !index_rs.exists() {
-    return crate::die("Failed to clone GitHub repository, is git installed?".to_string());
+    return crate::util::die("Failed to clone GitHub repository, is git installed?".to_string());
   }
 
   crate::debug(
@@ -335,7 +335,7 @@ pub fn bundle_executable(
   pb.message("Building ");
   let mut index_contents = match fs::read_to_string(index_rs.clone()) {
     Ok(ok) => ok,
-    Err(err) => return crate::die(format!("Failed to read index.rs: {}", err)),
+    Err(err) => return crate::util::die(format!("Failed to read index.rs: {}", err)),
   };
   index_contents = index_contents.replace(
     "let bundled_data = \"\";",
@@ -346,11 +346,11 @@ pub fn bundle_executable(
   // Write the file
   let mut f = match OpenOptions::new().write(true).open(index_rs) {
     Ok(ok) => ok,
-    Err(err) => return crate::die(format!("Failed to open index.rs: {}", err)),
+    Err(err) => return crate::util::die(format!("Failed to open index.rs: {}", err)),
   };
   match f.write_all(index_contents.as_bytes()) {
     Ok(_) => (),
-    Err(err) => return crate::die(format!("Failed to write index.rs: {}", err)),
+    Err(err) => return crate::util::die(format!("Failed to write index.rs: {}", err)),
   };
   pb.inc();
 
@@ -386,7 +386,9 @@ pub fn bundle_executable(
     .output()
   {
     Ok(_) => (),
-    Err(err) => return crate::die(format!("Failed to run cargo, is cargo installed?: {}", err)),
+    Err(err) => {
+      return crate::util::die(format!("Failed to run cargo, is cargo installed?: {}", err))
+    }
   }
 
   // Construct path

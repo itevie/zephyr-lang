@@ -37,7 +37,7 @@ pub fn new(options: NewPackage, directory: PathBuf) {
 
   // Check if folder already exists
   if path.exists() {
-    crate::die(format!(
+    crate::util::die(format!(
       "The folder {} already exists!",
       path.clone().display()
     ));
@@ -48,7 +48,7 @@ pub fn new(options: NewPackage, directory: PathBuf) {
   match fs::create_dir(path.clone()) {
     Ok(_) => (),
     Err(err) => {
-      crate::die(format!(
+      crate::util::die(format!(
         "Failed to create directory {}: {}",
         path.display(),
         err
@@ -68,7 +68,7 @@ pub fn new(options: NewPackage, directory: PathBuf) {
   match fs::write(index_file.clone(), "Console.write_line(\"Hello, World!\");") {
     Ok(_) => (),
     Err(err) => {
-      crate::die(format!(
+      crate::util::die(format!(
         "Failed to create index.zr {}: {}",
         index_file.display(),
         err
@@ -83,7 +83,7 @@ pub fn new(options: NewPackage, directory: PathBuf) {
   match fs::write(package_file.clone(), "entry_point = \"index.zr\"") {
     Ok(_) => (),
     Err(err) => {
-      crate::die(format!(
+      crate::util::die(format!(
         "Failed to create {} {}: {}",
         crate::PACKAGE_FILE_NAME,
         package_file.display(),
@@ -115,7 +115,7 @@ pub fn load_package(package_directory: PathBuf) -> Result<Package, ZephyrError> 
   }
 
   // Read it
-  let data = crate::read_file(dir.canonicalize().unwrap().display().to_string());
+  let data = crate::util::fs::read_file(dir.canonicalize().unwrap().display().to_string());
   let package = parse_package_file(package_directory, data)?;
   Ok(package)
 }

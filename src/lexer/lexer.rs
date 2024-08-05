@@ -393,7 +393,7 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
 
         // Check if should modify allowed
         match c.as_str() {
-          "x" => allowed_chars = "abcdef0123456789".to_string().chars().collect(),
+          "x" => allowed_chars = "ABCDEFabcdef0123456789".to_string().chars().collect(),
           "o" => allowed_chars = "01234567".to_string().chars().collect(),
           "b" => allowed_chars = vec!['0', '1'],
           _ => (),

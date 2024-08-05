@@ -1,6 +1,5 @@
 use std::{
   collections::HashMap,
-  fs,
   io::ErrorKind,
   path::PathBuf,
   sync::{Arc, Mutex, RwLock},
@@ -11,20 +10,11 @@ use runtime::memory::Memory;
 use std::sync::atomic::AtomicUsize;
 use structopt::StructOpt;
 
-#[path = "./repl.rs"]
-mod repl;
-
 #[path = "./bundler.rs"]
 mod bundler;
 
-#[path = "./tester.rs"]
-mod tester;
-
 #[path = "./mini.rs"]
 mod mini;
-
-#[path = "./basic_run.rs"]
-mod basic_run;
 
 #[path = "./package_manager.rs"]
 mod package_manager;
@@ -35,6 +25,7 @@ pub mod cli;
 //use std::io::Write;
 
 pub mod errors;
+pub mod executors;
 pub mod lexer;
 pub mod parser;
 pub mod runtime;
@@ -90,7 +81,7 @@ fn main() {
 
   // Check if bundled_data
   if !bundled_data.is_empty() {
-    basic_run::basic_run(
+    executors::basic_run::basic_run(
       String::from(bundled_data),
       std::env::current_exe().unwrap().display().to_string(),
       std::env::current_dir().unwrap(),
@@ -100,7 +91,7 @@ fn main() {
 
   // Check if the provided dir exists
   if !dir.exists() {
-    return die(format!(
+    return util::die(format!(
       "The directory ({}) provided with --directory does not exist",
       dir.display()
     ));
@@ -119,14 +110,14 @@ fn main() {
   if let Some(subcommand) = ARGS.clone().subcommand {
     match subcommand {
       cli::Subcommands::New(new) => package_manager::new(new, dir),
-      cli::Subcommands::Test(new) => tester::test(new),
-      cli::Subcommands::Repl(repl) => repl::repl(repl, ".".to_string()),
+      cli::Subcommands::Test(new) => executors::tester::test(new),
+      cli::Subcommands::Repl(repl) => executors::repl::repl(repl, ".".to_string()),
       cli::Subcommands::Run(run) => {
         *ZEPHYR_ARGS.write().unwrap() = run.args;
         let input = match std::fs::read_to_string(run.file_pos.clone()) {
           Ok(ok) => ok,
           Err(err) => {
-            return die(match err.kind() {
+            return util::die(match err.kind() {
               ErrorKind::NotFound => format!("File {} does not exist", run.file_pos),
               ErrorKind::PermissionDenied => {
                 format!("Failed to read {}: permission denied", run.file_pos)
@@ -136,19 +127,19 @@ fn main() {
           }
         };
 
-        basic_run::basic_run(input, run.file_pos.clone(), dir);
+        executors::basic_run::basic_run(input, run.file_pos.clone(), dir);
       }
       cli::Subcommands::Minimise(minimise) => {
         // Get the file contents and minimise it
-        let input = read_file(minimise.file.clone());
+        let input = util::fs::read_file(minimise.file.clone());
         let output = mini::minimise(input, PathBuf::from(minimise.file).display().to_string());
 
         // Save it
-        write_file(&minimise.out, output);
+        util::fs::write_file(&minimise.out, output);
       }
       cli::Subcommands::Bundle(bundle) => {
         // Get file contents
-        let input = read_file(bundle.file.clone());
+        let input = util::fs::read_file(bundle.file.clone());
 
         // Check if it is converting to an exe
         if bundle.exe {
@@ -166,47 +157,10 @@ fn main() {
         let output = bundler::bundle(input, PathBuf::from(bundle.file).display().to_string());
 
         // Save it
-        write_file(&bundle.out, output);
+        util::fs::write_file(&bundle.out, output);
       }
     }
 
     return;
   }
-}
-
-fn read_file(path: String) -> String {
-  match std::fs::read_to_string(path.clone()) {
-    Ok(ok) => ok,
-    Err(err) => {
-      die(match err.kind() {
-        ErrorKind::NotFound => format!("File {} does not exist", path),
-        ErrorKind::PermissionDenied => format!("Failed to read {}: permission denied", path),
-        _ => format!("Failed to open {}: {}", path, err),
-      });
-      return "".to_string();
-    }
-  }
-}
-
-fn write_file(path: &str, contents: String) -> () {
-  match fs::write(path, contents) {
-    Ok(_) => (),
-    Err(err) => {
-      die(match err.kind() {
-        ErrorKind::NotFound => format!("File {} does not exist", path),
-        ErrorKind::PermissionDenied => format!("Failed to read {}: permission denied", path),
-        _ => format!("Failed to open {}: {}", path, err),
-      });
-    }
-  }
-}
-
-fn die(err: String) {
-  println!(
-    "{}Fatal Error: {}{}",
-    util::colors::fg_red(),
-    err,
-    util::colors::reset()
-  );
-  std::process::exit(1);
 }

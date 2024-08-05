@@ -27,7 +27,7 @@ pub fn test(options: TestPackage) {
     print!("  Testing {}...", file.display());
 
     let contents = std::fs::read_to_string(file.clone()).unwrap();
-    crate::basic_run::basic_run(
+    crate::executors::basic_run::basic_run(
       contents,
       file.canonicalize().unwrap().display().to_string(),
       directory.clone(),

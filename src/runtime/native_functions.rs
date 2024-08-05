@@ -301,11 +301,10 @@ pub fn call_zephyr_function(options: CallOptions) -> R {
   match &options.args[..] {
     [RuntimeValue::Function(func), RuntimeValue::ArrayContainer(array_container)] => {
       let arr = array_container.deref();
-      options.interpreter.clone().evaluate_zephyr_function(
-        func.clone(),
-        arr.items,
-        options.location,
-      )
+      options
+        .interpreter
+        .clone()
+        .evaluate_lang_function(func.clone(), arr.items, options.location)
     }
     _ => Err(ZephyrError::runtime(
       "Invalid args".to_string(),
@@ -526,7 +525,7 @@ pub fn spawn_thread(options: CallOptions) -> R {
         );
         op.interpreter
           .clone()
-          .evaluate_zephyr_function(func, vec![], op.location)
+          .evaluate_lang_function(func, vec![], op.location)
           .unwrap();
         crate::GLOBAL_THREAD_COUNT.fetch_sub(1, Ordering::SeqCst);
       });

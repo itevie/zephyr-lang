@@ -1,9 +1,6 @@
 use std::{path::PathBuf, sync::atomic::Ordering, time::Duration};
 
-use crate::{
-  lexer, parser,
-  runtime::interpreter::{self, Interpreter},
-};
+use crate::{lexer, parser, runtime::interpreter::Interpreter};
 
 pub fn basic_run(input: String, file_name: String, dir: PathBuf) {
   let builder = std::thread::Builder::new()
@@ -24,7 +21,7 @@ pub fn basic_run(input: String, file_name: String, dir: PathBuf) {
       let result = match lexer::lexer::lex(input, file_name.clone()) {
         Ok(val) => val,
         Err(err) => {
-          return crate::die(err.visualise(false));
+          return crate::util::die(err.visualise(false));
         }
       };
 
@@ -32,13 +29,13 @@ pub fn basic_run(input: String, file_name: String, dir: PathBuf) {
       let ast = match parser.produce_ast(Some(file_name.clone())) {
         Ok(val) => val,
         Err(err) => {
-          return crate::die(err.visualise(false));
+          return crate::util::die(err.visualise(false));
         }
       };
 
       let value = interpreter.evaluate(parser::nodes::Expression::Program(ast));
       match value {
-        Err(err) => crate::die(err.visualise(false)),
+        Err(err) => crate::util::die(err.visualise(false)),
         Ok(_) => (),
       }
 
@@ -51,7 +48,7 @@ pub fn basic_run(input: String, file_name: String, dir: PathBuf) {
   handler.join().unwrap();
 
   // Check if it should split out outputs
-  if crate::ARGS.node_evaluation_times || crate::ARGS.function_evaluation_times {
+  /*if crate::ARGS.node_evaluation_times || crate::ARGS.function_evaluation_times {
     let data = interpreter::NODE_EVALUATION_TIMES.lock().unwrap().clone();
     let mut vec_data: Vec<(String, f64, String)> = vec![];
 
@@ -105,5 +102,5 @@ pub fn basic_run(input: String, file_name: String, dir: PathBuf) {
       println!("{}", text);
       //}
     }
-  }
+  }*/
 }
