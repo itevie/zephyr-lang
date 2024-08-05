@@ -182,7 +182,6 @@ impl Interpreter {
   }
 
   pub fn replace_scope_with(&mut self, scope: ScopeContainer) -> ScopeContainer {
-    
     std::mem::replace(&mut self.scope, scope)
   }
 

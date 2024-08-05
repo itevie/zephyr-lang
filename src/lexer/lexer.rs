@@ -161,13 +161,78 @@ static STRING_ONLY_OPERATORS: Lazy<Vec<&&str>> = Lazy::new(|| {
     .collect()
 });
 
-pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, ZephyrError> {
-  // Remove stupid \r's
-  let contents = temp_contents.replace('\r', "");
+/*pub fn lex(contents: String, file_name: String) -> Result<Vec<Token>, ZephyrError> {
+  contents = contents.replace('\r', "");
 
-  // Increment the current contents ID
-  *CURRENT_CONTENTS.lock().unwrap() += 1;
-  let id = { *CURRENT_CONTENTS.lock().unwrap() };
+  // Get the ID for this one
+  let id = {
+    let mut current_id = CURRENT_CONTENTS.lock().unwrap();
+    *current_id += 1;
+    *current_id
+  };
+
+  // Insert
+  LOCATION_CONTENTS.lock().unwrap().insert(
+    id,
+    LocationContents {
+      contents: contents.clone(),
+      file_name,
+    },
+  );
+
+  let mut chars: Vec<char> = contents.chars().collect();
+  let mut tokens: Vec<Token> = vec![];
+  let mut current_char: u32 = 0;
+  let mut current_line: u32 = 0;
+
+  while !chars.is_empty() {
+    let mut location = Location {
+      char_start: current_char,
+      char_end: current_char,
+      line: current_line,
+      location_contents: id,
+    };
+
+    let mut token_value: Option<String> = None;
+    let mut token_type: Option<TokenType> = None;
+
+    let mut eat = |chars: &mut Vec<char>| -> String {
+      let char = chars[0];
+      eat(&mut chars);
+      current_char += 1;
+
+      char.to_string()
+    };
+
+    let mut set_token = |value, t| {
+      token_value = Some(value);
+      token_type = Some(t);
+    };
+
+    match chars[0] {
+
+    }
+  }
+
+  Ok(tokens)
+}*/
+
+macro_rules! eat {
+  ($a:ident, $b:ident) => {{
+    $a += 1;
+    $b.remove(0)
+  }};
+}
+
+pub fn lex(mut contents: String, file_name: String) -> Result<Vec<Token>, ZephyrError> {
+  // Remove stupid \r's
+  contents = contents.replace('\r', "");
+  let id = {
+    let mut current_id = CURRENT_CONTENTS.lock().unwrap();
+    *current_id += 1;
+    *current_id
+  };
+
   LOCATION_CONTENTS.lock().unwrap().insert(
     id,
     LocationContents {
@@ -193,138 +258,84 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
     let mut token_value: Option<String> = None;
     let mut token_type: Option<TokenType> = None;
 
-    let mut eat = |chars: &mut Vec<char>| -> String {
-      let char = chars[0];
-      chars.remove(0);
-      current_char += 1;
-
-      char.to_string()
-    };
-
     let mut set_token = |value, t| {
       token_value = Some(value);
       token_type = Some(t);
     };
 
-    /*let starts_with = |chars: &Vec<char>, what: &str| -> bool {
-      // Check lengths
-      if chars.len() < what.len() {
-        return false;
+    match chars[0] {
+      // Whitespace
+      ' ' | '\t' | '\r' => {
+        eat!(current_char, chars);
+        continue;
       }
-
-      if chars.iter().collect::<String>().starts_with(what) {
-        return true;
+      // Newlines
+      '\n' => {
+        chars.remove(0);
+        current_char = 0;
+        current_line += 1;
+        continue;
       }
-
-      return false;
-    };*/
-
-    // Check for whitespace
-    if chars[0] == ' ' || chars[0] == '\t' || chars[0] == '\r' {
-      eat(&mut chars);
-      continue;
-    }
-    // Check for newline
-    else if chars[0] == '\n' {
-      eat(&mut chars);
-      current_char = 0;
-      current_line += 1;
-      continue;
-    }
-    // Check for // comment
-    else if chars[0] == '/' && chars.len() >= 2 && chars[1] == '/' {
-      // Repeat until \n or eof
-      while !chars.is_empty() && chars[0] != '\n' {
-        eat(&mut chars);
-      }
-      continue;
-    }
-    // Check for /* comment
-    else if chars[0] == '/' && chars.len() >= 2 && chars[1] == '*' {
-      let mut closed = false;
-
-      while !chars.is_empty() {
-        if chars.len() >= 2 && chars[0] == '*' && chars[1] == '/' {
-          eat(&mut chars);
-          eat(&mut chars);
-          closed = true;
-          break;
+      // Comments - singleline
+      '/' if chars.len() >= 2 && chars[1] == '/' => {
+        while !chars.is_empty() && chars[0] != '\n' {
+          eat!(current_char, chars);
         }
-        if chars[0] == '\n' {
-          current_line += 1;
+        continue;
+      }
+      // Comments - multiline
+      '/' if chars.len() >= 2 && chars[1] == '*' => {
+        while chars.len() >= 2 && (chars[0] != '*' || chars[1] != '/') {
+          if chars[0] == '\n' {
+            current_line += 1;
+            current_char = 0;
+            chars.remove(0);
+          } else {
+            eat!(current_char, chars);
+          }
         }
-        eat(&mut chars);
-      }
-      // Check if it was closed
-      if !closed {
-        return Err(ZephyrError::lexer(
-          "Multi-line comment not closed".to_string(),
-          Location::no_location(),
-        ));
-      }
-      continue;
-    }
-    // Check for raw string literals
-    else if chars[0] == '`' {
-      // Remove quote mark
-      eat(&mut chars);
 
-      let mut value = String::from("");
-
-      while !chars.is_empty() && chars[0] != '`' && chars[0] != '\n' {
-        value.push_str(&eat(&mut chars));
-      }
-
-      // Make sure current character is a `
-      if chars[0] != '`' {
-        return Err(ZephyrError::lexer(
-          "Unexpected end of string".to_string(),
-          location,
-        ));
-      }
-
-      eat(&mut chars);
-
-      set_token(value, TokenType::String);
-    }
-    // Check for string literal
-    else if chars[0] == '"' {
-      /*// Check if it was raw
-      if starts_with(&chars, &(RAW_PREFIX.to_string() + "\"")) {
-        for _ in 0..RAW_PREFIX.to_string().len() - 1 {
-          eat(&mut chars);
+        // Expect that there was a */
+        if chars.len() < 3 && !(chars[0] != '*' && chars[0] != '/') {
+          return Err(ZephyrError::lexer(
+            "Multi-line comment not closed".to_string(),
+            Location::no_location(),
+          ));
         }
-      }*/
 
-      // Remove quote mark
-      eat(&mut chars);
+        eat!(current_char, chars);
+        eat!(current_char, chars);
+        continue;
+      }
+      // Strings
+      '"' => {
+        // Remove quote mark
+        eat!(current_char, chars);
 
-      let mut value = String::from("");
+        let mut value = String::from("");
 
-      // Repeat until end of quote, found new line or EOF
-      let start = location;
-      while chars[0] != '"' && chars[0] != '\n' && !chars.is_empty() {
-        let char = eat(&mut chars);
+        // Repeat until end of quote, new line or EOF
+        while !chars.is_empty() && chars[0] != '"' && chars[0] != '\n' {
+          value.push_str(&match eat!(current_char, chars) {
+            // Check for escaping
+            '\\' => {
+              // Check if there is a character to escape
+              if chars.is_empty() {
+                return Err(ZephyrError::lexer(
+                  "Expected a character to escape".to_string(),
+                  location,
+                ));
+              }
 
-        // Check if escape
-        match char.as_str() {
-          // It is escaping
-          "\\" => {
-            // Check if there is a character to escape
-            if !chars.is_empty() {
-              let next_char = eat(&mut chars);
-              match next_char.as_str() {
+              match eat!(current_char, chars) {
                 // Basic ones
-                "n" => value.push('\n'),
-                "r" => value.push('\r'),
-                "t" => value.push('\t'),
-                "\"" => value.push('\"'),
-                "\\" => value.push('\\'),
-                "\n" => value.push('\n'),
-                "\r" => (),
-                // Hex sequences, like x1b[31m, god knows how this work
-                // chatgpt did it
-                "x" => {
+                'n' => "\n".to_string(),
+                'r' => "\r".to_string(),
+                't' => "\t".to_string(),
+                '"' => "\"".to_string(),
+                '\\' => "\\".to_string(),
+                // Hex sequences
+                'x' => {
                   // Expect 2 more
                   if chars.len() < 2 {
                     return Err(ZephyrError::lexer(
@@ -333,188 +344,168 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
                     ));
                   }
 
-                  let hex_digits: String = eat(&mut chars) + &eat(&mut chars);
+                  let hex_digits = chars.drain(0..2).collect::<String>();
                   if let Ok(v) = u8::from_str_radix(&hex_digits, 16) {
-                    value.push_str(String::from(v as char).as_str())
+                    (v as char).to_string()
                   } else {
-                    value.push_str(("\\x".to_string() + &hex_digits).as_str())
+                    "\\x".to_string() + &hex_digits.as_str()
                   }
                 }
-                // Cannot escape given character
-                _ => {
+                v => {
                   return Err(ZephyrError::lexer(
-                    format!("Cannot escape the given character: {}", next_char),
+                    format!("Cannot escape the given character: {}", v),
                     location,
                   ))
                 }
-              };
-            } else {
+              }
+            }
+            v => v.to_string(),
+          });
+        }
+
+        // Make sure the current character is a quote
+        if chars.is_empty() || chars[0] != '"' {
+          return Err(ZephyrError::lexer(
+            "Unexpected ending of string".to_string(),
+            location,
+          ));
+        }
+
+        eat!(current_char, chars);
+
+        set_token(value, TokenType::String);
+      }
+      // Numbers
+      _ if chars[0].is_numeric() => {
+        let mut value = String::new();
+        let mut allowed_chars = "0123456789".chars().collect::<Vec<char>>();
+        let bases = ['b', 'x', 'o'];
+        let mut base: Option<char> = None;
+        let mut used_float = false;
+
+        // Check if it uses special base
+
+        if chars.len() >= 2 && chars[0] == '0' && bases.contains(&chars[1]) {
+          base = Some(chars[1]);
+
+          allowed_chars = match chars[1] {
+            'x' => "ABCDEFabcdef0123456789",
+            'o' => "01234567",
+            'b' => "01",
+            _ => unreachable!(),
+          }
+          .chars()
+          .collect::<Vec<char>>();
+
+          eat!(current_char, chars);
+          eat!(current_char, chars);
+        }
+
+        while !chars.is_empty() {
+          value.push(match chars[0] {
+            v if allowed_chars.contains(&v) => eat!(current_char, chars),
+            '.' => {
+              // Check if char AFTER is a number (for range operator mainly)
+              if chars.len() > 2 && !chars[1].is_numeric() {
+                break;
+              }
+
+              // Check if a bse is being used
+              if let Some(_) = base {
+                return Err(ZephyrError::lexer(
+                  "Cannot use decimals while in different base".to_string(),
+                  location,
+                ));
+              }
+
+              // Check if already used
+              if used_float {
+                return Err(ZephyrError::lexer(
+                  "Decimal point already used in this numeric literal".to_string(),
+                  location,
+                ));
+              }
+
+              used_float = true;
+              eat!(current_char, chars)
+            }
+            _ => {
+              break;
+            }
+          });
+        }
+
+        // Check if a base was applied
+        if let Some(base) = base {
+          value = match match base {
+            'x' => i64::from_str_radix(&value, 16),
+            'o' => i64::from_str_radix(&value, 8),
+            'b' => i64::from_str_radix(&value, 2),
+            _ => unreachable!(),
+          } {
+            Ok(ok) => ok.to_string(),
+            Err(err) => {
               return Err(ZephyrError::lexer(
-                "Expected character to escape".to_string(),
+                format!(
+                  "Failed to parse numeric literal using base {}: {}",
+                  base, err
+                ),
                 location,
               ));
             }
           }
-          // It is not, so just push the val
-          _ => {
-            value.push_str(&char);
+        }
+
+        set_token(value, TokenType::Number);
+      }
+      // Identifiers
+      _ if chars[0].is_alphabetic() || chars[0] == '_' || chars[0] == '@' => {
+        let is_special = chars[0] == '@';
+        let mut value: String = eat!(current_char, chars).to_string();
+
+        while !chars.is_empty()
+          && (chars[0].is_alphanumeric() || chars[0] == '_' || chars[0] == '!')
+        {
+          value.push(eat!(current_char, chars));
+        }
+
+        // Check for ?
+        if !chars.is_empty() && chars[0] == '?' {
+          value.push(eat!(current_char, chars));
+          set_token(value, TokenType::PredicateIdentifier);
+        } else {
+          // Check if it is an operator
+          if STRING_ONLY_OPERATORS.contains(&&&*value) {
+            let oper = *OPERATORS.get(&*value).unwrap();
+            set_token(value, *oper);
+          } else {
+            set_token(
+              value,
+              if is_special {
+                TokenType::SpecialIdentifier
+              } else {
+                TokenType::Identifier
+              },
+            )
           }
-        };
-      }
-
-      // Make sure current character is a "
-      if chars[0] != '"' {
-        return Err(ZephyrError::lexer_with_ref(
-          "Unexpected ending of string".to_string(),
-          location,
-          start,
-        ));
-      }
-
-      eat(&mut chars);
-
-      set_token(value, TokenType::String);
-    }
-    // Check if current char is a number
-    else if chars[0].is_numeric() {
-      let mut value: String = eat(&mut chars);
-
-      // Loop until not a number
-      let mut allowed_chars = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        .iter()
-        .map(|v| v.to_string().chars().next().unwrap())
-        .collect::<Vec<char>>();
-      while !chars.is_empty()
-        && (allowed_chars.contains(&chars[0])
-          || (value.len() == 1 && (chars[0] == 'x' || chars[0] == 'o' || chars[0] == 'b')))
-      {
-        let c = &eat(&mut chars);
-        value.push_str(c);
-
-        // Check if should modify allowed
-        match c.as_str() {
-          "x" => allowed_chars = "ABCDEFabcdef0123456789".to_string().chars().collect(),
-          "o" => allowed_chars = "01234567".to_string().chars().collect(),
-          "b" => allowed_chars = vec!['0', '1'],
-          _ => (),
         }
       }
+      _ => {
+        let op = OPERATOR_KEYS
+          .iter()
+          .find(|&&op| chars.starts_with(&op.chars().collect::<Vec<_>>()));
 
-      // Check if the first number is 0, if it is then try other bases
-      if value.starts_with('0') && value.len() > 1 {
-        // Check the base
-        let base = value.chars().nth(1).unwrap();
-        let mut actual_number_chars = value.chars();
-        actual_number_chars.next();
-        actual_number_chars.next();
-        let actual_number = actual_number_chars.as_str();
-        match base {
-          'x' => {
-            value = match i64::from_str_radix(actual_number, 16) {
-              Ok(ok) => ok,
-              Err(err) => {
-                return Err(ZephyrError::lexer(
-                  format!("Failed to parse hexadecimal string: {}", err),
-                  location,
-                ))
-              }
-            }
-            .to_string()
-          }
-          'o' => {
-            value = match i64::from_str_radix(actual_number, 16) {
-              Ok(ok) => ok,
-              Err(err) => {
-                return Err(ZephyrError::lexer(
-                  format!("Failed to parse octal string: {}", err),
-                  location,
-                ))
-              }
-            }
-            .to_string()
-          }
-          'b' => {
-            value = match i64::from_str_radix(actual_number, 16) {
-              Ok(ok) => ok,
-              Err(err) => {
-                return Err(ZephyrError::lexer(
-                  format!("Failed to parse binary string: {}", err),
-                  location,
-                ))
-              }
-            }
-            .to_string()
-          }
-          _ => unimplemented!(),
+        if let Some(&op) = op {
+          let len = op.len();
+          let value = chars.drain(0..len).collect::<String>();
+          current_char += len as u32;
+          set_token(value, OPERATORS[op].clone());
+        } else {
+          return Err(ZephyrError::lexer(
+            format!("Unexpected token: {}", chars[0]),
+            location,
+          ));
         }
-      }
-
-      // Set token
-      set_token(value, TokenType::Number);
-    }
-    // Check if the current char is alpha
-    else if chars[0].is_alphabetic() || chars[0] == '_' || chars[0] == '@' {
-      let is_special = chars[0] == '@';
-
-      let mut value: String = eat(&mut chars);
-
-      while !chars.is_empty() && (chars[0].is_alphanumeric() || chars[0] == '_' || chars[0] == '!')
-      {
-        value.push_str(&eat(&mut chars));
-      }
-
-      // Check for ?
-      if !chars.is_empty() && chars[0] == '?' {
-        value.push_str(&eat(&mut chars));
-        set_token(value, TokenType::PredicateIdentifier);
-      } else {
-        // Check if it is an operator
-        if STRING_ONLY_OPERATORS.contains(&&&*value) {
-          let oper = *OPERATORS.get(&*value).unwrap();
-          set_token(value, *oper);
-        }
-        // Set token
-        else {
-          set_token(
-            value,
-            if is_special {
-              TokenType::SpecialIdentifier
-            } else {
-              TokenType::Identifier
-            },
-          )
-        };
-      };
-    }
-    // No token was found
-    else {
-      // Check for symbol operators
-      let mut found: bool = false;
-      for key in &OPERATOR_KEYS.clone() {
-        let operator_type = OPERATORS[*key];
-
-        // Check if length is ok
-        if chars.len() < key.len() {
-          continue;
-        };
-
-        // Lookahead
-        let lookahead: String = chars[0..key.len()].to_vec().iter().collect();
-
-        // Check if it is same
-        if lookahead == **key {
-          found = true;
-          set_token(lookahead, *operator_type);
-          for _ in 0..key.len() {
-            eat(&mut chars);
-          }
-          break;
-        }
-      }
-
-      // Check if it was found
-      if !found {
-        return Err(lexer_error!(format!("Unexpected token: {}", chars[0])));
       }
     }
 
