@@ -103,12 +103,12 @@ pub fn load_package(package_directory: PathBuf) -> Result<Package, ZephyrError> 
   dir.push(crate::PACKAGE_FILE_NAME);
 
   // Check if it exists
-  if dir.exists() == false {
+  if !dir.exists() {
     return Err(ZephyrError::runtime(
       format!(
         "Cannot find the {} in {}",
         crate::PACKAGE_FILE_NAME,
-        package_directory.display().to_string()
+        package_directory.display()
       ),
       Location::no_location(),
     ));

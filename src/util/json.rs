@@ -49,8 +49,8 @@ pub fn json_to_zephyr_object(data: &str) -> Result<RuntimeValue, ZephyrError> {
 }
 
 pub fn parse_object(tokens: &mut Vec<Token>, data: Vec<u8>) -> Result<RuntimeValue, ZephyrError> {
-  if tokens.len() == 0 || tokens[0].kind != TokenType::CurlyOpen {
-    if tokens.len() == 0 {
+  if tokens.is_empty() || tokens[0].kind != TokenType::CurlyOpen {
+    if tokens.is_empty() {
       return Err(ZephyrError::runtime(
         "Expected { for start of object".to_string(),
         Location::no_location(),
@@ -62,7 +62,7 @@ pub fn parse_object(tokens: &mut Vec<Token>, data: Vec<u8>) -> Result<RuntimeVal
 
   let mut keys: HashMap<String, RuntimeValue> = HashMap::new();
 
-  while tokens.len() > 0 && tokens[0].kind != TokenType::CurlyClose {
+  while !tokens.is_empty() && tokens[0].kind != TokenType::CurlyClose {
     // Expect key
     if tokens[0].kind != TokenType::String {
       return gen_err!("Expected key", tokens[0]);
@@ -75,10 +75,10 @@ pub fn parse_object(tokens: &mut Vec<Token>, data: Vec<u8>) -> Result<RuntimeVal
     old = tokens.remove(0);
 
     // Expect :
-    if tokens.len() == 0 || tokens[0].kind != TokenType::Colon {
+    if tokens.is_empty() || tokens[0].kind != TokenType::Colon {
       return gen_err!(
         "Expected colon between key-value pair",
-        if tokens.len() == 0 {
+        if tokens.is_empty() {
           old.clone()
         } else {
           tokens[0].clone()
@@ -88,7 +88,7 @@ pub fn parse_object(tokens: &mut Vec<Token>, data: Vec<u8>) -> Result<RuntimeVal
     old = tokens.remove(0);
 
     // Make sure there is a value
-    if tokens.len() == 0 {
+    if tokens.is_empty() {
       return gen_err!("Expected value after key", old);
     }
 
@@ -97,15 +97,15 @@ pub fn parse_object(tokens: &mut Vec<Token>, data: Vec<u8>) -> Result<RuntimeVal
     keys.insert(key, value);
 
     // Check for ,
-    if tokens.len() > 0 && tokens[0].kind == TokenType::Comma {
+    if !tokens.is_empty() && tokens[0].kind == TokenType::Comma {
       old = tokens.remove(0);
     }
   }
 
-  if tokens.len() == 0 || tokens[0].kind != TokenType::CurlyClose {
+  if tokens.is_empty() || tokens[0].kind != TokenType::CurlyClose {
     return gen_err!(
       "Expected { for start of object",
-      if tokens.len() == 0 {
+      if tokens.is_empty() {
         old.clone()
       } else {
         tokens[0].clone()
@@ -114,7 +114,7 @@ pub fn parse_object(tokens: &mut Vec<Token>, data: Vec<u8>) -> Result<RuntimeVal
   }
   tokens.remove(0);
 
-  return Ok(values::Object::make(keys).create_container());
+  Ok(values::Object::make(keys).create_container())
 }
 
 pub fn token_to_zephyr(
@@ -157,12 +157,12 @@ pub fn token_to_zephyr(
       let mut items = values::Array { items: vec![] };
       let old = tokens.remove(0);
 
-      while tokens.len() > 0 && tokens[0].kind != TokenType::BracketClose {
+      while !tokens.is_empty() && tokens[0].kind != TokenType::BracketClose {
         items
           .items
           .push(Box::from(token_to_zephyr(tokens, data.clone())?));
 
-        if tokens.len() > 0 && tokens[0].kind != TokenType::Comma {
+        if !tokens.is_empty() && tokens[0].kind != TokenType::Comma {
           break;
         }
 
@@ -170,7 +170,7 @@ pub fn token_to_zephyr(
       }
 
       // Check end
-      if tokens.len() == 0 {
+      if tokens.is_empty() {
         return gen_err!("Expected closing of array", old);
       } else if tokens[0].kind != TokenType::BracketClose {
         return gen_err!("Expected closing of array", tokens[0]);

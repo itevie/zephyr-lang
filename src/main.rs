@@ -32,7 +32,7 @@ pub mod runtime;
 pub mod util;
 
 // Basic configs
-static PACKAGE_FILE_NAME: &'static str = "package.toml";
+static PACKAGE_FILE_NAME: &str = "package.toml";
 
 // Other static items
 static MEMORY: Lazy<Arc<Mutex<Memory>>> = Lazy::new(|| Arc::from(Mutex::from(Memory::new())));
@@ -160,7 +160,5 @@ fn main() {
         util::fs::write_file(&bundle.out, output);
       }
     }
-
-    return;
   }
 }

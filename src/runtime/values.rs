@@ -125,14 +125,14 @@ impl RuntimeValue {
     {
       let result = match (self, &right) {
         // Booleans
-        (&RuntimeValue::Boolean(ref left_value), &RuntimeValue::Boolean(ref right_value)) => {
+        (RuntimeValue::Boolean(left_value), RuntimeValue::Boolean(right_value)) => {
           Some(left_value.value == right_value.value)
         }
 
         // Strings
         (
-          &RuntimeValue::StringValue(ref left_value),
-          &RuntimeValue::StringValue(ref right_value),
+          RuntimeValue::StringValue(left_value),
+          RuntimeValue::StringValue(right_value),
         ) => Some(left_value.value == right_value.value),
 
         // Null - this will always be true
@@ -140,14 +140,14 @@ impl RuntimeValue {
 
         // Arrays
         (
-          &RuntimeValue::ArrayContainer(ref left_value),
-          &RuntimeValue::ArrayContainer(ref right_value),
+          RuntimeValue::ArrayContainer(left_value),
+          RuntimeValue::ArrayContainer(right_value),
         ) => Some(left_value.location == right_value.location),
 
         // Objects
         (
-          &RuntimeValue::ObjectContainer(ref left_value),
-          &RuntimeValue::ObjectContainer(ref right_value),
+          RuntimeValue::ObjectContainer(left_value),
+          RuntimeValue::ObjectContainer(right_value),
         ) => Some(left_value.location == right_value.location),
         _ => None,
       };
@@ -274,8 +274,8 @@ impl RuntimeValue {
               let v = value.stringify(false, pretty, interpreter);
               v.replace('\n', "\n  ")
             } else {
-              let v = value.stringify(false, pretty, interpreter);
-              v
+              
+              value.stringify(false, pretty, interpreter)
             }
           ));
         }
@@ -308,7 +308,7 @@ impl RuntimeValue {
     match self {
       RuntimeValue::Number(number) => number.value > 0.0,
       RuntimeValue::Boolean(boolean) => boolean.value,
-      RuntimeValue::StringValue(string) => string.value.len() != 0,
+      RuntimeValue::StringValue(string) => !string.value.is_empty(),
       _ => false,
     }
   }

@@ -9,7 +9,7 @@ pub fn resolve(directory: PathBuf, new: &str) -> Result<PathBuf, ZephyrError> {
     let mut package_folder = resolve_package_folder(directory.clone())?;
 
     // Check if it is only importing the package and not a subfile or something
-    if new.contains("/") {
+    if new.contains('/') {
       package_folder.push(new.replace("pkg:", ""));
       return Ok(package_folder.clone());
     } else {
@@ -24,7 +24,7 @@ pub fn resolve(directory: PathBuf, new: &str) -> Result<PathBuf, ZephyrError> {
   let mut resolved = directory.clone();
   resolved.push(new);
 
-  return Ok(resolved.canonicalize().unwrap());
+  Ok(resolved.canonicalize().unwrap())
 }
 
 pub fn resolve_package_folder(directory: PathBuf) -> Result<PathBuf, ZephyrError> {
@@ -37,7 +37,7 @@ pub fn resolve_package_folder(directory: PathBuf) -> Result<PathBuf, ZephyrError
     dir.push("zephyr_packages");
 
     // Check if it exists
-    if dir.exists() == true {
+    if dir.exists() {
       result = dir.clone();
       break;
     } else {
@@ -54,5 +54,5 @@ pub fn resolve_package_folder(directory: PathBuf) -> Result<PathBuf, ZephyrError
     }
   }
 
-  return Ok(result.canonicalize().unwrap());
+  Ok(result.canonicalize().unwrap())
 }

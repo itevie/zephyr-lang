@@ -205,7 +205,7 @@ impl Parser {
     is_block_type: bool,
   ) -> Result<Vec<Box<nodes::Expression>>, ZephyrError> {
     let mut expressions: Vec<Box<nodes::Expression>> = vec![];
-    self.at().value;
+    self.at();
 
     while !matches!(self.at().token_type, TokenType::EOF)
       && !matches!(self.at().token_type, TokenType::CloseBrace)
@@ -317,7 +317,7 @@ impl Parser {
 
     while !matches!(self.at().token_type, TokenType::CloseBrace) {
       // Check if current is "use_strings"
-      if matches!(self.at().token_type, TokenType::String) && use_identifiers == false {
+      if matches!(self.at().token_type, TokenType::String) && !use_identifiers {
         let val = self.eat();
 
         if val.value == "use_strings" {
@@ -346,7 +346,7 @@ impl Parser {
       }
 
       // Add to object
-      let value = Box::from(if use_identifiers == false {
+      let value = Box::from(if !use_identifiers {
         nodes::Expression::NumericLiteral(nodes::NumericLiteral {
           value: used_names.len() as f64,
           location: current_identifier.location

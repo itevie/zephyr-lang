@@ -163,7 +163,7 @@ static STRING_ONLY_OPERATORS: Lazy<Vec<&&str>> = Lazy::new(|| {
 
 pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, ZephyrError> {
   // Remove stupid \r's
-  let contents = temp_contents.replace("\r", "");
+  let contents = temp_contents.replace('\r', "");
 
   // Increment the current contents ID
   *CURRENT_CONTENTS.lock().unwrap() += 1;
@@ -302,7 +302,7 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
       let mut value = String::from("");
 
       // Repeat until end of quote, found new line or EOF
-      let start = location.clone();
+      let start = location;
       while chars[0] != '"' && chars[0] != '\n' && !chars.is_empty() {
         let char = eat(&mut chars);
 
@@ -380,7 +380,7 @@ pub fn lex(temp_contents: String, file_name: String) -> Result<Vec<Token>, Zephy
       let mut value: String = eat(&mut chars);
 
       // Loop until not a number
-      let mut allowed_chars = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      let mut allowed_chars = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         .iter()
         .map(|v| v.to_string().chars().next().unwrap())
         .collect::<Vec<char>>();

@@ -142,7 +142,7 @@ pub fn str_to_number(options: CallOptions) -> R {
   match &options.args[..] {
     [RuntimeValue::StringValue(str)] => {
       let val: f64 = str.value.parse().unwrap();
-      return Ok(RuntimeValue::Number(Number { value: val }));
+      Ok(RuntimeValue::Number(Number { value: val }))
     }
     _ => Err(ZephyrError::runtime(
       "Invalid args".to_string(),
@@ -197,7 +197,7 @@ pub fn slice(options: CallOptions) -> R {
   match &options.args[..] {
     [RuntimeValue::StringValue(string), RuntimeValue::Number(start), RuntimeValue::Number(end)] => {
       Ok(StringValue::make(
-        (&string.value[(start.value as usize)..(end.value as usize)]).to_string(),
+        string.value[(start.value as usize)..(end.value as usize)].to_string(),
       ))
     }
     _ => Err(ZephyrError::runtime(
@@ -403,10 +403,10 @@ pub fn buff_to_utf8(options: CallOptions) -> R {
         })
         .collect::<Vec<u8>>();
 
-      return Ok(StringValue::make(String::from_utf8(bytes).unwrap()));
+      Ok(StringValue::make(String::from_utf8(bytes).unwrap()))
     }
     _ => {
-      return Err(ZephyrError::runtime(
+      Err(ZephyrError::runtime(
         "Invalid args".to_string(),
         options.location,
       ))
@@ -423,10 +423,10 @@ pub fn utf8_to_buff(options: CallOptions) -> R {
         .iter()
         .map(|x| Box::from(RuntimeValue::Number(Number { value: *x as f64 })))
         .collect::<Vec<Box<RuntimeValue>>>();
-      return Ok(Array::make(bytes).create_container());
+      Ok(Array::make(bytes).create_container())
     }
     _ => {
-      return Err(ZephyrError::runtime(
+      Err(ZephyrError::runtime(
         "Invalid args".to_string(),
         options.location,
       ))
@@ -631,7 +631,7 @@ pub fn rust_lambda_test(o: CallOptions) -> R {
           };
         }
         _ => {
-          return Err(ZephyrError::runtime(
+          Err(ZephyrError::runtime(
             "Expected a buffer".to_string(),
             options.location,
           ))
@@ -644,7 +644,7 @@ pub fn rust_lambda_test(o: CallOptions) -> R {
     let stream = Arc::clone(&stream);
     Arc::from(move |options: CallOptions| {
       let bytes: &mut [u8; 128] = &mut [0; 128];
-      let value = match { stream.lock().unwrap().read(bytes) } {
+      let value = match stream.lock().unwrap().read(bytes) {
         Ok(0) => {
           return Err(ZephyrError::runtime(
             "The TCP connection has closed".to_string(),

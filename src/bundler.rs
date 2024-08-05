@@ -56,7 +56,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
   .map(|v| Token {
     token_type: v.token_type,
     value: if v.token_type == TokenType::String {
-      v.value.clone().replace("\n", "\\\\n")
+      v.value.clone().replace('\n', "\\\\n")
     } else {
       v.value.clone()
     },
@@ -197,7 +197,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
       });
     } else if tok.token_type == TokenType::String {
       new_tokens.push(Token {
-        value: tok.value.replace("\n", "\\\\n"),
+        value: tok.value.replace('\n', "\\\\n"),
         token_type: TokenType::String,
         location: tok.location,
       });
@@ -263,7 +263,6 @@ pub fn bundle(input: String, file_name: String) -> String {
       .canonicalize()
       .unwrap()
       .display()
-      .to_string()
   ));
 
   result.clone()
@@ -359,14 +358,10 @@ pub fn bundle_executable(
     "bundler",
   );
 
-  let target = if let Some(target) = options.target {
-    Some(match target.as_str() {
+  let target = options.target.map(|target| match target.as_str() {
       "windows" => "x86_64-pc-windows-gnu".to_string(),
       _ => target,
-    })
-  } else {
-    None
-  };
+    });
 
   let mut args: Vec<String> = vec![
     "build".to_string(),
@@ -417,7 +412,7 @@ pub fn bundle_executable(
       "{}",
       format!(
         "Failed to compile, is cargo installed? (the path {} was not found)",
-        path.display().to_string()
+        path.display()
       )
     );
   }

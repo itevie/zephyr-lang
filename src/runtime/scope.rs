@@ -249,7 +249,7 @@ impl ScopeContainer {
   }
 
   pub fn get_self_details(&self) -> Result<ScopeDetails, ZephyrError> {
-    crate::verbose(&format!("Scope get self details"), "test");
+    crate::verbose("Scope get self details", "test");
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(ok.details.clone()),
       Err(_) => Err(ZephyrError::runtime(
@@ -362,7 +362,7 @@ impl ScopeContainer {
   }
 
   pub fn get_parent(&self) -> Result<Option<ScopeContainer>, ZephyrError> {
-    crate::verbose(&format!("Scope get parent"), "test");
+    crate::verbose("Scope get parent", "test");
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(ok.parent_id.map(|parent| ScopeContainer { id: parent })),
       Err(_) => Err(ZephyrError::runtime(

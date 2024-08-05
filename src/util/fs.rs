@@ -10,12 +10,12 @@ pub fn read_file(path: String) -> String {
         ErrorKind::PermissionDenied => format!("Failed to read {}: permission denied", path),
         _ => format!("Failed to open {}: {}", path, err),
       });
-      return "".to_string();
+      "".to_string()
     }
   }
 }
 
-pub fn write_file(path: &str, contents: String) -> () {
+pub fn write_file(path: &str, contents: String) {
   match fs::write(path, contents) {
     Ok(_) => (),
     Err(err) => {

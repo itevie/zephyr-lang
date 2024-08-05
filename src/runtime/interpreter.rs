@@ -182,8 +182,8 @@ impl Interpreter {
   }
 
   pub fn replace_scope_with(&mut self, scope: ScopeContainer) -> ScopeContainer {
-    let old = std::mem::replace(&mut self.scope, scope);
-    old
+    
+    std::mem::replace(&mut self.scope, scope)
   }
 
   pub fn evaluate(&mut self, node: Expression) -> R {
@@ -530,7 +530,7 @@ impl Interpreter {
               RuntimeValue::ArrayContainer(container) => {
                 if !member.is_computed {
                   return Err(ZephyrError::runtime(
-                    format!("Index should be computed"),
+                    "Index should be computed".to_string(),
                     member.key.get_location(),
                   ));
                 }
@@ -579,7 +579,7 @@ impl Interpreter {
                 }
 
                 // Check 0
-                if array.items.len() == 0 {
+                if array.items.is_empty() {
                   array.items.insert(0, Box::new(values::Null::make()));
                 }
 
@@ -935,16 +935,14 @@ impl Interpreter {
 
     // Check if the function was a predicate and didn't return boolean
     if let Some(ref function_name) = function.name {
-      if function_name.ends_with("?") {
-        if !matches!(return_value, RuntimeValue::Boolean(_)) {
-          return Err(ZephyrError::runtime(
-            format!(
-              "Predicate functions can only return booleans, but it returned: {}",
-              return_value
-            ),
-            location,
-          ));
-        }
+      if function_name.ends_with('?') && !matches!(return_value, RuntimeValue::Boolean(_)) {
+        return Err(ZephyrError::runtime(
+          format!(
+            "Predicate functions can only return booleans, but it returned: {}",
+            return_value
+          ),
+          location,
+        ));
       }
     }
 
