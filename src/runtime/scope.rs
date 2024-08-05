@@ -8,7 +8,7 @@ use super::memory::MemoryAddress;
 use super::values::{Boolean, Null, RuntimeValue, StringValue};
 use crate::errors::ZephyrError;
 use crate::{
-  errors::{self, runtime_error},
+  errors::{self},
   lexer::location::Location,
 };
 
@@ -211,10 +211,10 @@ impl ScopeContainer {
 
     // Check if the variable already exists
     if self.has_variable(name)? {
-      return Err(runtime_error!(format!(
-        "The variable {} already exists",
-        name
-      )));
+      return Err(ZephyrError::runtime(
+        format!("The variable {} already exists", name),
+        Location::no_location(),
+      ));
     }
 
     // Declare it
@@ -236,10 +236,10 @@ impl ScopeContainer {
 
     // Check if the variable already exists
     if self.has_variable(name)? {
-      return Err(runtime_error!(format!(
-        "The variable {} already exists",
-        name
-      )));
+      return Err(ZephyrError::runtime(
+        format!("The variable {} already exists", name),
+        Location::no_location(),
+      ));
     }
 
     // Declare it

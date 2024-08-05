@@ -229,24 +229,3 @@ impl ZephyrError {
     ))
   }
 }
-
-macro_rules! runtime_error {
-  ($message:expr) => {
-    ZephyrError::runtime($message, Location::no_location())
-  };
-}
-pub(crate) use runtime_error;
-
-macro_rules! parser_error {
-  ($message:expr, $location:expr) => {
-    ZephyrError::parser($message, $location)
-  };
-}
-pub(crate) use parser_error;
-
-macro_rules! lexer_error {
-  ($message:expr) => {
-    ZephyrError::lexer($message, Location::no_location())
-  };
-}
-pub(crate) use lexer_error;

@@ -1,5 +1,5 @@
 use crate::{
-  errors::{lexer_error, ZephyrError},
+  errors::ZephyrError,
   lexer::token::{AdditiveTokenType, DualTokenType, MultiplicativeTokenType, UnaryOperator},
 };
 use lazy_static::lazy_static;

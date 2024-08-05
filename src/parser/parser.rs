@@ -9,7 +9,7 @@ use super::nodes::{
 use crate::lexer::location::Location;
 use crate::lexer::token::{DualTokenType, MultiplicativeTokenType, UnaryOperator};
 use crate::{
-  errors::{parser_error, ZephyrError},
+  errors::ZephyrError,
   lexer::token::{Token, TokenType},
 };
 
@@ -114,9 +114,9 @@ impl Parser {
         symbol: val.value,
         location: val.location,
       }),
-      _ => Err(parser_error!(
+      _ => Err(ZephyrError::parser(
         "Expected an identifier".to_string(),
-        self.at().location
+        self.at().location,
       )),
     }
   }
@@ -178,9 +178,9 @@ impl Parser {
   pub fn parse_block(&mut self) -> Result<nodes::Block, ZephyrError> {
     let tok = self.expect(
       discriminant(&TokenType::OpenBrace),
-      parser_error!(
+      ZephyrError::parser(
         "Expected open of block brace".to_string(),
-        self.at().location
+        self.at().location,
       ),
     )?;
 
@@ -188,9 +188,9 @@ impl Parser {
 
     self.expect(
       discriminant(&TokenType::CloseBrace),
-      parser_error!(
+      ZephyrError::parser(
         "Expected close of block brace".to_string(),
-        self.at().location
+        self.at().location,
       ),
     )?;
 
@@ -223,7 +223,7 @@ impl Parser {
       if !self.does_not_need_semicolon(expression.clone()) {
         self.expect(
           discriminant(&TokenType::Semicolon),
-          parser_error!("Expected semicolon".to_string(), self.at().location),
+          ZephyrError::parser("Expected semicolon".to_string(), self.at().location),
         )?;
       }
     }
@@ -231,7 +231,7 @@ impl Parser {
     if !is_block_type {
       self.expect(
         discriminant(&TokenType::EOF),
-        parser_error!("Expected end of file".to_string(), self.at().location),
+        ZephyrError::parser("Expected end of file".to_string(), self.at().location),
       )?;
     }
 
@@ -299,13 +299,13 @@ impl Parser {
     // Expect name
     let name = self.expect(
       discriminant(&TokenType::Identifier),
-      parser_error!("Expected enum name here".to_string(), self.at().location)
+      ZephyrError::parser("Expected enum name here".to_string(), self.at().location)
     )?;
 
     // Expect {
     self.expect(
       discriminant(&TokenType::OpenBrace),
-      parser_error!("Expected open enum block here".to_string(), self.at().location)
+      ZephyrError::parser("Expected open enum block here".to_string(), self.at().location)
     )?;
 
     let mut object = nodes::ObjectLiteral {
@@ -333,7 +333,7 @@ impl Parser {
 
       let current_identifier = self.expect(
         discriminant(&TokenType::Identifier),
-        parser_error!("Expected identifier here".to_string(), self.at().location)
+        ZephyrError::parser("Expected identifier here".to_string(), self.at().location)
       )?;
 
       // Check if already in enum
@@ -371,7 +371,7 @@ impl Parser {
     // Expect {
     self.expect(
       discriminant(&TokenType::CloseBrace),
-      parser_error!("Expected close enum block here".to_string(), self.at().location)
+      ZephyrError::parser("Expected close enum block here".to_string(), self.at().location)
     )?;
 
     // Construct sugar
@@ -406,13 +406,13 @@ impl Parser {
     // Get the name of the variable
     let name =self.expect(
       discriminant(&TokenType::Identifier),
-      parser_error!("Expected variable name here".to_string(), self.at().location)
+      ZephyrError::parser("Expected variable name here".to_string(), self.at().location)
     )?;
 
     // Expect an =
     self.expect(
       discriminant(&TokenType::NormalAssignmentOperator),
-      parser_error!("Expected normal assignment operator".to_string(), self.at().location),
+      ZephyrError::parser("Expected normal assignment operator".to_string(), self.at().location),
     )?;
 
     // Get the value
@@ -1058,7 +1058,7 @@ impl Parser {
         let value = self.parse_expression()?;
         self.expect(
           discriminant(&TokenType::CloseParen),
-          parser_error!("Expected closing paren".to_string(), self.at().location
+          ZephyrError::parser("Expected closing paren".to_string(), self.at().location
         ))?;
         value
       },
@@ -1100,7 +1100,7 @@ impl Parser {
         let block = self.parse_block()?;
         nodes::Expression::Block(block)
       },
-      _ => return Err(parser_error!(format!("Cannot handle this token {:?}", self.at().token_type), self.at().location))
+      _ => return Err(ZephyrError::parser(format!("Cannot handle this token {:?}", self.at().token_type), self.at().location))
     })
   }}
 
