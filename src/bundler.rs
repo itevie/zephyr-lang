@@ -17,6 +17,7 @@ use crate::{
   },
   mini::compress_tokens,
   parser::{nodes::Expression, parser},
+  util,
 };
 
 #[derive(Debug)]
@@ -26,7 +27,7 @@ pub struct ExtractionResult {
 }
 
 pub fn extract(file_name: String) -> ExtractionResult {
-  crate::debug(
+  util::debug(
     &format!("Preparing {} to be bundled...", file_name),
     "bundler",
   );
@@ -81,7 +82,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
   while i != tokens.len() - 1 {
     let tok = &tokens[i];
     if tok.token_type == TokenType::From {
-      crate::debug(&format!("Found from: {:#?}", tokens[i]), "bundler");
+      util::debug(&format!("Found from: {:#?}", tokens[i]), "bundler");
 
       // Parse a import using the parser
       let old = tokens[i..].len();
@@ -111,7 +112,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
 
       // Check how many tokens were removed
       let removed = old - parser.tokens.len();
-      crate::debug(
+      util::debug(
         &format!(
           "The import took {} tokens, it imported {}",
           removed,
@@ -150,7 +151,7 @@ pub fn extract(file_name: String) -> ExtractionResult {
         processed.push(path_whole.display().to_string());
       }
     } else if tok.token_type == TokenType::Export {
-      crate::debug("Found export token.. attempting to convert", "bundler");
+      util::debug("Found export token.. attempting to convert", "bundler");
 
       // Try to parse the export
       let old = tokens[i..].len();
@@ -259,10 +260,7 @@ pub fn bundle(input: String, file_name: String) -> String {
   // Call the index
   result.push_str(&format!(
     "(__imports[`{}`])();\n",
-    PathBuf::from(file_name)
-      .canonicalize()
-      .unwrap()
-      .display()
+    PathBuf::from(file_name).canonicalize().unwrap().display()
   ));
 
   result.clone()
@@ -296,7 +294,7 @@ pub fn bundle_executable(
 
   // Git clone
   pb.message("Cloning Zephyr GitHub repository ");
-  crate::debug("Attempting to clone GitHub repository...", "bundler");
+  util::debug("Attempting to clone GitHub repository...", "bundler");
   match std::process::Command::new("git")
     .args([
       "clone",
@@ -317,7 +315,7 @@ pub fn bundle_executable(
     return crate::util::die("Failed to clone GitHub repository, is git installed?".to_string());
   }
 
-  crate::debug(
+  util::debug(
     &format!(
       "Git clone successful, index file is: {}",
       fs::canonicalize(index_rs.clone()).unwrap().display()
@@ -326,7 +324,7 @@ pub fn bundle_executable(
   );
   pb.inc();
 
-  crate::debug("Waiting few seconds...", "bundler");
+  util::debug("Waiting few seconds...", "bundler");
   std::thread::sleep(Duration::from_secs(3));
   pb.inc();
 
@@ -353,15 +351,15 @@ pub fn bundle_executable(
   };
   pb.inc();
 
-  crate::debug(
+  util::debug(
     "Successfully modified index.rs, now attempting to compile...",
     "bundler",
   );
 
   let target = options.target.map(|target| match target.as_str() {
-      "windows" => "x86_64-pc-windows-gnu".to_string(),
-      _ => target,
-    });
+    "windows" => "x86_64-pc-windows-gnu".to_string(),
+    _ => target,
+  });
 
   let mut args: Vec<String> = vec![
     "build".to_string(),
@@ -419,12 +417,12 @@ pub fn bundle_executable(
   pb.inc();
 
   // Copy
-  crate::debug("Copying outputted executable to out file...", "bundler");
+  util::debug("Copying outputted executable to out file...", "bundler");
 
   fs::copy(path, _out_file).unwrap();
   pb.inc();
 
-  crate::debug("Done, cleaning up", "bundler");
+  util::debug("Done, cleaning up", "bundler");
   fs::remove_dir_all("./bundler_executable_temp").unwrap();
   pb.finish_print("Done!");
 }

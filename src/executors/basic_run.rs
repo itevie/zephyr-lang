@@ -6,7 +6,7 @@ pub fn basic_run(input: String, file_name: String, dir: PathBuf) {
   let builder = std::thread::Builder::new()
     .name("zephyr_runner".into())
     .stack_size(crate::ARGS.stack_size);
-  crate::verbose(
+  crate::util::verbose(
     &format!(
       "Running file {} with {}b stack",
       file_name.clone(),

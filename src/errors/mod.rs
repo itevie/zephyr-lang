@@ -129,23 +129,6 @@ impl ZephyrError {
     result
   }
 
-  pub fn visualise_old(&self, is_repl: bool) -> String {
-    format!(
-      "{}\n{:?}: {}{}",
-      ZephyrError::visualise_location_old(self.location, is_repl, false),
-      self.error_type,
-      self.error_message,
-      if let Some(reference) = &self.reference {
-        format!(
-          "\n\n{}",
-          ZephyrError::visualise_location_old(*reference, false, true)
-        )
-      } else {
-        "".to_string()
-      }
-    )
-  }
-
   pub fn visualise_location(location: Location, is_repl: bool, _is_ref: bool) -> String {
     let mut result = String::new();
 

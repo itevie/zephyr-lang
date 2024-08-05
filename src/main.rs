@@ -42,23 +42,6 @@ static ARGS: Lazy<cli::Args> = Lazy::new(cli::Args::from_args);
 static ZEPHYR_ARGS: Lazy<Arc<RwLock<Vec<String>>>> = Lazy::new(|| Arc::from(RwLock::from(vec![])));
 static GLOBAL_THREAD_COUNT: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0));
 
-pub fn debug(contents: &str, what: &str) {
-  if ARGS.debug || ARGS.verbose {
-    println!(
-      "[DEBUG:{} THREAD: {:?}]: {}",
-      what,
-      std::thread::current().id(),
-      contents
-    );
-  }
-}
-
-pub fn verbose(contents: &str, what: &str) {
-  if ARGS.verbose {
-    println!("[VERBOSE:{}]: {}", what, contents);
-  }
-}
-
 pub fn get_data_dir() -> PathBuf {
   let mut buf = PathBuf::from(directories::UserDirs::new().unwrap().home_dir());
   buf.push(".zephyr");
@@ -97,7 +80,7 @@ fn main() {
     ));
   }
 
-  debug(
+  util::debug(
     &format!(
       "The current directory is set to: {}, app data dir is {}",
       dir.display(),

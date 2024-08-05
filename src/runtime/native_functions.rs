@@ -405,12 +405,10 @@ pub fn buff_to_utf8(options: CallOptions) -> R {
 
       Ok(StringValue::make(String::from_utf8(bytes).unwrap()))
     }
-    _ => {
-      Err(ZephyrError::runtime(
-        "Invalid args".to_string(),
-        options.location,
-      ))
-    }
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
   }
 }
 
@@ -425,12 +423,10 @@ pub fn utf8_to_buff(options: CallOptions) -> R {
         .collect::<Vec<Box<RuntimeValue>>>();
       Ok(Array::make(bytes).create_container())
     }
-    _ => {
-      Err(ZephyrError::runtime(
-        "Invalid args".to_string(),
-        options.location,
-      ))
-    }
+    _ => Err(ZephyrError::runtime(
+      "Invalid args".to_string(),
+      options.location,
+    )),
   }
 }
 
@@ -515,7 +511,7 @@ pub fn spawn_thread(options: CallOptions) -> R {
       let func = func.clone();
       crate::GLOBAL_THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
       std::thread::spawn(move || {
-        crate::debug(
+        util::debug(
           &format!(
             "Thread initiated, there are now {} thread(s), this thread's ID is: {:?}",
             crate::GLOBAL_THREAD_COUNT.load(Ordering::SeqCst),
@@ -630,12 +626,10 @@ pub fn rust_lambda_test(o: CallOptions) -> R {
             )),
           };
         }
-        _ => {
-          Err(ZephyrError::runtime(
-            "Expected a buffer".to_string(),
-            options.location,
-          ))
-        }
+        _ => Err(ZephyrError::runtime(
+          "Expected a buffer".to_string(),
+          options.location,
+        )),
       }
     })
   };

@@ -16,3 +16,20 @@ pub fn die(err: String) {
   );
   std::process::exit(1);
 }
+
+pub fn debug(contents: &str, what: &str) {
+  if crate::ARGS.debug || crate::ARGS.verbose {
+    println!(
+      "[DEBUG:{} THREAD: {:?}]: {}",
+      what,
+      std::thread::current().id(),
+      contents
+    );
+  }
+}
+
+pub fn verbose(contents: &str, what: &str) {
+  if crate::ARGS.verbose {
+    println!("[VERBOSE:{}]: {}", what, contents);
+  }
+}

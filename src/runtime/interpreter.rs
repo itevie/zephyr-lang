@@ -11,6 +11,7 @@ use crate::{
     nodes::{self, Expression},
     parser::Parser,
   },
+  util,
 };
 
 use super::{
@@ -49,6 +50,8 @@ macro_rules! include_lib {
 
 impl Interpreter {
   pub fn new(directory: String) -> Self {
+    util::verbose("Loading global interpreter", "interpreter");
+
     // Create the scopes
     let global_scope = ScopeContainer::new(directory.clone());
     let scope = global_scope.create_child().unwrap();
@@ -116,6 +119,8 @@ impl Interpreter {
 
     // Load the libraries
     for lib in libary_files {
+      util::verbose(&format!("Loading library {}", lib.1), "interpreter");
+
       let lib_scope = scope.create_child().unwrap();
       lib_scope.set_can_export(true).unwrap();
 
@@ -673,6 +678,7 @@ impl Interpreter {
 
         Ok(values::Boolean::make(false))
       }
+      Expression::Block(expr) => self.evaluate_expr_vec(expr.nodes, self.scope.create_child()?),
       Expression::TypeofExpression(expr) => Ok(values::StringValue::make(
         self.evaluate(*expr.value)?.type_name().to_string(),
       )),

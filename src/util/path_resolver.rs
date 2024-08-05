@@ -2,6 +2,11 @@ use std::path::PathBuf;
 
 use crate::{errors::ZephyrError, lexer::location::Location};
 
+// Path rules:
+// Starts with "/" - absolute
+// Starts with "." - Relative
+// Starts with "pkg:" - Looks in package folder
+
 pub fn resolve(directory: PathBuf, new: &str) -> Result<PathBuf, ZephyrError> {
   // First check if new is a package (starts with pkg:)
   if new.starts_with("pkg:") {

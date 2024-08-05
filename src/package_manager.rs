@@ -1,4 +1,4 @@
-use crate::{cli::NewPackage, errors::ZephyrError, lexer::location::Location};
+use crate::{cli::NewPackage, errors::ZephyrError, lexer::location::Location, util};
 use serde::Deserialize;
 use std::{fs, path::PathBuf};
 
@@ -26,7 +26,7 @@ pub struct Package {
 }
 
 pub fn new(options: NewPackage, directory: PathBuf) {
-  crate::debug(
+  util::debug(
     &format!("Creating package {}", options.name_pos),
     "package-manager",
   );
@@ -57,7 +57,7 @@ pub fn new(options: NewPackage, directory: PathBuf) {
     }
   }
 
-  crate::debug(
+  util::debug(
     &format!("Folder created {}", path.display()),
     "package-manager",
   );

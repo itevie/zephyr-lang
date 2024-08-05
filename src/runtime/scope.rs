@@ -7,6 +7,7 @@ use once_cell::sync::Lazy;
 use super::memory::MemoryAddress;
 use super::values::{Boolean, Null, RuntimeValue, StringValue};
 use crate::errors::ZephyrError;
+use crate::util;
 use crate::{
   errors::{self},
   lexer::location::Location,
@@ -69,7 +70,7 @@ impl ScopeContainer {
       .unwrap()
       .insert(id, Arc::from(Mutex::from(x)));
 
-    crate::verbose(
+    util::verbose(
       &format!(
         "Scope {} was created, there are now {} scopes",
         id,
@@ -104,7 +105,7 @@ impl ScopeContainer {
       .unwrap()
       .insert(id, Arc::from(Mutex::from(scope)));
 
-    crate::verbose(
+    util::verbose(
       &format!(
         "Scope {} was created, there are now {} scopes",
         id,
@@ -129,7 +130,7 @@ impl ScopeContainer {
     // Delete
     crate::SCOPES.lock().unwrap().remove(&self.id);
 
-    crate::verbose(
+    util::verbose(
       &format!(
         "Scope {} was deleted, there are now {} scopes",
         self.id,
@@ -142,7 +143,7 @@ impl ScopeContainer {
   }
 
   pub fn has_variable(&self, name: &str) -> Result<bool, errors::ZephyrError> {
-    crate::verbose(&format!("Scope has variable {}", name), "test");
+    util::verbose(&format!("Scope has variable {}", name), "test");
     match { crate::SCOPES.lock().unwrap().get(&self.id) }
       .unwrap()
       .lock()
@@ -160,7 +161,7 @@ impl ScopeContainer {
     name: &str,
     value: RuntimeValue,
   ) -> Result<(), errors::ZephyrError> {
-    crate::verbose(&format!("Scope insert variable {}", name), "test");
+    util::verbose(&format!("Scope insert variable {}", name), "test");
     let scope = { crate::SCOPES.lock().unwrap().get(&self.id).cloned() };
     match scope.unwrap().lock() {
       Ok(ok) => {
@@ -182,7 +183,7 @@ impl ScopeContainer {
     name: &str,
     value: MemoryAddress,
   ) -> Result<(), errors::ZephyrError> {
-    crate::verbose(
+    util::verbose(
       &format!("Scope insert variable with address {}", name),
       "test",
     );
@@ -228,7 +229,7 @@ impl ScopeContainer {
     name: &str,
     value: RuntimeValue,
   ) -> Result<(), errors::ZephyrError> {
-    crate::verbose(&format!("Scope declare variable {}", name), "test");
+    util::verbose(&format!("Scope declare variable {}", name), "test");
     // Check if disregard
     if name == "_" {
       return Ok(());
@@ -249,7 +250,7 @@ impl ScopeContainer {
   }
 
   pub fn get_self_details(&self) -> Result<ScopeDetails, ZephyrError> {
-    crate::verbose("Scope get self details", "test");
+    util::verbose("Scope get self details", "test");
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(ok.details.clone()),
       Err(_) => Err(ZephyrError::runtime(
@@ -362,7 +363,7 @@ impl ScopeContainer {
   }
 
   pub fn get_parent(&self) -> Result<Option<ScopeContainer>, ZephyrError> {
-    crate::verbose("Scope get parent", "test");
+    util::verbose("Scope get parent", "test");
     match crate::SCOPES.lock().unwrap().get(&self.id).unwrap().lock() {
       Ok(ok) => Ok(ok.parent_id.map(|parent| ScopeContainer { id: parent })),
       Err(_) => Err(ZephyrError::runtime(
@@ -393,7 +394,7 @@ impl ScopeContainer {
   }
 
   pub fn get_variable(&self, name: &str) -> Result<RuntimeValue, errors::ZephyrError> {
-    crate::verbose(&format!("Scope get variable {}", name), "test");
+    util::verbose(&format!("Scope get variable {}", name), "test");
     if !(self.has_variable(name)?) {
       // Check if it has a parent
       if let Some(parent) = self.get_parent()? {
@@ -455,7 +456,7 @@ impl ScopeContainer {
           ))
         }
       };
-      crate::verbose(
+      util::verbose(
         &format!("Exported {} with memory address {}", name, address),
         "scope",
       );
