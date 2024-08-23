@@ -626,9 +626,12 @@ impl Parser {
 
       let alternate = self.parse_expression()?;
 
-      return Ok(nodes::Expression::TernaryExpression(nodes::TernaryExpression {
-        success: Box::from(success),
-        alternate: Box::from(alternate),
+      return Ok(nodes::Expression::IfExpression(nodes::IfExpression {
+        success: Box::from(nodes::Block {
+          nodes: vec![Box::from(success.clone())],
+          location: success.get_location(),
+        }),
+        alternate: Some(Box::from(alternate)),
         test: Box::from(left),
         location: tok.location
       }));

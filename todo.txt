@@ -2,12 +2,11 @@ defer keyword like go (ew go)
 matches like rust cause rust godly :sunglasses: :pleading_face: :rocket: :crab:
 make it so when bundle -e is used it stops it from using args or wahtever
 
-rework the lexer
+rework the lexer (fix operators, they take ages to parse (i think))
 add r# for raw shit
 
-rethrow keyword
-or just improve errors
-
-stacktraces
+error functions
 
 passing no subcommands gives help
+
+desctruturing like let [a, b] = [1, 2]

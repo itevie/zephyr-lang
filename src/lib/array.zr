@@ -108,6 +108,14 @@ export let Array = .{
         values;
     },
 
+    reverse: func reverse(array: array?) {
+        array[$array-1..0];
+    },
+
+    reverse!: func reverse!(array: array?) {
+        array.ref_replace(array.reverse());
+    },
+
     // ----- Others -----
     join: func join(values: array?, by: null_or?(string?)) {
         let value = "";

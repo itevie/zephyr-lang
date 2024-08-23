@@ -130,25 +130,22 @@ impl RuntimeValue {
         }
 
         // Strings
-        (
-          RuntimeValue::StringValue(left_value),
-          RuntimeValue::StringValue(right_value),
-        ) => Some(left_value.value == right_value.value),
+        (RuntimeValue::StringValue(left_value), RuntimeValue::StringValue(right_value)) => {
+          Some(left_value.value == right_value.value)
+        }
 
         // Null - this will always be true
         (&RuntimeValue::Null(_), _) => Some(true),
 
         // Arrays
-        (
-          RuntimeValue::ArrayContainer(left_value),
-          RuntimeValue::ArrayContainer(right_value),
-        ) => Some(left_value.location == right_value.location),
+        (RuntimeValue::ArrayContainer(left_value), RuntimeValue::ArrayContainer(right_value)) => {
+          Some(left_value.location == right_value.location)
+        }
 
         // Objects
-        (
-          RuntimeValue::ObjectContainer(left_value),
-          RuntimeValue::ObjectContainer(right_value),
-        ) => Some(left_value.location == right_value.location),
+        (RuntimeValue::ObjectContainer(left_value), RuntimeValue::ObjectContainer(right_value)) => {
+          Some(left_value.location == right_value.location)
+        }
         _ => None,
       };
 
@@ -274,7 +271,6 @@ impl RuntimeValue {
               let v = value.stringify(false, pretty, interpreter);
               v.replace('\n', "\n  ")
             } else {
-              
               value.stringify(false, pretty, interpreter)
             }
           ));

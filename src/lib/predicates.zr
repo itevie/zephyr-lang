@@ -31,6 +31,10 @@ export func string?(test) {
   typeof test == "string";
 }
 
+export func char?(test) {
+  typeof test == "string" && $test == 1;
+}
+
 export func boolean?(test) {
   typeof test == "boolean";
 }

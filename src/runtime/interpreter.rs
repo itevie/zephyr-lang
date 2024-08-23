@@ -5,7 +5,9 @@ use crate::{
   lexer::{
     lexer,
     location::Location,
-    token::{AdditiveTokenType, LogicalTokenType, MultiplicativeTokenType, TokenType},
+    token::{
+      AdditiveTokenType, LogicalTokenType, MultiplicativeTokenType, TokenType, UnaryOperator,
+    },
   },
   parser::{
     nodes::{self, Expression},
@@ -180,6 +182,8 @@ impl Interpreter {
       lib_scope.set_can_export(false).unwrap();
     }
 
+    util::verbose("\n\n  Finsihed Global Interpreter Setup  \n", "interpreter");
+
     Interpreter {
       scope,
       global_scope,
@@ -187,6 +191,13 @@ impl Interpreter {
   }
 
   pub fn replace_scope_with(&mut self, scope: ScopeContainer) -> ScopeContainer {
+    util::verbose(
+      &format!(
+        "Interpreter's scope swapped: {} -> {}",
+        self.scope.id, scope.id
+      ),
+      "interpreter",
+    );
     std::mem::replace(&mut self.scope, scope)
   }
 
@@ -292,6 +303,196 @@ impl Interpreter {
           }
         }
       }
+      Expression::UnaryExpression(expr) => {
+        let value = self.evaluate(*expr.value.clone())?;
+
+        let result = match expr.operator {
+          // +
+          TokenType::AdditiveOperator(AdditiveTokenType::Minus) => match value {
+            RuntimeValue::Number(ref number) => Some(values::Number::make(-number.value)),
+            _ => None,
+          },
+          // -
+          TokenType::AdditiveOperator(AdditiveTokenType::Plus) => match value {
+            RuntimeValue::Number(ref number) => Some(values::Number::make(number.value.abs())),
+            _ => None,
+          },
+          // !, not
+          TokenType::UnaryOperator(UnaryOperator::Not) | TokenType::Not => {
+            Some(values::Boolean::make(!value.is_truthy()))
+          }
+          // $
+          TokenType::UnaryOperator(UnaryOperator::LengthOf) => {
+            Some(values::Number::make(value.iterate()?.len() as f64))
+          }
+          // ++
+          TokenType::UnaryOperator(UnaryOperator::Increment) => match *expr.value {
+            Expression::Identifier(ident) => match self.scope.get_variable(&ident.symbol)? {
+              RuntimeValue::Number(num) => {
+                let result = values::Number::make(num.value + 1f64);
+                self.scope.modify_variable(&ident.symbol, result.clone())?;
+                Some(result)
+              }
+              _ => None,
+            },
+            _ => None,
+          },
+          // --
+          TokenType::UnaryOperator(UnaryOperator::Decrement) => match *expr.value {
+            Expression::Identifier(ident) => match self.scope.get_variable(&ident.symbol)? {
+              RuntimeValue::Number(num) => {
+                let result = values::Number::make(num.value - 1f64);
+                self.scope.modify_variable(&ident.symbol, result.clone())?;
+                Some(result)
+              }
+              _ => None,
+            },
+            _ => None,
+          },
+          _ => None,
+        };
+
+        match result {
+          Some(res) => Ok(res),
+          None => {
+            return Err(ZephyrError::runtime(
+              format!("Cannot handle {}{}", expr.operator, value.type_name()),
+              expr.location,
+            ))
+          }
+        }
+      }
+      Expression::UnaryRightExpression(expr) => {
+        let value = self.evaluate(*expr.value.clone())?;
+
+        let result = match expr.operator {
+          // ++
+          TokenType::UnaryOperator(UnaryOperator::Increment) => match *expr.value {
+            Expression::Identifier(ident) => match self.scope.get_variable(&ident.symbol)? {
+              RuntimeValue::Number(num) => {
+                let result = values::Number::make(num.value + 1f64);
+                self.scope.modify_variable(&ident.symbol, result.clone())?;
+                Some(values::Number::make(num.value))
+              }
+              _ => None,
+            },
+            _ => None,
+          },
+          // --
+          TokenType::UnaryOperator(UnaryOperator::Decrement) => match *expr.value {
+            Expression::Identifier(ident) => match self.scope.get_variable(&ident.symbol)? {
+              RuntimeValue::Number(num) => {
+                let result = values::Number::make(num.value - 1f64);
+                self.scope.modify_variable(&ident.symbol, result.clone())?;
+                Some(values::Number::make(num.value))
+              }
+              _ => None,
+            },
+            _ => None,
+          },
+          _ => None,
+        };
+
+        match result {
+          Some(res) => Ok(res),
+          None => {
+            return Err(ZephyrError::runtime(
+              format!("Cannot handle {}{}", value.type_name(), expr.operator),
+              expr.location,
+            ))
+          }
+        }
+      }
+      Expression::RangeExpression(expr) => {
+        // Rules:
+        // lt..gt = range going upwards from less to great (0..10)
+        // gt..lt = range going downwards from great to less (10..0)
+        // lt.<gt = range going upwards from less to great, skipping the last element
+        // gt.<lt = range going downwards from great to less, skipping the last element
+        // lt..lt = give array with just the number
+        // lt..gt step 2 = range from lt to gt with steps of 2
+        //
+        // lt, gt and step must be numbers
+        // floats as the lt or gt are NOT allowed, only as the step
+        //
+        // Disallowed:
+        // lt..gt step -2
+        // gt..lt step 2
+
+        // Collect values
+        let from = match self.evaluate(*expr.from.clone())? {
+          RuntimeValue::Number(number) if number.value.fract() == 0.0 => number.value as i64,
+          v => {
+            return Err(ZephyrError::runtime(
+              format!("Expected a whole number as the from, but got {}", v),
+              expr.from.get_location(),
+            ))
+          }
+        };
+        let to = match self.evaluate(*expr.to)? {
+          RuntimeValue::Number(number) if number.value.fract() == 0.0 => number.value as i64,
+          v => {
+            return Err(ZephyrError::runtime(
+              format!("Expected a whole number as the to, but got {}", v),
+              expr.from.get_location(),
+            ))
+          }
+        };
+
+        let step = if let Some(step_expr) = expr.step {
+          match self.evaluate(*step_expr.clone())? {
+            RuntimeValue::Number(number) if number.value != 0.0 => number.value,
+            v => {
+              return Err(ZephyrError::runtime(
+                format!(
+                  "Expected a non-zero number as the range step, but got {}",
+                  v
+                ),
+                step_expr.get_location(),
+              ))
+            }
+          }
+        } else if from < to {
+          1f64
+        } else {
+          -1f64
+        };
+
+        // Validate
+        if from < to && step < 0f64 {
+          return Err(ZephyrError::runtime(
+            format!("Invalid range. Range goes up, but each step goes down"),
+            expr.location,
+          ));
+        }
+        if from > to && step > 0f64 {
+          return Err(ZephyrError::runtime(
+            format!("Invalid range. Range goes down, but each step goes up"),
+            expr.location,
+          ));
+        }
+
+        let added = if expr.uninclusive { 0 } else { 1 };
+        let start = from;
+        let end = to + if start < to { added } else { -added };
+        let mut current = start as f64;
+
+        let mut array: Vec<Box<RuntimeValue>> = vec![];
+
+        if start < end {
+          while current < end as f64 {
+            array.push(Box::from(values::Number::make(current)));
+            current += step;
+          }
+        } else {
+          while current > end as f64 {
+            array.push(Box::from(values::Number::make(current)));
+            current += step;
+          }
+        }
+
+        Ok(values::Array::make(array).create_container())
+      }
       Expression::ArithmeticOperator(expr) => {
         // Get values
         let left = self.evaluate(*expr.left.clone())?;
@@ -382,15 +583,23 @@ impl Interpreter {
       }
       Expression::LogicalExpression(expr) => {
         let left = self.evaluate(*expr.left)?;
-        let right = self.evaluate(*expr.right)?;
 
+        // Compare & check if right needs to be computed
         Ok(match expr.operator {
-          LogicalTokenType::And => values::Boolean::make(left.is_truthy() && right.is_truthy()),
+          LogicalTokenType::And => values::Boolean::make(if left.is_truthy() {
+            if self.evaluate(*expr.right)?.is_truthy() {
+              true
+            } else {
+              false
+            }
+          } else {
+            false
+          }),
           LogicalTokenType::Or => {
             if left.is_truthy() {
               left
             } else {
-              right
+              self.evaluate(*expr.right)?
             }
           }
         })
@@ -776,41 +985,88 @@ impl Interpreter {
 
     // Check for array
     if let RuntimeValue::ArrayContainer(ref array_container) = value {
-      let key = self.evaluate(*node.key.clone())?;
-      if let RuntimeValue::Number(number) = key {
-        // Expect it to be a whole number
-        if number.value.fract() != 0.0 {
-          return Err(ZephyrError::runtime(
-            format!(
-              "Expected a whole number to index an array, but got {}",
-              number.value
-            ),
-            node.key.get_location(),
-          ));
+      if node.is_computed {
+        let key = self.evaluate(*node.key.clone())?;
+        if let RuntimeValue::Number(number) = key {
+          // Expect it to be a whole number
+          if number.value.fract() != 0.0 {
+            return Err(ZephyrError::runtime(
+              format!(
+                "Expected a whole number to index an array, but got {}",
+                number.value
+              ),
+              node.key.get_location(),
+            ));
+          }
+
+          // Get array and proper index (allowing negatives)
+          let array = array_container.deref();
+          let index = if number.value < 0f64 {
+            array.items.len() - number.value as usize
+          } else {
+            number.value as usize
+          };
+
+          // Check out of bounds
+          if index >= array.items.len() {
+            return Err(ZephyrError::runtime(
+              format!(
+                "Index out of bounds, array's length is {} but got {}",
+                array.items.len(),
+                index
+              ),
+              node.key.get_location(),
+            ));
+          }
+
+          // Return it
+          return Ok(*array.items[index].clone());
+        } else if let RuntimeValue::ArrayContainer(container) = key {
+          let array_index = container.deref();
+          let array = array_container.deref();
+          let mut indexes: Vec<usize> = vec![];
+
+          // Loop through the given array, making sure they are all positive numbers & are in bounds
+          for (index, value) in array_index.items.iter().enumerate() {
+            // It should be a number
+            indexes.push(match *value.clone() {
+              RuntimeValue::Number(number) if number.value >= 0f64 => {
+                let current_index = number.value as usize;
+                // Check if it is inbounds
+                if current_index >= array.items.len() {
+                  return Err(ZephyrError::runtime(
+                    format!(
+                      "Index {} is out of bounds of array of length {}",
+                      index,
+                      array.items.len()
+                    ),
+                    node.key.get_location(),
+                  ));
+                }
+                current_index
+              }
+              v => {
+                return Err(ZephyrError::runtime(
+                  format!(
+                    "Expected a positive number at index {}, but got {}",
+                    index, v
+                  ),
+                  node.key.get_location(),
+                ))
+              }
+            });
+          }
+
+          // Construct the new array
+          let mut new_array: Vec<Box<RuntimeValue>> = vec![];
+
+          for i in indexes {
+            new_array.push(array.items[i].clone());
+          }
+
+          // Return new array
+          return Ok(values::Array::make(new_array).create_container());
         }
-
-        // Get array and proper index (allowing negatives)
-        let array = array_container.deref();
-        let index = if number.value < 0f64 {
-          array.items.len() - number.value as usize
-        } else {
-          number.value as usize
-        };
-
-        // Check out of bounds
-        if index >= array.items.len() {
-          return Err(ZephyrError::runtime(
-            format!(
-              "Index out of bounds, array's length is {} but got {}",
-              array.items.len(),
-              index
-            ),
-            node.key.get_location(),
-          ));
-        }
-
-        // Return it
-        return Ok(*array.items[index].clone());
       }
     }
 
@@ -890,6 +1146,7 @@ impl Interpreter {
           "__args__",
           values::Array::make(arguments.clone()).create_container(),
         )?;
+        break;
       }
 
       // Get what it is to assign

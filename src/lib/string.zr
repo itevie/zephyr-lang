@@ -10,7 +10,7 @@ export let String = .{
       if i == by || by == "" {
         // Check if it should add the current char if the delimiter is ""
         if by == "" { current = current + i; }
-        result.push(current);
+        result.push!(current);
         current = "";
       } else {
         current = current + i;
@@ -18,7 +18,7 @@ export let String = .{
     }
 
     if by != "" {
-      result.push(current);
+      result.push!(current);
     }
 
     result;
@@ -35,14 +35,14 @@ export let String = .{
       temp += value[i];
 
       if i != 0 && (i+1) % amount == 0 {
-        result.push(temp);
+        result.push!(temp);
         temp = "";
       }
     }
 
     // Check if temp is not empty
     if $temp != 0 {
-      result.push(temp);
+      result.push!(temp);
     }
 
     result;
@@ -85,7 +85,7 @@ export let String = .{
   },
 
   reverse: func reverse(value: string?) {
-    Array.join(__zephyr_native.reverse(value));
+    iter(value)[$value-1..0].join("");
   },
 
   unescape: func unescape(value: string?) {
@@ -173,7 +173,7 @@ export let String = .{
   },
 
   is_whitespace: func is_whitespace(value: string?) {
-    value in " ".split("");
+    value == " " || value == "\t" || value == "\n" || value == "\r";
   },
 
   // ----- Converstion -----
