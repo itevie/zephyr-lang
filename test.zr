@@ -1,0 +1,4 @@
+let result = (func t {
+  [1, 2, 3];
+})()[1];
+result[1];

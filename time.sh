@@ -1,0 +1,1 @@
+cargo build --release && time ./target/release/zephyr
