@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use scope::{Scope, Variable};
 use values::RuntimeValue;
@@ -131,6 +134,15 @@ impl Interpreter {
                 }
                 Ok(values::Array::new_ref(items))
             }
+            Node::Object(expr) => {
+                let mut items: HashMap<String, RuntimeValue> = HashMap::new();
+
+                for (k, v) in expr.items {
+                    items.insert(k, self.run(*v)?);
+                }
+
+                Ok(values::Object::new_ref(items))
+            }
 
             Node::Assign(expr) => {
                 let value = self.run(*expr.value)?;
@@ -193,6 +205,31 @@ impl Interpreter {
             let right = self.run(*expr.right.clone())?.check_ref()?;
 
             match left {
+                // object[_]
+                (RuntimeValue::Object(obj), Some(_)) => match right {
+                    // object[string]
+                    (RuntimeValue::ZString(string), None) => {
+                        if !obj.items.contains_key(&string.value) {
+                            return Err(ZephyrError {
+                                code: ErrorCode::InvalidKey,
+                                message: format!("Object does not contain key {}", string.value),
+                                location: Some(expr.right.location().clone()),
+                            });
+                        }
+
+                        Ok(obj.items.get(&string.value).unwrap().clone())
+                    }
+                    _ => {
+                        return Err(ZephyrError {
+                            code: ErrorCode::InvalidOperation,
+                            message: format!(
+                                "Cannot access an object with a {}",
+                                right.0.type_name()
+                            ),
+                            location: Some(expr.right.location().clone()),
+                        })
+                    }
+                },
                 // array[_]
                 (RuntimeValue::Array(arr), Some(_)) => match right {
                     // array[number]

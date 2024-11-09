@@ -1,4 +1,7 @@
-use std::mem::{discriminant, Discriminant};
+use std::{
+    collections::HashMap,
+    mem::{discriminant, Discriminant},
+};
 
 use nodes::Node;
 
@@ -76,7 +79,7 @@ impl Parser {
             && !matches!(self.at().t, TokenType::CloseBrace)
             && !matches!(self.at().t, TokenType::EOF)
         {
-            nodes.push(Box::from(self.expression()?));
+            nodes.push(Box::from(self.statement()?));
 
             if discriminant(&TokenType::Semicolon) == discriminant(&self.at().t) {
                 self.eat();
@@ -106,12 +109,16 @@ impl Parser {
         }))
     }
 
-    pub fn expression(&mut self) -> NR {
+    pub fn statement(&mut self) -> NR {
         match self.at().t {
             TokenType::Let | TokenType::Const => self.declare(),
             TokenType::Function => self.function(true),
-            _ => self.assign(),
+            _ => self.expression(),
         }
+    }
+
+    pub fn expression(&mut self) -> NR {
+        self.assign()
     }
 
     pub fn declare(&mut self) -> NR {
@@ -396,6 +403,63 @@ impl Parser {
                     location: token.location.clone(),
                 }))
             }
+            TokenType::Dot => {
+                let token = self.eat();
+                self.expect(
+                    discriminant(&TokenType::OpenBrace),
+                    ZephyrError {
+                        code: ErrorCode::UnexpectedToken,
+                        message: "Expected start of object literal".to_string(),
+                        location: Some(self.at().location.clone()),
+                    },
+                )?;
+
+                let mut items: HashMap<String, Box<Node>> = HashMap::new();
+
+                while !matches!(self.at().t, TokenType::EOF)
+                    && !matches!(self.at().t, TokenType::CloseBrace)
+                {
+                    let identifier = Parser::make_symbol(self.expect(
+                        discriminant(&TokenType::Symbol),
+                        ZephyrError {
+                            code: ErrorCode::UnexpectedToken,
+                            message: "Expected identifier".to_string(),
+                            location: Some(self.at().location.clone()),
+                        },
+                    )?);
+
+                    let value = if let TokenType::Colon = self.at().t {
+                        self.eat();
+                        self.expression()?
+                    } else {
+                        Node::Symbol(identifier.clone())
+                    };
+
+                    items.insert(identifier.value, Box::from(value));
+
+                    if let TokenType::Comma = self.at().t {
+                        self.eat();
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+
+                self.expect(
+                    discriminant(&TokenType::CloseBrace),
+                    ZephyrError {
+                        code: ErrorCode::UnexpectedToken,
+                        message: "Expected closing of object literal".to_string(),
+                        location: Some(self.at().location.clone()),
+                    },
+                )?;
+
+                Ok(Node::Object(nodes::Object {
+                    items,
+                    location: token.location,
+                }))
+            }
+            TokenType::OpenBrace => self.block(false),
             TokenType::OpenParan => {
                 let token = self.eat();
                 let value = self.expression()?;

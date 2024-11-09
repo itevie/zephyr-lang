@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::lexer::tokens::{Location, TokenType};
 
 #[derive(Debug, Clone)]
@@ -8,6 +10,7 @@ pub enum Node {
     ZString(ZString),
     Symbol(Symbol),
     Array(Array),
+    Object(Object),
     Function(Function),
 
     Arithmetic(Arithmetic),
@@ -27,6 +30,7 @@ impl Node {
             Node::Symbol(v) => &v.location,
             Node::Function(v) => &v.location,
             Node::Array(v) => &v.location,
+            Node::Object(v) => &v.location,
 
             Node::Arithmetic(v) => &v.location,
             Node::Declare(v) => &v.location,
@@ -58,6 +62,12 @@ pub struct ZString {
 #[derive(Debug, Clone)]
 pub struct Array {
     pub items: Vec<Box<Node>>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct Object {
+    pub items: HashMap<String, Box<Node>>,
     pub location: Location,
 }
 

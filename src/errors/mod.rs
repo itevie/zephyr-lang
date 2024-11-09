@@ -21,6 +21,7 @@ pub enum ErrorCode {
     InternalLockError,
     ScopeError,
     OutOfBounds,
+    InvalidKey,
 }
 
 #[derive(Debug)]
