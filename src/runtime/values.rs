@@ -1,11 +1,17 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
-    parser::nodes,
+    parser::nodes::{self, Symbol},
 };
 
-use super::memory_store::{self, allocate};
+use super::{
+    memory_store::{self, allocate},
+    scope::Scope,
+};
 
 #[derive(Debug, Clone)]
 pub enum RuntimeValue {
@@ -104,6 +110,8 @@ impl Boolean {
 pub struct Function {
     pub body: nodes::Block,
     pub name: Option<String>,
+    pub scope: Arc<Mutex<Scope>>,
+    pub args: Vec<Symbol>,
 }
 
 #[derive(Debug, Clone)]

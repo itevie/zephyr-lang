@@ -125,6 +125,8 @@ impl Interpreter {
             Node::Function(expr) => Ok(RuntimeValue::Function(values::Function {
                 body: expr.body,
                 name: expr.name.map(|x| x.value),
+                scope: Arc::from(Mutex::from(Scope::new(Some(Arc::clone(&self.scope))))),
+                args: expr.args,
             })),
 
             Node::Array(expr) => {
@@ -171,7 +173,26 @@ impl Interpreter {
 
                 match left {
                     RuntimeValue::Function(func) => {
-                        return self.run(Node::Block(func.body));
+                        let mut scope = Scope::new(Some(Arc::clone(&func.scope)));
+
+                        for (i, v) in func.args.iter().enumerate() {
+                            scope.insert(
+                                v.value.clone(),
+                                Variable {
+                                    is_const: false,
+                                    value: if let Some(e) = expr.args.get(i) {
+                                        self.run(*e.clone())?
+                                    } else {
+                                        values::Null::new()
+                                    },
+                                },
+                            )?;
+                        }
+
+                        let old = self.swap_scope(Arc::from(Mutex::from(scope)));
+                        let result = self.run(Node::Block(func.body))?;
+                        self.swap_scope(old);
+                        return Ok(result);
                     }
                     _ => {
                         return Err(ZephyrError {

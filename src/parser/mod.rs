@@ -3,7 +3,7 @@ use std::{
     mem::{discriminant, Discriminant},
 };
 
-use nodes::Node;
+use nodes::{Node, Symbol};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -173,6 +173,45 @@ impl Parser {
             }
         };
 
+        let args: Vec<Symbol> = if let TokenType::OpenParan = self.at().t {
+            self.eat();
+
+            let mut args: Vec<Symbol> = vec![];
+
+            while !matches!(self.at().t, TokenType::EOF)
+                && !matches!(self.at().t, TokenType::CloseParan)
+            {
+                args.push(Parser::make_symbol(self.expect(
+                    discriminant(&TokenType::Symbol),
+                    ZephyrError {
+                        code: ErrorCode::UnexpectedToken,
+                        message: "Expected identifier".to_string(),
+                        location: Some(self.at().location.clone()),
+                    },
+                )?));
+
+                if let TokenType::Comma = self.at().t {
+                    self.eat();
+                    continue;
+                } else {
+                    break;
+                }
+            }
+
+            self.expect(
+                discriminant(&TokenType::CloseParan),
+                ZephyrError {
+                    code: ErrorCode::UnexpectedToken,
+                    message: "Expected closing of argument list".to_string(),
+                    location: Some(self.at().location.clone()),
+                },
+            )?;
+
+            args
+        } else {
+            vec![]
+        };
+
         let block = self.block(false)?;
 
         let function = Node::Function(nodes::Function {
@@ -181,6 +220,7 @@ impl Parser {
                 Node::Block(v) => v,
                 _ => unreachable!(),
             },
+            args,
             location: token.location.clone(),
         });
 
@@ -277,7 +317,7 @@ impl Parser {
 
             left = Node::Call(nodes::Call {
                 left: Box::from(left),
-                args: vec![],
+                args: arguments,
                 location: token.location,
             });
         }

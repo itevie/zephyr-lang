@@ -1,9 +1,5 @@
-let test = .{
-  get2: func {
-    2;
-  },
-  get5: func {
-    5;
-  }
-};
-test["get5"]();
+func a(b, c) {
+  b + c;
+}
+
+a(1, 2);

@@ -19,7 +19,7 @@ fn main() {
 
     println!(
         "{}",
-        match run("/home/isabella/Documents/projects/rust/zephyr/test.zr") {
+        match run("/workspaces/zephyr-lang/test.zr") {
             Ok(ok) => ok.to_string().unwrap(),
             Err(err) => err.visualise(),
         }
