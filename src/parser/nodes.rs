@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use either::Either;
+
 use crate::lexer::tokens::{self, Comparison, Location, TokenType};
 
 #[derive(Debug, Clone)]
@@ -164,6 +166,6 @@ pub struct MatchCase {
 #[derive(Debug, Clone)]
 pub struct Match {
     pub test: Box<Node>,
-    pub cases: Vec<MatchCase>,
+    pub cases: Vec<Either<MatchCase, Box<Node>>>,
     pub location: Location,
 }

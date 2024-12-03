@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use either::Either;
 use scope::{Scope, Variable};
 use values::{RuntimeValue, RuntimeValueDetails};
 
@@ -157,12 +158,19 @@ impl Interpreter {
                 let value = self.run(*expr.test)?;
 
                 for test in expr.cases {
-                    if value.compare_with(
-                        self.run(*test.value)?,
-                        test.op,
-                        Some(expr.location.clone()),
-                    )? {
-                        return self.run(*test.success);
+                    match test {
+                        Either::Left(l) => {
+                            if value.compare_with(
+                                self.run(*l.value)?,
+                                l.op,
+                                Some(expr.location.clone()),
+                            )? {
+                                return self.run(*l.success);
+                            }
+                        }
+                        Either::Right(r) => {
+                            return self.run(*r);
+                        }
                     }
                 }
 

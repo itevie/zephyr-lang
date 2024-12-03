@@ -3,6 +3,7 @@ use std::{
     mem::{discriminant, Discriminant},
 };
 
+use either::Either;
 use nodes::{MatchCase, Node, TaggedSymbol};
 
 use crate::{
@@ -278,31 +279,36 @@ impl Parser {
             },
         )?;
 
-        let mut cases: Vec<MatchCase> = vec![];
+        let mut cases: Vec<Either<MatchCase, Box<Node>>> = vec![];
 
         while !matches!(self.at().t, TokenType::CloseBrace) {
-            let case: MatchCase = if let TokenType::Comparison(c) = self.at().t.clone() {
+            let case: Either<MatchCase, Box<Node>> = if let TokenType::Else = self.at().t.clone() {
+                let token = self.eat();
+                let block = self.block(false)?;
+
+                Either::Right(Box::from(block))
+            } else if let TokenType::Comparison(c) = self.at().t.clone() {
                 let token = self.eat();
 
                 let value = self.expression()?;
                 let block = self.block(false)?;
 
-                MatchCase {
+                Either::Left(MatchCase {
                     op: c,
                     value: Box::from(value),
                     success: Box::from(block),
-                }
+                })
             } else {
-                MatchCase {
+                Either::Left(MatchCase {
                     op: tokens::Comparison::Eq,
                     value: Box::from(self.expression()?),
                     success: Box::from(self.block(false)?),
-                }
+                })
             };
 
-            cases.push(case);
+            cases.push(case.clone());
 
-            if !matches!(self.at().t, TokenType::Comma) {
+            if !matches!(self.at().t, TokenType::Comma) || case.is_right() {
                 break;
             } else {
                 self.eat();
