@@ -137,7 +137,8 @@ impl Interpreter {
                 options: RuntimeValueDetails::default(),
                 body: expr.body,
                 name: expr.name.map(|x| x.value),
-                arguments: expr.arguments.iter().map(|x| x.value.clone()).collect(),
+                scope: self.scope.clone(),
+                arguments: expr.args.iter().map(|x| x.value.clone()).collect(),
             })),
 
             Node::If(expr) => {
@@ -233,7 +234,6 @@ impl Interpreter {
                         self.swap_scope(old);
 
                         return result;
-
                     }
                     _ => {
                         return Err(ZephyrError {

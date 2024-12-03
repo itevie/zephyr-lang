@@ -7,7 +7,6 @@ use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::{Comparison, Location},
     parser::nodes,
-    parser::nodes::{self, Symbol},
 };
 
 use super::{
@@ -215,7 +214,6 @@ pub struct Function {
     pub name: Option<String>,
     pub arguments: Vec<String>,
     pub scope: Arc<Mutex<Scope>>,
-    pub args: Vec<Symbol>,
 }
 
 #[derive(Debug, Clone)]

@@ -4,7 +4,6 @@ use std::{
 };
 
 use nodes::{MatchCase, Node, TaggedSymbol};
-use nodes::{Node, Symbol};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -203,7 +202,6 @@ impl Parser {
                         location: Some(self.at().location.clone()),
                     },
                 )?));
-
             }
 
             self.expect(
@@ -216,7 +214,6 @@ impl Parser {
             )?;
         }
 
-
         let block = self.block(false)?;
 
         let function = Node::Function(nodes::Function {
@@ -225,7 +222,7 @@ impl Parser {
                 Node::Block(v) => v,
                 _ => unreachable!(),
             },
-            arguments,
+            args: arguments,
 
             location: token.location.clone(),
         });
