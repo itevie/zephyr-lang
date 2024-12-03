@@ -88,6 +88,7 @@ pub struct Object {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: Option<Symbol>,
+    pub args: Vec<Symbol>,
     pub body: Block,
     pub arguments: Vec<Symbol>,
     pub location: Location,

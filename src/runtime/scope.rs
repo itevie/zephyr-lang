@@ -7,6 +7,7 @@ use crate::errors::{ErrorCode, ZephyrError};
 
 use super::values::{self, RuntimeValue};
 
+#[derive(Debug)]
 pub struct Variable {
     pub is_const: bool,
     pub value: RuntimeValue,
@@ -21,6 +22,7 @@ impl Variable {
     }
 }
 
+#[derive(Debug)]
 pub struct Scope {
     pub parent: Option<Arc<Mutex<Scope>>>,
     pub variables: HashMap<String, Variable>,

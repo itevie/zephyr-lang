@@ -25,6 +25,7 @@ fn main() {
                 Ok(ok) => ok,
                 Err(err) => err.visualise(),
             },
+
             Err(err) => err.visualise(),
         }
     );

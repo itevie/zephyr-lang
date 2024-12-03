@@ -233,6 +233,7 @@ impl Interpreter {
                         self.swap_scope(old);
 
                         return result;
+
                     }
                     _ => {
                         return Err(ZephyrError {

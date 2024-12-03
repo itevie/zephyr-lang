@@ -7,9 +7,13 @@ use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::{Comparison, Location},
     parser::nodes,
+    parser::nodes::{self, Symbol},
 };
 
-use super::memory_store::{self, allocate};
+use super::{
+    memory_store::{self, allocate},
+    scope::Scope,
+};
 
 #[derive(Debug, Clone)]
 pub struct RuntimeValueDetails {
@@ -210,6 +214,8 @@ pub struct Function {
     pub body: nodes::Block,
     pub name: Option<String>,
     pub arguments: Vec<String>,
+    pub scope: Arc<Mutex<Scope>>,
+    pub args: Vec<Symbol>,
 }
 
 #[derive(Debug, Clone)]
