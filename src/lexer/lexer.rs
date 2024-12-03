@@ -128,6 +128,10 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                     "func" => TokenType::Function,
                     "return" => TokenType::Return,
                     "where" => TokenType::Where,
+
+                    "if" => TokenType::If,
+                    "else" => TokenType::Else,
+                    "match" => TokenType::Match,
                     _ => TokenType::Symbol,
                 });
                 current_length = value.len();
@@ -165,6 +169,10 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                             chars.next();
                             actual_value = Some(String::from("--"));
                             TokenType::Unary(Unary::Decrement)
+                        } else if next_char == '>' {
+                            chars.next();
+                            actual_value = Some(String::from("->"));
+                            TokenType::Arrow
                         } else {
                             TokenType::Additive(Additive::Minus)
                         }
@@ -209,18 +217,18 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                         if next_char == '=' {
                             chars.next();
                             actual_value = Some(String::from("<="));
-                            TokenType::Comparison(Comparison::GtEq)
+                            TokenType::Comparison(Comparison::LtEq)
                         } else {
-                            TokenType::Comparison(Comparison::Gt)
+                            TokenType::Comparison(Comparison::Lt)
                         }
                     }
                     '>' => {
                         if next_char == '=' {
                             chars.next();
                             actual_value = Some(String::from(">="));
-                            TokenType::Comparison(Comparison::LtEq)
+                            TokenType::Comparison(Comparison::GtEq)
                         } else {
-                            TokenType::Comparison(Comparison::Lt)
+                            TokenType::Comparison(Comparison::Gt)
                         }
                     }
                     _ => {

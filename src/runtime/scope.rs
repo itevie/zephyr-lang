@@ -5,11 +5,20 @@ use std::{
 
 use crate::errors::{ErrorCode, ZephyrError};
 
-use super::values::RuntimeValue;
+use super::values::{self, RuntimeValue};
 
 pub struct Variable {
     pub is_const: bool,
     pub value: RuntimeValue,
+}
+
+impl Variable {
+    pub fn from(value: RuntimeValue) -> Self {
+        Self {
+            is_const: false,
+            value,
+        }
+    }
 }
 
 pub struct Scope {
@@ -19,10 +28,26 @@ pub struct Scope {
 
 impl Scope {
     pub fn new(parent: Option<Arc<Mutex<Scope>>>) -> Self {
-        let scope = Scope {
+        let has_parent: bool = !matches!(parent, None);
+
+        let mut scope = Scope {
             parent,
             variables: HashMap::new(),
         };
+
+        if !has_parent {
+            scope.variables.insert(
+                "true".to_string(),
+                Variable::from(values::Boolean::new(true)),
+            );
+            scope.variables.insert(
+                "false".to_string(),
+                Variable::from(values::Boolean::new(false)),
+            );
+            scope
+                .variables
+                .insert("null".to_string(), Variable::from(values::Null::new()));
+        }
 
         scope
     }

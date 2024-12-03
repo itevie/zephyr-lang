@@ -15,7 +15,7 @@ mod test {
             matches!(result[0].t, TokenType::Number),
             "Expected token 0 to be number"
         );
-        assert!(result[0].value == "2", "Expected token 0 value to be \"2\"");
+        assert_eq!(result[0].value, "2", "Expected token 0 value to be \"2\"");
     }
 
     #[test]

@@ -4,7 +4,7 @@ use std::{
 };
 
 use scope::{Scope, Variable};
-use values::RuntimeValue;
+use values::{RuntimeValue, RuntimeValueDetails};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -48,6 +48,17 @@ impl Interpreter {
 
                 self.swap_scope(old_scope);
                 Ok(last_executed)
+            }
+
+            Node::Comp(expr) => {
+                let left = self.run(*expr.left)?;
+                let right = self.run(*expr.right)?;
+
+                Ok(values::Boolean::new(left.compare_with(
+                    right,
+                    expr.t,
+                    Some(expr.location),
+                )?))
             }
 
             Node::Arithmetic(expr) => {
@@ -123,9 +134,39 @@ impl Interpreter {
             }
 
             Node::Function(expr) => Ok(RuntimeValue::Function(values::Function {
+                options: RuntimeValueDetails::default(),
                 body: expr.body,
                 name: expr.name.map(|x| x.value),
+                arguments: expr.arguments.iter().map(|x| x.value.clone()).collect(),
             })),
+
+            Node::If(expr) => {
+                let result = self.run(*expr.test)?;
+
+                if result.is_truthy() {
+                    self.run(*expr.succss)
+                } else if let Some(b) = expr.alternate {
+                    self.run(*b)
+                } else {
+                    Ok(values::Null::new())
+                }
+            }
+
+            Node::Match(expr) => {
+                let value = self.run(*expr.test)?;
+
+                for test in expr.cases {
+                    if value.compare_with(
+                        self.run(*test.value)?,
+                        test.op,
+                        Some(expr.location.clone()),
+                    )? {
+                        return self.run(*test.success);
+                    }
+                }
+
+                return Ok(values::Null::new());
+            }
 
             Node::Array(expr) => {
                 let mut items: Vec<RuntimeValue> = vec![];
@@ -138,7 +179,7 @@ impl Interpreter {
                 let mut items: HashMap<String, RuntimeValue> = HashMap::new();
 
                 for (k, v) in expr.items {
-                    items.insert(k, self.run(*v)?);
+                    items.insert(k, self.run(*v.value)?);
                 }
 
                 Ok(values::Object::new_ref(items))
@@ -169,9 +210,29 @@ impl Interpreter {
             Node::Call(expr) => {
                 let left = self.run(*expr.left.clone())?;
 
+                let mut args: Vec<RuntimeValue> = vec![];
+                for arg in expr.args {
+                    args.push(self.run(*arg)?);
+                }
+
                 match left {
                     RuntimeValue::Function(func) => {
-                        return self.run(Node::Block(func.body));
+                        let mut scope = Scope::new(Some(self.scope.clone()));
+                        for (i, v) in func.arguments.iter().enumerate() {
+                            if i >= args.len() {
+                                scope.insert(v.clone(), Variable::from(values::Null::new()))?
+                            } else {
+                                scope.insert(v.clone(), Variable::from(args[i].clone()))?
+                            }
+                        }
+
+                        let old = self.swap_scope(Arc::from(Mutex::from(scope)));
+
+                        let result = self.run(Node::Block(func.body));
+
+                        self.swap_scope(old);
+
+                        return result;
                     }
                     _ => {
                         return Err(ZephyrError {

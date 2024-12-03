@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Debug, Clone)]
 pub struct Token {
     pub value: String,
@@ -18,6 +20,7 @@ pub enum TokenType {
     Colon,
     Semicolon,
     QuestionMark,
+    Arrow,
 
     EOF,
 
@@ -49,6 +52,10 @@ pub enum TokenType {
     Function,
     Return,
     Where,
+
+    If,
+    Else,
+    Match,
 }
 
 #[derive(Debug, Clone)]
@@ -86,6 +93,23 @@ pub enum Comparison {
     Lt,
     GtEq,
     LtEq,
+}
+
+impl Display for Comparison {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Comparison::Eq => "==",
+                Comparison::Neq => "!=",
+                Comparison::Gt => ">",
+                Comparison::Lt => "<",
+                Comparison::GtEq => ">=",
+                Comparison::LtEq => "<=",
+            }
+        )
+    }
 }
 
 #[derive(Debug, Clone)]

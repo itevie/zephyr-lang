@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::lexer::tokens::{Location, TokenType};
+use crate::lexer::tokens::{self, Comparison, Location, TokenType};
 
 #[derive(Debug, Clone)]
 pub enum Node {
@@ -13,7 +13,11 @@ pub enum Node {
     Object(Object),
     Function(Function),
 
+    If(If),
+    Match(Match),
+
     Arithmetic(Arithmetic),
+    Comp(Comp),
     Declare(Declare),
     Assign(Assign),
     Call(Call),
@@ -32,7 +36,11 @@ impl Node {
             Node::Array(v) => &v.location,
             Node::Object(v) => &v.location,
 
+            Node::If(v) => &v.location,
+            Node::Match(v) => &v.location,
+
             Node::Arithmetic(v) => &v.location,
+            Node::Comp(v) => &v.location,
             Node::Declare(v) => &v.location,
             Node::Assign(v) => &v.location,
             Node::Call(v) => &v.location,
@@ -66,8 +74,14 @@ pub struct Array {
 }
 
 #[derive(Debug, Clone)]
+pub struct TaggedSymbol {
+    pub value: Box<Node>,
+    pub tags: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Object {
-    pub items: HashMap<String, Box<Node>>,
+    pub items: HashMap<String, TaggedSymbol>,
     pub location: Location,
 }
 
@@ -75,6 +89,7 @@ pub struct Object {
 pub struct Function {
     pub name: Option<Symbol>,
     pub body: Block,
+    pub arguments: Vec<Symbol>,
     pub location: Location,
 }
 
@@ -89,6 +104,14 @@ pub struct Arithmetic {
     pub left: Box<Node>,
     pub right: Box<Node>,
     pub t: TokenType,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct Comp {
+    pub left: Box<Node>,
+    pub right: Box<Node>,
+    pub t: tokens::Comparison,
     pub location: Location,
 }
 
@@ -120,5 +143,27 @@ pub struct Declare {
 pub struct Assign {
     pub assignee: Box<Node>,
     pub value: Box<Node>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct If {
+    pub test: Box<Node>,
+    pub succss: Box<Node>,
+    pub alternate: Option<Box<Node>>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct MatchCase {
+    pub op: Comparison,
+    pub value: Box<Node>,
+    pub success: Box<Node>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Match {
+    pub test: Box<Node>,
+    pub cases: Vec<MatchCase>,
     pub location: Location,
 }
