@@ -23,37 +23,46 @@ impl Variable {
 }
 
 #[derive(Debug)]
+pub enum ScopeType {
+    Normal,
+    Global,
+    Package,
+}
+
+#[derive(Debug)]
 pub struct Scope {
     pub parent: Option<Arc<Mutex<Scope>>>,
     pub variables: HashMap<String, Variable>,
+    pub scope_type: ScopeType,
 }
 
 impl Scope {
     pub fn new(parent: Option<Arc<Mutex<Scope>>>) -> Self {
-        let has_parent: bool = !matches!(parent, None);
-
-        let mut scope = Scope {
-            parent,
-            variables: HashMap::new(),
-        };
-
-        if !has_parent {
-            scope.variables.insert(
-                "true".to_string(),
-                Variable::from(values::Boolean::new(true)),
-            );
-            scope.variables.insert(
-                "false".to_string(),
-                Variable::from(values::Boolean::new(false)),
-            );
-            scope
-                .variables
-                .insert("null".to_string(), Variable::from(values::Null::new()));
+        if let Some(p) = parent {
+            Scope {
+                parent: Some(p),
+                variables: HashMap::new(),
+                scope_type: ScopeType::Normal,
+            }
+        } else {
+            Scope {
+                parent: None,
+                variables: HashMap::from([
+                    (
+                        "true".to_string(),
+                        Variable::from(values::Boolean::new(true)),
+                    ),
+                    (
+                        "false".to_string(),
+                        Variable::from(values::Boolean::new(false)),
+                    ),
+                    ("null".to_string(), Variable::from(values::Null::new())),
+                ]),
+                scope_type: ScopeType::Normal,
+            }
         }
-
-        scope
     }
-
+    
     pub fn lookup(&self, name: String) -> Result<RuntimeValue, ZephyrError> {
         if let Some(variable) = self.variables.get(&name) {
             Ok(variable.value.clone())

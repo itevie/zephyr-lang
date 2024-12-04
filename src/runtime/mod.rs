@@ -142,6 +142,10 @@ impl Interpreter {
                 arguments: expr.args.iter().map(|x| x.value.clone()).collect(),
             })),
 
+            Node::Export(expr) => {
+                todo!()
+            }
+
             Node::If(expr) => {
                 let result = self.run(*expr.test)?;
 

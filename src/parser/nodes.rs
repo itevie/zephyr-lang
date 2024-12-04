@@ -18,6 +18,8 @@ pub enum Node {
     If(If),
     Match(Match),
 
+    Export(Export),
+
     Arithmetic(Arithmetic),
     Comp(Comp),
     Declare(Declare),
@@ -40,6 +42,8 @@ impl Node {
 
             Node::If(v) => &v.location,
             Node::Match(v) => &v.location,
+
+            Node::Export(v) => &v.location,
 
             Node::Arithmetic(v) => &v.location,
             Node::Comp(v) => &v.location,
@@ -167,5 +171,18 @@ pub struct MatchCase {
 pub struct Match {
     pub test: Box<Node>,
     pub cases: Vec<Either<MatchCase, Box<Node>>>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExportType {
+    Symbol(Symbol),
+    Declaration(Declare),
+    Object(Object),
+}
+
+#[derive(Debug, Clone)]
+pub struct Export {
+    pub export: ExportType,
     pub location: Location,
 }

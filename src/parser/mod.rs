@@ -128,12 +128,28 @@ impl Parser {
         match self.at().t {
             TokenType::Let | TokenType::Const => self.declare(),
             TokenType::Function => self.function(true),
+            TokenType::Export => self.export(),
             _ => self.expression(),
         }
     }
 
     pub fn expression(&mut self) -> NR {
         self.assign()
+    }
+
+    pub fn export(&mut self) -> NR {
+        let token = self.eat();
+        let node = self.statement()?;
+
+        let t = match node {
+            Node::Symbol(v) => nodes::ExportType::Symbol(v),
+            _ => todo!(),
+        };
+
+        Ok(Node::Export(nodes::Export {
+            export: t,
+            location: token.location,
+        }))
     }
 
     pub fn declare(&mut self) -> NR {

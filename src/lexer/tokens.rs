@@ -39,6 +39,10 @@ pub enum TokenType {
     Let,
     Const,
 
+    Import,
+    Export,
+    As,
+
     Try,
     Catch,
     Finally,
