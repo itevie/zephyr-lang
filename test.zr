@@ -1,1 +1,5 @@
-import "./import.zr" as test;
+func a {
+  return 1232;
+}
+
+a();

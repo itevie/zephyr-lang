@@ -10,7 +10,7 @@ use values::{RuntimeValue, RuntimeValueDetails};
 use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::{self, TokenType},
-    parser::nodes::{self, Node},
+    parser::nodes::{self, Interrupt, InterruptType, Node},
 };
 
 pub mod memory_store;
@@ -35,7 +35,7 @@ impl Interpreter {
     }
 
     pub fn run(&mut self, node: Node) -> R {
-        match node {
+        match node.clone() {
             Node::Block(expr) => {
                 let old_scope = self.swap_scope(Arc::from(Mutex::from(Scope::new(Some(
                     Arc::clone(&self.scope),
@@ -129,6 +129,7 @@ impl Interpreter {
                         is_const: expr.is_const,
                         value: value.clone(),
                     },
+                    Some(expr.location),
                 )?;
 
                 Ok(value)
@@ -157,6 +158,47 @@ impl Interpreter {
                     Ok(values::Null::new())
                 }
             }
+
+            Node::WhileLoop(expr) => {
+                while self.run(*expr.test.clone())?.is_truthy() {
+                    match self.run(*expr.body.clone()) {
+                        Ok(_) => (),
+                        Err(err) => match err.code {
+                            ErrorCode::Break => break,
+                            ErrorCode::Continue => continue,
+                            _ => return Err(err),
+                        },
+                    }
+                }
+
+                Ok(values::Null::new())
+            }
+
+            Node::Interrupt(expr) => match expr.t {
+                InterruptType::Continue => Err(ZephyrError {
+                    message: "Cannot continue here".to_string(),
+                    code: ErrorCode::Continue,
+                    location: Some(expr.location.clone()),
+                }),
+                InterruptType::Break => Err(ZephyrError {
+                    message: "Cannot break here".to_string(),
+                    code: ErrorCode::Break,
+                    location: Some(expr.location.clone()),
+                }),
+                InterruptType::Return(val) => {
+                    let value = if let Some(v) = val {
+                        Some(self.run(*v)?)
+                    } else {
+                        None
+                    };
+
+                    Err(ZephyrError {
+                        message: "Cannot return here".to_string(),
+                        code: ErrorCode::Return(value),
+                        location: Some(expr.location.clone()),
+                    })
+                }
+            },
 
             Node::Match(expr) => {
                 let value = self.run(*expr.test)?;
@@ -202,11 +244,12 @@ impl Interpreter {
                 let value = self.run(*expr.value)?;
 
                 match *expr.assignee {
-                    Node::Symbol(symbol) => {
-                        self.scope
-                            .lock()
-                            .unwrap()
-                            .modify(symbol.value, value.clone())?;
+                    Node::Symbol(ref symbol) => {
+                        self.scope.lock().unwrap().modify(
+                            symbol.value.clone(),
+                            value.clone(),
+                            Some(expr.assignee.location().clone()),
+                        )?;
                     }
                     x => {
                         return Err(ZephyrError {
@@ -233,17 +276,31 @@ impl Interpreter {
                         let mut scope = Scope::new(Some(self.scope.clone()));
                         for (i, v) in func.arguments.iter().enumerate() {
                             if i >= args.len() {
-                                scope.insert(v.clone(), Variable::from(values::Null::new()))?
+                                scope.insert(
+                                    v.clone(),
+                                    Variable::from(values::Null::new()),
+                                    Some(expr.location.clone()),
+                                )?
                             } else {
-                                scope.insert(v.clone(), Variable::from(args[i].clone()))?
+                                scope.insert(
+                                    v.clone(),
+                                    Variable::from(args[i].clone()),
+                                    Some(expr.location.clone()),
+                                )?
                             }
                         }
 
                         let old = self.swap_scope(Arc::from(Mutex::from(scope)));
-
                         let result = self.run(Node::Block(func.body));
-
                         self.swap_scope(old);
+
+                        if let Err(err) = &result {
+                            if let ErrorCode::Return(Some(val)) = &err.code {
+                                return Ok(val.clone());
+                            } else if let ErrorCode::Return(None) = &err.code {
+                                return Ok(values::Null::new());
+                            }
+                        }
 
                         return result;
                     }
@@ -261,8 +318,20 @@ impl Interpreter {
 
             Node::Number(expr) => Ok(values::Number::new(expr.value)),
             Node::ZString(expr) => Ok(values::ZString::new(expr.value)),
-            Node::Symbol(expr) => Ok(self.scope.lock().unwrap().lookup(expr.value)?.clone()),
+            Node::Symbol(expr) => Ok(self
+                .scope
+                .lock()
+                .unwrap()
+                .lookup(expr.value, Some(expr.location))?
+                .clone()),
         }
+        .map_err(|ref x| {
+            let mut err = x.clone();
+            if let None = x.location {
+                err.location = Some(node.location().clone())
+            }
+            err
+        })
     }
 
     pub fn member(&mut self, expr: nodes::Member) -> R {

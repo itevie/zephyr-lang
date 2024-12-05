@@ -5,7 +5,7 @@ use errors::ZephyrError;
 use lexer::lexer::lex;
 use parser::Parser;
 use runtime::{memory_store, values::RuntimeValue, Interpreter};
-use std::fs;
+use std::{env, fs};
 
 mod errors;
 mod lexer;
@@ -16,11 +16,12 @@ mod util;
 fn main() {
     memory_store::initialise_store();
 
+    let args = env::args().collect::<Vec<String>>();
+    let file_name = args.get(3).ok_or_else(|| panic!("")).unwrap();
+
     println!(
         "{}",
-        match run(
-            &fs::read_to_string("/home/isabella/Documents/projects/rust/zephyr/test.zr").unwrap()
-        ) {
+        match run(&file_name) {
             Ok(ok) => match ok.to_string() {
                 Ok(ok) => ok,
                 Err(err) => err.visualise(),
@@ -31,15 +32,10 @@ fn main() {
     );
 }
 
-fn run(stuff: &str) -> Result<RuntimeValue, ZephyrError> {
-    let result = lex(
-        &stuff,
-        String::from("/home/isabella/Documents/projects/rust/zephyr/test.zr"),
-    )?;
-    let parsed = Parser::new(
-        result,
-        String::from("/home/isabella/Documents/projects/rust/zephyr/test.zr"),
-    )
-    .produce_ast()?;
+fn run(file_name: &str) -> Result<RuntimeValue, ZephyrError> {
+    let data = fs::read_to_string(file_name).unwrap();
+
+    let result = lex(&data, file_name.to_string())?;
+    let parsed = Parser::new(result, String::from(file_name.to_string())).produce_ast()?;
     Interpreter::new().run(parsed)
 }

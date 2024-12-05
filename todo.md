@@ -5,7 +5,7 @@
 - Combine all args into one arg, like `__args` or something
 - For & While
 - Return & Continue & Break
-  -  Labels
+  - Labels
 - Ranges
 - String ranges
 - Object member
@@ -16,6 +16,7 @@
 - Tags
 - Enums
 - Const
+- Keyword like python's else but reverse, it runs if loop was broke
 - Final keyword? Or make it like JS where it's just freeze()
 - Type as a token type
   - Like `int` could be a type
