@@ -1,17 +1,2 @@
-func even(i) {
-  (i % 2) == 0;
-}
-
-func odd(i) {
-  (i % 2) == 1;
-}
-
-func type(i) {
-  match i {
-    even(i) -> "even",
-    odd(i) -> "odd",
-    else -> 2
-  };
-}
-
-type(2);
+let a = [1, 2, 3];
+a[0] = 2;

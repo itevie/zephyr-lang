@@ -24,6 +24,8 @@ pub enum Node {
     Assign(Assign),
     Call(Call),
     Member(Member),
+
+    DebugNode(DebugNode),
 }
 
 impl Node {
@@ -47,6 +49,7 @@ impl Node {
             Node::Assign(v) => &v.location,
             Node::Call(v) => &v.location,
             Node::Member(v) => &v.location,
+            Node::DebugNode(v) => &v.location,
         }
     }
 }
@@ -167,5 +170,11 @@ pub struct MatchCase {
 pub struct Match {
     pub test: Box<Node>,
     pub cases: Vec<Either<MatchCase, Box<Node>>>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct DebugNode {
+    pub node: Box<Node>,
     pub location: Location,
 }

@@ -5,7 +5,7 @@ use std::{
 
 use either::Either;
 use scope::{Scope, Variable};
-use values::{RuntimeValue, RuntimeValueDetails};
+use values::{Null, RuntimeValue, RuntimeValueDetails};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -13,6 +13,8 @@ use crate::{
     parser::nodes::{self, Node},
 };
 
+pub mod interpreter_conditionals;
+pub mod interpreter_helper;
 pub mod memory_store;
 pub mod scope;
 pub mod values;
@@ -258,6 +260,11 @@ impl Interpreter {
             Node::Number(expr) => Ok(values::Number::new(expr.value)),
             Node::ZString(expr) => Ok(values::ZString::new(expr.value)),
             Node::Symbol(expr) => Ok(self.scope.lock().unwrap().lookup(expr.value)?.clone()),
+            Node::DebugNode(expr) => {
+                let result = self.run(*expr.node)?;
+                println!("{:#?}", result);
+                return Ok(Null::new());
+            }
         }
     }
 

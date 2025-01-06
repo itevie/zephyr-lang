@@ -56,6 +56,8 @@ pub enum TokenType {
     If,
     Else,
     Match,
+
+    Debug,
 }
 
 #[derive(Debug, Clone)]

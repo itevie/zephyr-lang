@@ -128,6 +128,10 @@ impl Parser {
         match self.at().t {
             TokenType::Let | TokenType::Const => self.declare(),
             TokenType::Function => self.function(true),
+            TokenType::Debug => Ok(Node::DebugNode(nodes::DebugNode {
+                location: self.eat().location.clone(),
+                node: Box::from(self.expression()?),
+            })),
             _ => self.expression(),
         }
     }

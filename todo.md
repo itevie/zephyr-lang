@@ -16,3 +16,4 @@ Tags
 Enums
 Const
 Matches
+Prototype chain

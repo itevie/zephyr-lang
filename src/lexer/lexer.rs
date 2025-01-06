@@ -132,6 +132,8 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                     "if" => TokenType::If,
                     "else" => TokenType::Else,
                     "match" => TokenType::Match,
+
+                    "debug" => TokenType::Debug,
                     _ => TokenType::Symbol,
                 });
                 current_length = value.len();
