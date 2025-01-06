@@ -18,6 +18,11 @@ pub enum Node {
     If(If),
     Match(Match),
 
+    WhileLoop(WhileLoop),
+    Interrupt(Interrupt),
+
+    Export(Export),
+
     Arithmetic(Arithmetic),
     Comp(Comp),
     Declare(Declare),
@@ -42,6 +47,11 @@ impl Node {
 
             Node::If(v) => &v.location,
             Node::Match(v) => &v.location,
+
+            Node::WhileLoop(v) => &v.location,
+            Node::Interrupt(v) => &v.location,
+
+            Node::Export(v) => &v.location,
 
             Node::Arithmetic(v) => &v.location,
             Node::Comp(v) => &v.location,
@@ -160,6 +170,13 @@ pub struct If {
 }
 
 #[derive(Debug, Clone)]
+pub struct WhileLoop {
+    pub test: Box<Node>,
+    pub body: Box<Node>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
 pub struct MatchCase {
     pub op: Comparison,
     pub value: Box<Node>,
@@ -177,4 +194,29 @@ pub struct Match {
 pub struct DebugNode {
     pub node: Box<Node>,
     pub location: Location,
+}
+#[derive(Debug, Clone)]
+pub enum ExportType {
+    Symbol(Symbol),
+    Declaration(Declare),
+    Object(Object),
+}
+
+#[derive(Debug, Clone)]
+pub struct Export {
+    pub export: ExportType,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub enum InterruptType {
+    Continue,
+    Break,
+    Return(Option<Box<Node>>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Interrupt {
+    pub location: Location,
+    pub t: InterruptType,
 }

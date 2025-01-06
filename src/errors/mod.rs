@@ -1,8 +1,8 @@
 use std::fs;
 
-use crate::{lexer::tokens::Location, util};
+use crate::{lexer::tokens::Location, runtime::values::RuntimeValue, util};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ErrorCode {
     LexerError,
     UnexpectedCharacter,
@@ -22,9 +22,13 @@ pub enum ErrorCode {
     ScopeError,
     OutOfBounds,
     InvalidKey,
+
+    Break,
+    Continue,
+    Return(Option<RuntimeValue>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ZephyrError {
     pub code: ErrorCode,
     pub message: String,

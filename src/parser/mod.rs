@@ -4,7 +4,7 @@ use std::{
 };
 
 use either::Either;
-use nodes::{MatchCase, Node, TaggedSymbol};
+use nodes::{InterruptType, MatchCase, Node, TaggedSymbol};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -132,12 +132,50 @@ impl Parser {
                 location: self.eat().location.clone(),
                 node: Box::from(self.expression()?),
             })),
+            TokenType::Export => self.export(),
+            TokenType::While => self.while_stmt(),
+            TokenType::Continue => Ok(Node::Interrupt(nodes::Interrupt {
+                location: self.eat().location,
+                t: InterruptType::Continue,
+            })),
+            TokenType::Break => Ok(Node::Interrupt(nodes::Interrupt {
+                location: self.eat().location,
+                t: InterruptType::Break,
+            })),
+            TokenType::Return => {
+                let token = self.eat();
+                let value = if let TokenType::Semicolon = self.at().t {
+                    None
+                } else {
+                    Some(Box::from(self.expression()?))
+                };
+
+                Ok(Node::Interrupt(nodes::Interrupt {
+                    location: self.eat().location,
+                    t: InterruptType::Return(value),
+                }))
+            }
             _ => self.expression(),
         }
     }
 
     pub fn expression(&mut self) -> NR {
         self.assign()
+    }
+
+    pub fn export(&mut self) -> NR {
+        let token = self.eat();
+        let node = self.statement()?;
+
+        let t = match node {
+            Node::Symbol(v) => nodes::ExportType::Symbol(v),
+            _ => todo!(),
+        };
+
+        Ok(Node::Export(nodes::Export {
+            export: t,
+            location: token.location,
+        }))
     }
 
     pub fn declare(&mut self) -> NR {
@@ -242,6 +280,20 @@ impl Parser {
         } else {
             Ok(function)
         }
+    }
+
+    pub fn while_stmt(&mut self) -> NR {
+        let token = self.eat();
+
+        let test = self.expression()?;
+
+        let block = self.block(false)?;
+
+        Ok(Node::WhileLoop(nodes::WhileLoop {
+            test: Box::from(test),
+            body: Box::from(block),
+            location: token.location,
+        }))
     }
 
     pub fn if_stmt(&mut self) -> NR {

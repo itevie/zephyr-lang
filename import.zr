@@ -1,0 +1,2 @@
+export let a = 2;
+export { a: 2 };

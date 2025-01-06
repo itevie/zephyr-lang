@@ -1,19 +1,26 @@
-Different based numbers
-Multi-line strings
-Raw strings
-Call Arguments
-For & While
-Return & Continue & Break
-above labels
-Ranges
-String ranges
-Object member
-Native functions
-Template strings
-Decimal numbers
-Join strings
-Tags
-Enums
-Const
-Matches
-Prototype chain
+- Different based numbers
+- Multi-line strings
+- Raw strings
+- A "rest" operator
+- Combine all args into one arg, like `__args` or something
+- For & While
+- Return & Continue & Break
+  - Labels
+- Ranges
+- String ranges
+- Object member
+- Native functions
+- Template strings
+- Decimal numbers
+- Join strings
+- Tags
+- Enums
+- Const
+- Keyword like python's else but reverse, it runs if loop was broke
+- Final keyword? Or make it like JS where it's just freeze()
+- Type as a token type
+  - Like `int` could be a type
+  - You can call it and it produces an int
+  - You can use it in a match case
+  - You can check if a type is it
+- Prototype chain
