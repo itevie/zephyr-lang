@@ -17,7 +17,10 @@ fn main() {
     memory_store::initialise_store();
 
     let args = env::args().collect::<Vec<String>>();
-    let file_name = args.get(3).ok_or_else(|| panic!("")).unwrap();
+    let file_name = args
+        .get(2)
+        .ok_or_else(|| panic!("Failed to read file path"))
+        .unwrap();
 
     println!(
         "{}",

@@ -3,18 +3,20 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use either::Either;
-use scope::{Scope, Variable};
-use values::{Null, RuntimeValue, RuntimeValueDetails};
+use scope::Scope;
+use values::{Null, RuntimeValue};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
-    lexer::tokens::{self, TokenType},
-    parser::nodes::{self, Interrupt, InterruptType, Node},
+    parser::nodes::{self, InterruptType, Node},
 };
 
 pub mod interpreter_conditionals;
+pub mod interpreter_functions;
 pub mod interpreter_helper;
+pub mod interpreter_loops;
+pub mod interpreter_operators;
+pub mod interpreter_variables;
 pub mod memory_store;
 pub mod scope;
 pub mod values;
@@ -38,142 +40,31 @@ impl Interpreter {
 
     pub fn run(&mut self, node: Node) -> R {
         match node.clone() {
-            Node::Block(expr) => {
-                let old_scope = self.swap_scope(Arc::from(Mutex::from(Scope::new(Some(
-                    Arc::clone(&self.scope),
-                )))));
+            // ----- conditionals -----
+            Node::If(expr) => self.run_if(expr),
+            Node::Match(expr) => self.run_match(expr),
 
-                let mut last_executed = values::Null::new();
+            // ----- functions -----
+            Node::Function(expr) => self.run_make_function(expr),
+            Node::Call(expr) => self.run_call(expr),
 
-                for i in expr.nodes {
-                    last_executed = self.run(*i)?;
-                }
+            // ----- helpers -----
+            Node::Block(expr) => self.run_block(expr),
 
-                self.swap_scope(old_scope);
-                Ok(last_executed)
-            }
+            // ----- loops -----
+            Node::WhileLoop(expr) => self.run_while(expr),
 
-            Node::Comp(expr) => {
-                let left = self.run(*expr.left)?;
-                let right = self.run(*expr.right)?;
+            // ----- operators -----
+            Node::Arithmetic(expr) => self.run_arithmetic(expr),
+            Node::Comp(expr) => self.run_comp(expr),
 
-                Ok(values::Boolean::new(left.compare_with(
-                    right,
-                    expr.t,
-                    Some(expr.location),
-                )?))
-            }
+            // ----- variables -----
+            Node::Declare(expr) => self.run_declare(expr),
+            Node::Assign(expr) => self.run_assign(expr),
 
-            Node::Arithmetic(expr) => {
-                let left = self.run(*expr.left)?;
-                let right = self.run(*expr.right)?;
-
-                if let (RuntimeValue::Number(left_number), RuntimeValue::Number(right_number)) =
-                    (&left, &right)
-                {
-                    return Ok(values::Number::new(match expr.t {
-                        TokenType::Additive(tokens::Additive::Plus) => {
-                            left_number.value + right_number.value
-                        }
-                        TokenType::Additive(tokens::Additive::Minus) => {
-                            left_number.value - right_number.value
-                        }
-                        TokenType::Multiplicative(tokens::Multiplicative::Divide) => {
-                            left_number.value / right_number.value
-                        }
-                        TokenType::Multiplicative(tokens::Multiplicative::Multiply) => {
-                            left_number.value / right_number.value
-                        }
-                        TokenType::Multiplicative(tokens::Multiplicative::Modulo) => {
-                            left_number.value % right_number.value
-                        }
-                        _ => unreachable!(),
-                    }));
-                }
-
-                let result = match left {
-                    // string ? *
-                    RuntimeValue::ZString(ref left_value) => match expr.t {
-                        // string + *
-                        TokenType::Additive(tokens::Additive::Plus) => Some(values::ZString::new(
-                            left_value.value.clone() + &right.to_string()?,
-                        )),
-                        _ => None,
-                    },
-                    _ => None,
-                };
-
-                match result {
-                    Some(ok) => Ok(ok),
-                    None => Err(ZephyrError {
-                        code: ErrorCode::InvalidOperation,
-                        message: format!(
-                            "Cannot handle {} {:?} {}",
-                            left.type_name(),
-                            expr.t,
-                            right.type_name()
-                        ),
-                        location: Some(expr.location),
-                    }),
-                }
-            }
-
-            Node::Declare(expr) => {
-                let value = if let Some(e) = expr.value {
-                    self.run(*e)?
-                } else {
-                    values::Null::new()
-                };
-
-                self.scope.lock().unwrap().insert(
-                    expr.symbol.value,
-                    Variable {
-                        is_const: expr.is_const,
-                        value: value.clone(),
-                    },
-                    Some(expr.location),
-                )?;
-
-                Ok(value)
-            }
-
-            Node::Function(expr) => Ok(RuntimeValue::Function(values::Function {
-                options: RuntimeValueDetails::default(),
-                body: expr.body,
-                name: expr.name.map(|x| x.value),
-                scope: self.scope.clone(),
-                arguments: expr.args.iter().map(|x| x.value.clone()).collect(),
-            })),
-
+            // ----- other -----
             Node::Export(expr) => {
                 todo!()
-            }
-
-            Node::If(expr) => {
-                let result = self.run(*expr.test)?;
-
-                if result.is_truthy() {
-                    self.run(*expr.succss)
-                } else if let Some(b) = expr.alternate {
-                    self.run(*b)
-                } else {
-                    Ok(values::Null::new())
-                }
-            }
-
-            Node::WhileLoop(expr) => {
-                while self.run(*expr.test.clone())?.is_truthy() {
-                    match self.run(*expr.body.clone()) {
-                        Ok(_) => (),
-                        Err(err) => match err.code {
-                            ErrorCode::Break => break,
-                            ErrorCode::Continue => continue,
-                            _ => return Err(err),
-                        },
-                    }
-                }
-
-                Ok(values::Null::new())
             }
 
             Node::Interrupt(expr) => match expr.t {
@@ -202,29 +93,6 @@ impl Interpreter {
                 }
             },
 
-            Node::Match(expr) => {
-                let value = self.run(*expr.test)?;
-
-                for test in expr.cases {
-                    match test {
-                        Either::Left(l) => {
-                            if value.compare_with(
-                                self.run(*l.value)?,
-                                l.op,
-                                Some(expr.location.clone()),
-                            )? {
-                                return self.run(*l.success);
-                            }
-                        }
-                        Either::Right(r) => {
-                            return self.run(*r);
-                        }
-                    }
-                }
-
-                return Ok(values::Null::new());
-            }
-
             Node::Array(expr) => {
                 let mut items: Vec<RuntimeValue> = vec![];
                 for i in expr.items {
@@ -240,80 +108,6 @@ impl Interpreter {
                 }
 
                 Ok(values::Object::new_ref(items))
-            }
-
-            Node::Assign(expr) => {
-                let value = self.run(*expr.value)?;
-
-                match *expr.assignee {
-                    Node::Symbol(ref symbol) => {
-                        self.scope.lock().unwrap().modify(
-                            symbol.value.clone(),
-                            value.clone(),
-                            Some(expr.assignee.location().clone()),
-                        )?;
-                    }
-                    x => {
-                        return Err(ZephyrError {
-                            code: ErrorCode::InvalidOperation,
-                            message: format!("Cannot assign to a {:?}", x),
-                            location: Some(x.location().clone()),
-                        })
-                    }
-                }
-
-                Ok(value)
-            }
-
-            Node::Call(expr) => {
-                let left = self.run(*expr.left.clone())?;
-
-                let mut args: Vec<RuntimeValue> = vec![];
-                for arg in expr.args {
-                    args.push(self.run(*arg)?);
-                }
-
-                match left {
-                    RuntimeValue::Function(func) => {
-                        let mut scope = Scope::new(Some(self.scope.clone()));
-                        for (i, v) in func.arguments.iter().enumerate() {
-                            if i >= args.len() {
-                                scope.insert(
-                                    v.clone(),
-                                    Variable::from(values::Null::new()),
-                                    Some(expr.location.clone()),
-                                )?
-                            } else {
-                                scope.insert(
-                                    v.clone(),
-                                    Variable::from(args[i].clone()),
-                                    Some(expr.location.clone()),
-                                )?
-                            }
-                        }
-
-                        let old = self.swap_scope(Arc::from(Mutex::from(scope)));
-                        let result = self.run(Node::Block(func.body));
-                        self.swap_scope(old);
-
-                        if let Err(err) = &result {
-                            if let ErrorCode::Return(Some(val)) = &err.code {
-                                return Ok(val.clone());
-                            } else if let ErrorCode::Return(None) = &err.code {
-                                return Ok(values::Null::new());
-                            }
-                        }
-
-                        return result;
-                    }
-                    _ => {
-                        return Err(ZephyrError {
-                            code: ErrorCode::InvalidOperation,
-                            message: format!("Cannot call a {}", left.type_name()),
-                            location: Some(expr.left.location().clone()),
-                        })
-                    }
-                }
             }
 
             Node::Member(expr) => self.member(expr),
