@@ -13,7 +13,8 @@ mod parser;
 mod runtime;
 mod util;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     memory_store::initialise_store();
 
     let args = env::args().collect::<Vec<String>>();

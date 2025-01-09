@@ -11,18 +11,29 @@ use crate::{
 
 use super::{
     memory_store::{self, allocate},
-    scope::Scope,
+    scope::{PrototypeStore, Scope},
 };
 
 #[derive(Debug, Clone)]
 pub struct RuntimeValueDetails {
-    tags: Arc<Mutex<HashMap<String, String>>>,
+    pub tags: Arc<Mutex<HashMap<String, String>>>,
+    pub proto: Option<usize>,
+}
+
+impl RuntimeValueDetails {
+    pub fn with_proto(id: usize) -> Self {
+        Self {
+            proto: Some(id),
+            ..Default::default()
+        }
+    }
 }
 
 impl Default for RuntimeValueDetails {
     fn default() -> Self {
         Self {
             tags: Arc::from(Mutex::from(HashMap::default())),
+            proto: None,
         }
     }
 }
@@ -92,9 +103,13 @@ impl RuntimeValue {
         }
     }
 
-    pub fn check_ref(&self) -> Result<(RuntimeValue, Option<usize>), ZephyrError> {
+    pub fn make_ref(&self) -> usize {
+        allocate(self.clone())
+    }
+
+    pub fn check_ref(&self) -> Result<(RuntimeValue, Option<Reference>), ZephyrError> {
         match self {
-            RuntimeValue::Reference(r) => Ok(((*r.get()?).clone(), Some(r.location))),
+            RuntimeValue::Reference(r) => Ok(((*r.get()?).clone(), Some(r.clone()))),
             _ => Ok((self.clone(), None)),
         }
     }
@@ -159,7 +174,7 @@ impl Number {
     pub fn new(value: f64) -> RuntimeValue {
         RuntimeValue::Number(Number {
             value,
-            options: RuntimeValueDetails::default(),
+            options: RuntimeValueDetails::with_proto(PrototypeStore::get("object".to_string())),
         })
     }
 }

@@ -33,6 +33,20 @@ pub fn deallocate(index: usize) -> () {
     }
 }
 
+pub fn store_get(index: usize) -> RuntimeValue {
+    OBJECT_STORE
+        .get()
+        .unwrap()
+        .lock()
+        .unwrap()
+        .get(index)
+        .unwrap()
+        .as_ref()
+        .unwrap()
+        .as_ref()
+        .clone()
+}
+
 #[cfg(test)]
 mod tests {
     use crate::runtime::values;

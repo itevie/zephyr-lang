@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
 };
 
 use crate::{
@@ -9,6 +9,8 @@ use crate::{
 };
 
 use super::values::{self, RuntimeValue};
+
+static PROTOTYPE_STORE: OnceLock<Mutex<HashMap<String, usize>>> = OnceLock::new();
 
 #[derive(Debug)]
 pub struct Variable {
@@ -128,5 +130,31 @@ impl Scope {
         }
 
         Ok(())
+    }
+}
+
+pub struct PrototypeStore {}
+
+impl PrototypeStore {
+    pub fn init() {
+        PROTOTYPE_STORE.get_or_init(|| {
+            Mutex::from(HashMap::from([(
+                "object".to_string(),
+                values::Object::new(HashMap::from([(
+                    "two".to_string(),
+                    values::Number::new(2f64),
+                )]))
+                .make_ref(),
+            )]))
+        });
+    }
+
+    pub fn get(name: String) -> usize {
+        PrototypeStore::init();
+        if let Some(proto) = PROTOTYPE_STORE.get().unwrap().lock().unwrap().get(&name) {
+            *proto
+        } else {
+            panic!("Tried to get prototype {}, but it does not exist.", name)
+        }
     }
 }

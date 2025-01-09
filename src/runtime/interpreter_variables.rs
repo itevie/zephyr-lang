@@ -40,6 +40,7 @@ impl Interpreter {
                     Some(expr.assignee.location().clone()),
                 )?;
             }
+            Node::Member(member) => return self.run_member(member, Some(value)),
             x => {
                 return Err(ZephyrError {
                     code: ErrorCode::InvalidOperation,

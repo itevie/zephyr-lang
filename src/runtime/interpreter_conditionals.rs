@@ -1,6 +1,4 @@
-use either::Either;
-
-use crate::parser::nodes;
+use crate::parser::nodes::{self, MatchCaseType};
 
 use super::{values, Interpreter, R};
 
@@ -22,12 +20,12 @@ impl Interpreter {
 
         for test in expr.cases {
             match test {
-                Either::Left(l) => {
+                MatchCaseType::MatchCase(l) => {
                     if value.compare_with(self.run(*l.value)?, l.op, Some(expr.location.clone()))? {
                         return self.run(*l.success);
                     }
                 }
-                Either::Right(r) => {
+                MatchCaseType::Else(r) => {
                     return self.run(*r);
                 }
             }

@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use either::Either;
-
 use crate::lexer::tokens::{self, Comparison, Location, TokenType};
 
 #[derive(Debug, Clone)]
@@ -177,6 +175,12 @@ pub struct WhileLoop {
 }
 
 #[derive(Debug, Clone)]
+pub enum MatchCaseType {
+    MatchCase(MatchCase),
+    Else(Box<Node>),
+}
+
+#[derive(Debug, Clone)]
 pub struct MatchCase {
     pub op: Comparison,
     pub value: Box<Node>,
@@ -186,7 +190,7 @@ pub struct MatchCase {
 #[derive(Debug, Clone)]
 pub struct Match {
     pub test: Box<Node>,
-    pub cases: Vec<Either<MatchCase, Box<Node>>>,
+    pub cases: Vec<MatchCaseType>,
     pub location: Location,
 }
 

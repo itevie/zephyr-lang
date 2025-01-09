@@ -24,3 +24,4 @@
   - You can use it in a match case
   - You can check if a type is it
 - Prototype chain
+- Where clauses

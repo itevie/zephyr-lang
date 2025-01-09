@@ -15,6 +15,7 @@ pub mod interpreter_conditionals;
 pub mod interpreter_functions;
 pub mod interpreter_helper;
 pub mod interpreter_loops;
+pub mod interpreter_objects;
 pub mod interpreter_operators;
 pub mod interpreter_variables;
 pub mod memory_store;
@@ -110,7 +111,7 @@ impl Interpreter {
                 Ok(values::Object::new_ref(items))
             }
 
-            Node::Member(expr) => self.member(expr),
+            Node::Member(expr) => self.run_member(expr, None),
 
             Node::Number(expr) => Ok(values::Number::new(expr.value)),
             Node::ZString(expr) => Ok(values::ZString::new(expr.value)),
