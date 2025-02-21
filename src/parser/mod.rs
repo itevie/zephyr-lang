@@ -3,7 +3,7 @@ use std::{
     mem::{discriminant, Discriminant},
 };
 
-use nodes::{InterruptType, MatchCase, MatchCaseType, Node, TaggedSymbol};
+use nodes::{ExposeType, InterruptType, MatchCase, MatchCaseType, Node, TaggedSymbol};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -132,6 +132,7 @@ impl Parser {
                 node: Box::from(self.expression()?),
             })),
             TokenType::Export => self.export(),
+            TokenType::Import => self.import(),
             TokenType::While => self.while_stmt(),
             TokenType::Continue => Ok(Node::Interrupt(nodes::Interrupt {
                 location: self.eat().location,
@@ -162,18 +163,150 @@ impl Parser {
         self.assign()
     }
 
+    /*pub fn when(&mut self) -> NR {
+        let token = self.eat();
+        let emitter = self.expression()?;
+
+        self.expect(
+            discriminant(&TokenType::Emits),
+            ZephyrError {
+                message: "Expected emits keyword".to_string(),
+                code: ErrorCode::UnexpectedToken,
+                location: Some(self.at().location.clone()),
+            },
+        )?;
+
+        let message = self.expression()?;
+
+        let once = if matches!(self.at().t, TokenType::Once) {
+            self.eat();
+            true
+        } else {
+            false
+        };
+
+        self.expect(
+            discriminant(&TokenType::Do),
+            ZephyrError {
+                message: "Expected do keyword".to_string(),
+                code: ErrorCode::UnexpectedToken,
+                location: Some(self.at().location.clone()),
+            },
+        )?;
+
+        let func = self.expression()?;
+
+        Ok(Node::WhenClause(nodes::WhenClause {
+            emitter: Box::from(emitter),
+            message: Box::from(message),
+            once,
+            func: Box::from(func),
+            location: token.location,
+        }))
+    }*/
+
+    pub fn import(&mut self) -> NR {
+        let token = self.eat();
+        let import = self.expect(
+            discriminant(&TokenType::String),
+            ZephyrError {
+                message: "Expected string containing import location".to_string(),
+                code: ErrorCode::UnexpectedToken,
+                location: Some(self.at().location.clone()),
+            },
+        )?;
+        let mut expose: Vec<ExposeType> = vec![];
+
+        if matches!(self.at().t, TokenType::Expose) {
+            self.eat();
+            loop {
+                let mut expr = match self.at().t {
+                    TokenType::Symbol => ExposeType::Identifier(self.eat().value),
+                    TokenType::Multiplicative(tokens::Multiplicative::Multiply) => {
+                        ExposeType::Star()
+                    }
+                    _ => {
+                        return Err(ZephyrError {
+                            message: "Cannot use this token here".to_string(),
+                            code: ErrorCode::UnexpectedToken,
+                            location: Some(self.at().location.clone()),
+                        })
+                    }
+                };
+
+                if matches!(self.at().t, TokenType::As) {
+                    self.eat();
+                    let ident = self.expect(
+                        discriminant(&TokenType::Symbol),
+                        ZephyrError {
+                            message: "Expected identifier".to_string(),
+                            code: ErrorCode::UnexpectedToken,
+                            location: Some(self.at().location.clone()),
+                        },
+                    )?;
+
+                    expr = match expr {
+                        ExposeType::Identifier(i) => ExposeType::IdentifierAs(i, ident.value),
+                        ExposeType::Star() => ExposeType::StarAs(ident.value),
+                        _ => unreachable!(),
+                    };
+                }
+
+                expose.push(expr);
+
+                if matches!(self.at().t, TokenType::Comma) {
+                    self.eat();
+                    continue;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        Ok(Node::Import(nodes::Import {
+            import: import.value,
+            exposing: expose,
+            location: token.location,
+        }))
+    }
+
     pub fn export(&mut self) -> NR {
         let token = self.eat();
         let node = self.statement()?;
 
         let t = match node {
             Node::Symbol(v) => nodes::ExportType::Symbol(v),
-            _ => todo!(),
+            Node::Declare(v) => nodes::ExportType::Declaration(v),
+            _ => {
+                return Err(ZephyrError {
+                    message: "Cannot export this statement".to_string(),
+                    code: ErrorCode::UnexpectedToken,
+                    location: Some(self.at().location.clone()),
+                })
+            }
+        };
+
+        let export_as = if matches!(self.at().t, TokenType::As) {
+            self.eat();
+            Some(
+                self.expect(
+                    discriminant(&TokenType::Symbol),
+                    ZephyrError {
+                        message: "Expected symbol".to_string(),
+                        code: ErrorCode::UnexpectedToken,
+                        location: Some(self.at().location.clone()),
+                    },
+                )?
+                .value,
+            )
+        } else {
+            None
         };
 
         Ok(Node::Export(nodes::Export {
             export: t,
             location: token.location,
+            export_as,
         }))
     }
 
@@ -233,9 +366,7 @@ impl Parser {
 
         if let TokenType::OpenParan = self.at().t {
             self.eat();
-            while !matches!(self.at().t, TokenType::EOF)
-                && !matches!(self.at().t, TokenType::CloseParan)
-            {
+            loop {
                 arguments.push(Parser::make_symbol(self.expect(
                     discriminant(&TokenType::Symbol),
                     ZephyrError {
@@ -244,6 +375,13 @@ impl Parser {
                         location: Some(self.at().location.clone()),
                     },
                 )?));
+
+                if matches!(self.at().t, TokenType::Comma) {
+                    self.eat();
+                    continue;
+                } else {
+                    break;
+                }
             }
 
             self.expect(
@@ -520,7 +658,13 @@ impl Parser {
             let right = if computed {
                 self.expression()?
             } else {
-                self.call()?
+                match self.at().t {
+                    TokenType::Symbol => Node::ZString(nodes::ZString {
+                        value: self.at().value.clone(),
+                        location: self.eat().location,
+                    }),
+                    _ => panic!("{:#?}", self.at()),
+                }
             };
 
             if computed {
@@ -534,13 +678,32 @@ impl Parser {
                 )?;
             }
 
-            left = Node::Member(nodes::Member {
-                left: Box::from(left),
-                right: Box::from(right),
-                optional,
-                computed,
-                location: token.location,
-            })
+            match right {
+                Node::Member(mem) => {
+                    left = Node::Member(nodes::Member {
+                        left: Box::from(Node::Member(nodes::Member {
+                            left: Box::from(left),
+                            right: mem.left,
+                            optional: mem.optional,
+                            computed: mem.computed,
+                            location: mem.location,
+                        })),
+                        right: mem.right,
+                        optional,
+                        computed,
+                        location: token.location,
+                    })
+                }
+                _ => {
+                    left = Node::Member(nodes::Member {
+                        left: Box::from(left),
+                        right: Box::from(right),
+                        optional,
+                        computed: true,
+                        location: token.location,
+                    })
+                }
+            }
         }
 
         Ok(left)

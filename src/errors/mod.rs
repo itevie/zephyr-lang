@@ -22,6 +22,11 @@ pub enum ErrorCode {
     ScopeError,
     OutOfBounds,
     InvalidKey,
+    TypeError,
+    CannotResolve,
+    Unresolved,
+    NotExported,
+    UndefinedEventMessage,
 
     Break,
     Continue,

@@ -1,14 +1,13 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
     parser::nodes::{self, Node},
-    runtime::memory_store::OBJECT_STORE,
 };
 
 use super::{
-    memory_store::store_get,
-    values::{self, RuntimeValue},
+    memory_store::{self, store_get},
+    values::{self, ReferenceType, RuntimeValue, RuntimeValueDetails},
     Interpreter, R,
 };
 
@@ -25,7 +24,7 @@ impl Interpreter {
 
             return self.member_check_basic(left.clone(), key, set);
         } else {
-            let right = self.run(*expr.right.clone())?.check_ref()?;
+            let right = self.run(*expr.right.clone())?.as_ref_tuple()?;
 
             // Check for basic string key
             if let RuntimeValue::ZString(string) = right.0 {
@@ -43,9 +42,21 @@ impl Interpreter {
         set: Option<RuntimeValue>,
     ) -> R {
         // Prescedence:
+        // - __proto check
         // - __tag check
         // - object property check
         // - property chain check
+
+        if &key == "__proto" {
+            return match value.options().proto {
+                Some(proto) => Ok(values::Reference::new(proto)),
+                None => Err(ZephyrError {
+                    message: "The value does not have a prototype".to_string(),
+                    code: ErrorCode::UnknownReference,
+                    location: None,
+                }),
+            };
+        }
 
         if &key == "__tags" {
             if let Some(_) = set {
@@ -58,7 +69,7 @@ impl Interpreter {
 
             return Ok(values::Object::new(
                 value
-                    .get_options()
+                    .options()
                     .tags
                     .lock()
                     .unwrap()
@@ -69,7 +80,7 @@ impl Interpreter {
             ));
         }
 
-        match value.check_ref()? {
+        match value.as_ref_tuple()? {
             (RuntimeValue::Object(mut obj), Some(r)) => {
                 if let Some(setter) = set {
                     if obj.items.contains_key(&key) {
@@ -77,10 +88,13 @@ impl Interpreter {
                     }
 
                     obj.items.insert(key, setter);
-
-                    let mut lock = OBJECT_STORE.get().unwrap().lock().unwrap();
-                    lock.remove(r.location);
-                    lock.insert(r.location, Some(Arc::from(RuntimeValue::Object(obj))));
+                    memory_store::store_set(
+                        match r.location {
+                            ReferenceType::Basic(i) => i,
+                            _ => panic!(),
+                        },
+                        RuntimeValue::Object(obj),
+                    );
 
                     return Ok(values::Null::new());
                 } else if let Some(val) = obj.items.get(&key) {
@@ -90,14 +104,20 @@ impl Interpreter {
             _ => (),
         }
 
-        if let Some(proto_ref) = value.get_options().proto {
-            let value = match store_get(proto_ref) {
+        if let Some(proto_ref) = value.options().proto {
+            let prototype = match store_get(proto_ref) {
                 RuntimeValue::Object(o) => o,
                 _ => panic!("Expected an object as the prototype."),
             };
 
-            if let Some(proto_value) = value.items.get(&key) {
-                return Ok(proto_value.clone());
+            if let Some(proto_value) = prototype.items.get(&key) {
+                let mut new_value = proto_value.clone();
+                new_value.set_options(RuntimeValueDetails {
+                    proto_value: Some(Box::from(value.clone())),
+                    ..proto_value.options().clone()
+                });
+
+                return Ok(new_value.clone());
             }
         }
 

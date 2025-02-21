@@ -123,6 +123,7 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                     "import" => TokenType::Import,
                     "export" => TokenType::Export,
                     "as" => TokenType::As,
+                    "expose" => TokenType::Expose,
 
                     "for" => TokenType::For,
                     "while" => TokenType::While,
@@ -138,6 +139,8 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                     "match" => TokenType::Match,
 
                     "debug" => TokenType::Debug,
+
+                    "enum" => TokenType::Enum,
                     _ => TokenType::Symbol,
                 });
                 current_length = value.len();

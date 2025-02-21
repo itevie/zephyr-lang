@@ -5,6 +5,7 @@ use crate::lexer::tokens::{self, Comparison, Location, TokenType};
 #[derive(Debug, Clone)]
 pub enum Node {
     Block(Block),
+    ExportedBlock(ExportedBlock),
 
     Number(Number),
     ZString(ZString),
@@ -19,6 +20,7 @@ pub enum Node {
     WhileLoop(WhileLoop),
     Interrupt(Interrupt),
 
+    Import(Import),
     Export(Export),
 
     Arithmetic(Arithmetic),
@@ -35,6 +37,7 @@ impl Node {
     pub fn location(&self) -> &Location {
         match self {
             Node::Block(v) => &v.location,
+            Node::ExportedBlock(v) => &v.location,
 
             Node::Number(v) => &v.location,
             Node::ZString(v) => &v.location,
@@ -49,6 +52,7 @@ impl Node {
             Node::WhileLoop(v) => &v.location,
             Node::Interrupt(v) => &v.location,
 
+            Node::Import(v) => &v.location,
             Node::Export(v) => &v.location,
 
             Node::Arithmetic(v) => &v.location,
@@ -64,6 +68,12 @@ impl Node {
 
 #[derive(Debug, Clone)]
 pub struct Block {
+    pub nodes: Vec<Box<Node>>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExportedBlock {
     pub nodes: Vec<Box<Node>>,
     pub location: Location,
 }
@@ -209,6 +219,7 @@ pub enum ExportType {
 #[derive(Debug, Clone)]
 pub struct Export {
     pub export: ExportType,
+    pub export_as: Option<String>,
     pub location: Location,
 }
 
@@ -223,4 +234,19 @@ pub enum InterruptType {
 pub struct Interrupt {
     pub location: Location,
     pub t: InterruptType,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExposeType {
+    Identifier(String),
+    IdentifierAs(String, String),
+    Star(),
+    StarAs(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct Import {
+    pub import: String,
+    pub exposing: Vec<ExposeType>,
+    pub location: Location,
 }

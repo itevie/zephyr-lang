@@ -1,38 +1,191 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        Arc, Mutex,
+    },
 };
 
-use scope::Scope;
-use values::{Null, RuntimeValue};
+use scope::{Scope, Variable};
+use values::{FunctionType, Null, RuntimeValue};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
-    parser::nodes::{self, InterruptType, Node},
+    lexer::{
+        lexer::lex,
+        tokens::{Location, NO_LOCATION},
+    },
+    parser::{
+        nodes::{self, InterruptType, Node},
+        Parser,
+    },
 };
 
 pub mod interpreter_conditionals;
 pub mod interpreter_functions;
 pub mod interpreter_helper;
+pub mod interpreter_imports;
 pub mod interpreter_loops;
 pub mod interpreter_objects;
 pub mod interpreter_operators;
 pub mod interpreter_variables;
+pub mod job_queue;
 pub mod memory_store;
+pub mod native;
 pub mod scope;
 pub mod values;
 
 type R = Result<RuntimeValue, ZephyrError>;
 
+macro_rules! add_native {
+    ($name:expr, $nv_path:expr) => {
+        (
+            $name.to_string(),
+            values::NativeFunction::new(Arc::from($nv_path)),
+        )
+    };
+}
+
+macro_rules! include_lib {
+    ($what:expr) => {
+        (include_str!($what), $what)
+    };
+}
+
+pub struct Module {
+    pub exports: HashMap<String, Option<RuntimeValue>>,
+    pub scope: Arc<Mutex<Scope>>,
+    pub wanted: Vec<(String, Location)>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Job {
+    pub func: FunctionType,
+    pub args: Vec<RuntimeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub enum MspcSendType {
+    ThreadCreate,
+    ThreadDestroy,
+    ThreadMessage(Job),
+}
+
+#[derive(Debug, Clone)]
+pub struct MspcChannel {
+    pub mspc: Sender<MspcSendType>,
+}
+
+impl MspcChannel {
+    pub fn thread_start(&mut self) {
+        self.mspc
+            .send(MspcSendType::ThreadCreate)
+            .unwrap_or_else(|_| panic!("Failed to send thread_start"));
+    }
+
+    pub fn thread_destroy(&mut self) {
+        self.mspc
+            .send(MspcSendType::ThreadDestroy)
+            .unwrap_or_else(|_| panic!("Failed to send thread_destroy"));
+    }
+
+    pub fn thread_message(&mut self, job: Job) {
+        self.mspc
+            .send(MspcSendType::ThreadMessage(job))
+            .unwrap_or_else(|_| panic!("Failed to send thread_message"))
+    }
+}
+
+#[derive(Clone)]
 pub struct Interpreter {
     pub scope: Arc<Mutex<Scope>>,
+    pub global_scope: Arc<Mutex<Scope>>,
+    pub module_cache: HashMap<String, Arc<Mutex<Module>>>,
+    pub mspc: Option<MspcChannel>,
+    pub thread_count: usize,
 }
 
 impl Interpreter {
-    pub fn new() -> Self {
-        Interpreter {
-            scope: Arc::from(Mutex::from(Scope::new(None))),
+    pub fn new(file_name: String) -> Self {
+        let global_scope = Arc::from(Mutex::from(Scope::new(file_name)));
+        global_scope
+            .lock()
+            .unwrap()
+            .insert(
+                "__zephyr_native".to_string(),
+                Variable::from(values::Object::new_ref(HashMap::from([
+                    add_native!("test", native::test::test),
+                    add_native!("add_event_listener", native::events::add_listener),
+                    add_native!("get_proto_obj", native::proto::get_proto_obj),
+                ]))),
+                None,
+            )
+            .unwrap();
+
+        let mut interpreter = Interpreter {
+            global_scope: global_scope.clone(),
+            scope: global_scope.clone(),
+            module_cache: HashMap::new(),
+            thread_count: 0,
+            mspc: None,
+        };
+
+        let library_files: Vec<(&str, &str)> = vec![include_lib!("./lib/events.zr")];
+
+        for lib in library_files {
+            let lib_scope = Arc::new(Mutex::new(Scope::new_from_parent(global_scope.clone())));
+
+            let parsed = Parser::new(lex(lib.0, lib.1.to_string()).unwrap(), lib.1.to_string())
+                .produce_ast()
+                .unwrap();
+
+            std::mem::swap(&mut interpreter.scope, &mut lib_scope.clone());
+            interpreter
+                .run_exported(match parsed {
+                    Node::Block(b) => nodes::ExportedBlock {
+                        nodes: b.nodes,
+                        location: b.location,
+                    },
+                    _ => panic!(),
+                })
+                .unwrap();
+            std::mem::swap(&mut interpreter.scope, &mut lib_scope.clone());
+
+            let finished_scope = lib_scope.lock().unwrap();
+            for (name, _) in &finished_scope.exported {
+                let value = finished_scope.lookup(name.clone(), None).unwrap();
+                global_scope
+                    .lock()
+                    .unwrap()
+                    .insert(name.clone(), Variable::from(value), None)
+                    .unwrap();
+            }
         }
+
+        interpreter
+    }
+
+    pub fn base_run(&mut self, node: Node) -> R {
+        let (tx, rx): (Sender<MspcSendType>, Receiver<MspcSendType>) = channel();
+        self.mspc = Some(MspcChannel { mspc: tx });
+
+        let result = self.run(node);
+
+        while let Ok(value) = rx.recv() {
+            match value {
+                MspcSendType::ThreadCreate => self.thread_count += 1,
+                MspcSendType::ThreadDestroy => self.thread_count -= 1,
+                MspcSendType::ThreadMessage(job) => {
+                    self.run_function(job.func, job.args, NO_LOCATION.clone())?;
+                }
+            }
+
+            if self.thread_count == 0 {
+                break;
+            };
+        }
+
+        return result;
     }
 
     pub fn swap_scope(&mut self, scope: Arc<Mutex<Scope>>) -> Arc<Mutex<Scope>> {
@@ -51,6 +204,7 @@ impl Interpreter {
 
             // ----- helpers -----
             Node::Block(expr) => self.run_block(expr),
+            Node::ExportedBlock(expr) => self.run_exported(expr),
 
             // ----- loops -----
             Node::WhileLoop(expr) => self.run_while(expr),
@@ -63,11 +217,56 @@ impl Interpreter {
             Node::Declare(expr) => self.run_declare(expr),
             Node::Assign(expr) => self.run_assign(expr),
 
-            // ----- other -----
-            Node::Export(expr) => {
-                todo!()
-            }
+            // ----- imports -----
+            Node::Import(expr) => self.run_import(expr),
+            Node::Export(expr) => self.run_export(expr),
 
+            // ----- others -----
+            /*Node::WhenClause(expr) => {
+                let emitter = match self.run(*expr.emitter.clone())? {
+                    RuntimeValue::EventEmitter(e) => e,
+                    e => {
+                        return Err(ZephyrError {
+                            message: format!("Cannot listen to a {} for events", e.type_name()),
+                            code: ErrorCode::TypeError,
+                            location: Some(expr.emitter.location().clone()),
+                        })
+                    }
+                };
+
+                let message = match self.run(*expr.message.clone())? {
+                    RuntimeValue::ZString(s) => s,
+                    e => {
+                        return Err(ZephyrError {
+                            message: format!(
+                                "Expected string for message, but got {}",
+                                e.type_name()
+                            ),
+                            code: ErrorCode::TypeError,
+                            location: Some(expr.emitter.location().clone()),
+                        })
+                    }
+                };
+
+                let func = match self.run(*expr.func.clone())? {
+                    RuntimeValue::Function(f) => FunctionType::Function(f),
+                    RuntimeValue::NativeFunction(f) => FunctionType::NativeFunction(f),
+                    e => {
+                        return Err(ZephyrError {
+                            message: format!(
+                                "Expected function for listener, but got {}",
+                                e.type_name()
+                            ),
+                            code: ErrorCode::TypeError,
+                            location: Some(expr.emitter.location().clone()),
+                        })
+                    }
+                };
+
+                emitter.add_listener(message.value, func, expr.location)?;
+
+                Ok(values::Null::new())
+            }*/
             Node::Interrupt(expr) => match expr.t {
                 InterruptType::Continue => Err(ZephyrError {
                     message: "Cannot continue here".to_string(),
@@ -115,16 +314,25 @@ impl Interpreter {
 
             Node::Number(expr) => Ok(values::Number::new(expr.value)),
             Node::ZString(expr) => Ok(values::ZString::new(expr.value)),
-            Node::Symbol(expr) => Ok(self
-                .scope
-                .lock()
-                .unwrap()
-                .lookup(expr.value, Some(expr.location))?
-                .clone()),
+            Node::Symbol(expr) => Ok(
+                match self
+                    .scope
+                    .lock()
+                    .unwrap()
+                    .lookup(expr.value, Some(expr.location))?
+                    .clone()
+                {
+                    RuntimeValue::Reference(r) => match r.location {
+                        values::ReferenceType::Basic(_) => RuntimeValue::Reference(r.clone()),
+                        values::ReferenceType::ModuleExport(_) => (*r.inner()?).clone(),
+                    },
+                    x => x,
+                },
+            ),
 
             Node::DebugNode(expr) => {
                 let result = self.run(*expr.node)?;
-                println!("{:#?}", result);
+                println!("{}", result.to_string().unwrap());
                 return Ok(Null::new());
             }
         }
@@ -138,7 +346,7 @@ impl Interpreter {
     }
 
     pub fn member(&mut self, expr: nodes::Member) -> R {
-        let left = self.run(*expr.left.clone())?.check_ref()?;
+        let left = self.run(*expr.left.clone())?.as_ref_tuple()?;
 
         if !expr.computed {
             let key = match *expr.right {
@@ -148,7 +356,7 @@ impl Interpreter {
 
             todo!();
         } else {
-            let right = self.run(*expr.right.clone())?.check_ref()?;
+            let right = self.run(*expr.right.clone())?.as_ref_tuple()?;
 
             match left {
                 // object[_]

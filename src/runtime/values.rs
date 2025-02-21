@@ -10,14 +10,17 @@ use crate::{
 };
 
 use super::{
-    memory_store::{self, allocate},
+    memory_store,
+    native::NativeExecutionContext,
     scope::{PrototypeStore, Scope},
+    Job, MspcChannel, R,
 };
 
 #[derive(Debug, Clone)]
 pub struct RuntimeValueDetails {
     pub tags: Arc<Mutex<HashMap<String, String>>>,
     pub proto: Option<usize>,
+    pub proto_value: Option<Box<RuntimeValue>>,
 }
 
 impl RuntimeValueDetails {
@@ -34,6 +37,7 @@ impl Default for RuntimeValueDetails {
         Self {
             tags: Arc::from(Mutex::from(HashMap::default())),
             proto: None,
+            proto_value: None,
         }
     }
 }
@@ -46,11 +50,14 @@ pub enum RuntimeValue {
     Boolean(Boolean),
     Reference(Reference),
     Function(Function),
+    NativeFunction(NativeFunction),
     Array(Array),
     Object(Object),
+    EventEmitter(EventEmitter),
 }
 
 impl RuntimeValue {
+    /// Returns the predefined type of the value
     pub fn type_name(&self) -> &str {
         match self {
             RuntimeValue::Boolean(_) => "boolean",
@@ -59,41 +66,64 @@ impl RuntimeValue {
             RuntimeValue::ZString(_) => "string",
             RuntimeValue::Reference(_) => "reference",
             RuntimeValue::Function(_) => "function",
+            RuntimeValue::NativeFunction(_) => "native_function",
             RuntimeValue::Array(_) => "array",
             RuntimeValue::Object(_) => "object",
+            RuntimeValue::EventEmitter(_) => "event_emitter",
         }
     }
 
-    pub fn get_options(&self) -> RuntimeValueDetails {
+    /// Gets the options struct no matter what the underlying type is
+    pub fn options(&self) -> &RuntimeValueDetails {
         match self {
-            RuntimeValue::Array(v) => v.options.clone(),
-            RuntimeValue::Boolean(v) => v.options.clone(),
-            RuntimeValue::Function(v) => v.options.clone(),
-            RuntimeValue::Null(v) => v.options.clone(),
-            RuntimeValue::Number(v) => v.options.clone(),
-            RuntimeValue::Object(v) => v.options.clone(),
-            RuntimeValue::Reference(v) => v.options.clone(),
-            RuntimeValue::ZString(v) => v.options.clone(),
+            RuntimeValue::Array(v) => &v.options,
+            RuntimeValue::Boolean(v) => &v.options,
+            RuntimeValue::Function(v) => &v.options,
+            RuntimeValue::NativeFunction(v) => &v.options,
+            RuntimeValue::Null(v) => &v.options,
+            RuntimeValue::Number(v) => &v.options,
+            RuntimeValue::Object(v) => &v.options,
+            RuntimeValue::Reference(v) => &v.options,
+            RuntimeValue::ZString(v) => &v.options,
+            RuntimeValue::EventEmitter(v) => &v.options,
         }
     }
 
-    #[allow(unreachable_patterns)]
+    pub fn set_options(&mut self, new: RuntimeValueDetails) -> () {
+        match self {
+            RuntimeValue::Array(v) => v.options = new,
+            RuntimeValue::Boolean(v) => v.options = new,
+            RuntimeValue::Function(v) => v.options = new,
+            RuntimeValue::NativeFunction(v) => v.options = new,
+            RuntimeValue::Null(v) => v.options = new,
+            RuntimeValue::Number(v) => v.options = new,
+            RuntimeValue::Object(v) => v.options = new,
+            RuntimeValue::Reference(v) => v.options = new,
+            RuntimeValue::ZString(v) => v.options = new,
+            RuntimeValue::EventEmitter(v) => v.options = new,
+        };
+    }
+
+    /// Converts the value into a string (not display)
     pub fn to_string(&self) -> Result<String, ZephyrError> {
         Ok(match self {
             RuntimeValue::Boolean(v) => v.value.to_string(),
             RuntimeValue::Null(_) => "null".to_string(),
             RuntimeValue::Number(v) => v.value.to_string(),
+            RuntimeValue::Reference(v) => format!("{:#?}", v.inner()),
             RuntimeValue::ZString(v) => v.value.clone(),
-            _ => {
-                return Err(ZephyrError {
+            v => {
+                format!("{:#?}", v)
+                /*return Err(ZephyrError {
                     code: ErrorCode::CannotCoerce,
                     message: format!("Cannot coerce {} into a string", self.type_name()),
                     location: None,
-                })
+                })*/
             }
         })
     }
 
+    /// Checks whether or not the value is "truthy" following set rules
     pub fn is_truthy(&self) -> bool {
         match self {
             RuntimeValue::Boolean(v) => v.value,
@@ -103,13 +133,16 @@ impl RuntimeValue {
         }
     }
 
-    pub fn make_ref(&self) -> usize {
-        allocate(self.clone())
+    /// Simply adds the value to the object store
+    pub fn as_ref(&self) -> usize {
+        memory_store::allocate(self.clone())
     }
 
-    pub fn check_ref(&self) -> Result<(RuntimeValue, Option<Reference>), ZephyrError> {
+    /// Used for returning a tuple containing the inner reference (or current value), along with the reference ID  
+    /// Looks like: (value, ref)
+    pub fn as_ref_tuple(&self) -> Result<(RuntimeValue, Option<Reference>), ZephyrError> {
         match self {
-            RuntimeValue::Reference(r) => Ok(((*r.get()?).clone(), Some(r.clone()))),
+            RuntimeValue::Reference(r) => Ok(((*r.inner()?).clone(), Some(r.clone()))),
             _ => Ok((self.clone(), None)),
         }
     }
@@ -132,8 +165,8 @@ impl RuntimeValue {
             }
         }
 
-        return Ok(match (self.clone(), right.clone(), t.clone()) {
-            (RuntimeValue::Number(l), RuntimeValue::Number(r), _) => match t {
+        return Ok(match (self, right, t) {
+            (RuntimeValue::Number(l), RuntimeValue::Number(r), ref t) => match t {
                 Comparison::Eq => l.value == r.value,
                 Comparison::Neq => l.value != r.value,
                 Comparison::Gt => l.value > r.value,
@@ -148,14 +181,14 @@ impl RuntimeValue {
                 l.value != r.value
             }
             (RuntimeValue::Null(_), RuntimeValue::Null(_), Comparison::Eq) => true,
-            _ => {
+            (_, ref r, ref t) => {
                 return Err(ZephyrError {
                     code: ErrorCode::InvalidOperation,
                     message: format!(
                         "Cannot perform {} {} {}",
                         self.type_name(),
                         t,
-                        right.type_name()
+                        r.type_name()
                     ),
                     location,
                 })
@@ -223,12 +256,53 @@ impl Boolean {
 }
 
 #[derive(Debug, Clone)]
+pub enum FunctionType {
+    Function(Function),
+    NativeFunction(NativeFunction),
+}
+
+impl FunctionType {
+    pub fn from(val: RuntimeValue) -> Result<FunctionType, ZephyrError> {
+        match val {
+            RuntimeValue::Function(f) => Ok(FunctionType::Function(f)),
+            RuntimeValue::NativeFunction(f) => Ok(FunctionType::NativeFunction(f)),
+            _ => Err(ZephyrError {
+                message: format!("{} is not a function", val.type_name()),
+                code: ErrorCode::TypeError,
+                location: None,
+            }),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Function {
     pub options: RuntimeValueDetails,
     pub body: nodes::Block,
     pub name: Option<String>,
     pub arguments: Vec<String>,
     pub scope: Arc<Mutex<Scope>>,
+}
+
+#[derive(Clone)]
+pub struct NativeFunction {
+    pub options: RuntimeValueDetails,
+    pub func: Arc<dyn Fn(NativeExecutionContext) -> R + Send + Sync>,
+}
+
+impl NativeFunction {
+    pub fn new(f: Arc<dyn Fn(NativeExecutionContext) -> R + Send + Sync>) -> RuntimeValue {
+        RuntimeValue::NativeFunction(NativeFunction {
+            func: f,
+            options: RuntimeValueDetails::default(),
+        })
+    }
+}
+
+impl std::fmt::Debug for NativeFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "NativeFunction")
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -270,44 +344,127 @@ impl Object {
 }
 
 #[derive(Debug, Clone)]
+pub struct EventEmitter {
+    pub options: RuntimeValueDetails,
+    pub defined_events: Vec<String>,
+    pub listeners: Arc<Mutex<HashMap<String, Arc<Mutex<Vec<FunctionType>>>>>>,
+}
+
+impl EventEmitter {
+    pub fn new(events: Vec<String>) -> Self {
+        EventEmitter {
+            options: RuntimeValueDetails::with_proto(PrototypeStore::get(
+                "event_emitter".to_string(),
+            )),
+            defined_events: events,
+            listeners: Arc::from(Mutex::from(HashMap::new())),
+        }
+    }
+
+    pub fn emit_from_thread(
+        &self,
+        message: String,
+        args: Vec<RuntimeValue>,
+        sender: &mut MspcChannel,
+    ) -> () {
+        if let Some(listeners) = self.listeners.lock().unwrap().get(&message) {
+            let parts = listeners.lock().unwrap();
+            for part in parts.iter() {
+                sender.thread_message(Job {
+                    func: part.clone(),
+                    args: args.clone(),
+                });
+            }
+        }
+    }
+
+    pub fn add_listener(
+        &self,
+        message: String,
+        func: FunctionType,
+        location: Location,
+    ) -> Result<(), ZephyrError> {
+        if !self.defined_events.contains(&message) {
+            return Err(ZephyrError {
+                message: format!("Event emitter does not have a {} event", message),
+                code: ErrorCode::UndefinedEventMessage,
+                location: Some(location),
+            });
+        }
+
+        let mut lock = self.listeners.lock().unwrap();
+
+        if !lock.contains_key(&message) {
+            lock.insert(message, Arc::from(Mutex::from(vec![func])));
+        } else {
+            lock.get(&message).unwrap().lock().unwrap().push(func);
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ReferenceType {
+    Basic(usize),
+    ModuleExport((Arc<Mutex<Scope>>, Option<String>)),
+}
+
+#[derive(Debug, Clone)]
 pub struct Reference {
     pub options: RuntimeValueDetails,
-    pub location: usize,
+    pub location: ReferenceType,
 }
 
 impl Reference {
     pub fn new(location: usize) -> RuntimeValue {
         RuntimeValue::Reference(Reference {
-            location,
+            location: ReferenceType::Basic(location),
+            options: RuntimeValueDetails::default(),
+        })
+    }
+    pub fn new_export(scope: Arc<Mutex<Scope>>, ident: Option<String>) -> RuntimeValue {
+        RuntimeValue::Reference(Reference {
+            location: ReferenceType::ModuleExport((scope, ident)),
             options: RuntimeValueDetails::default(),
         })
     }
 
     pub fn new_from(value: RuntimeValue) -> RuntimeValue {
         RuntimeValue::Reference(Reference {
-            location: allocate(value),
+            location: ReferenceType::Basic(memory_store::allocate(value)),
             options: RuntimeValueDetails::default(),
         })
     }
 
-    pub fn get(&self) -> Result<Arc<RuntimeValue>, ZephyrError> {
-        match memory_store::OBJECT_STORE
-            .get()
-            .unwrap()
-            .lock()
-            .unwrap()
-            .get(self.location)
-        {
-            Some(ok) => {
-                let res = ok.as_ref().and_then(|x| Some(x.clone()));
+    pub fn inner(&self) -> Result<Arc<RuntimeValue>, ZephyrError> {
+        match self.location {
+            ReferenceType::Basic(loc) => match memory_store::get_lock().get(loc) {
+                Some(ok) => {
+                    let res = ok.as_ref().and_then(|x| Some(x.clone()));
 
-                Ok(Arc::clone(&res.unwrap()))
+                    Ok(Arc::clone(&res.unwrap()))
+                }
+                None => Err(ZephyrError {
+                    code: ErrorCode::UnknownReference,
+                    message: format!("Cannot find refernce &{}", loc),
+                    location: None,
+                }),
+            },
+            ReferenceType::ModuleExport((ref scope, ref name)) => {
+                if let Some(name) = name {
+                    match scope.lock().unwrap().lookup(name.clone(), None) {
+                        Ok(ok) => Ok(Arc::from(ok)),
+                        Err(err) => Err(ZephyrError {
+                            message: format!("Exported variable {} has not been resolved. Please move this expression to the init block, or fix the cyclic dependency.", name),
+                            code: ErrorCode::Unresolved,
+                            location: None,
+                        })
+                    }
+                } else {
+                    panic!()
+                }
             }
-            None => Err(ZephyrError {
-                code: ErrorCode::UnknownReference,
-                message: format!("Cannot find refernce &{}", self.location),
-                location: None,
-            }),
         }
     }
 }

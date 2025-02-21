@@ -38,33 +38,44 @@ pub enum ScopeType {
 pub struct Scope {
     pub parent: Option<Arc<Mutex<Scope>>>,
     pub variables: HashMap<String, Variable>,
+    pub exported: HashMap<String, Option<String>>,
     pub scope_type: ScopeType,
+    pub file_name: String,
 }
 
 impl Scope {
-    pub fn new(parent: Option<Arc<Mutex<Scope>>>) -> Self {
-        if let Some(p) = parent {
-            Scope {
-                parent: Some(p),
-                variables: HashMap::new(),
-                scope_type: ScopeType::Normal,
-            }
-        } else {
-            Scope {
-                parent: None,
-                variables: HashMap::from([
-                    (
-                        "true".to_string(),
-                        Variable::from(values::Boolean::new(true)),
-                    ),
-                    (
-                        "false".to_string(),
-                        Variable::from(values::Boolean::new(false)),
-                    ),
-                    ("null".to_string(), Variable::from(values::Null::new())),
-                ]),
-                scope_type: ScopeType::Normal,
-            }
+    pub fn new(file_name: String) -> Self {
+        Scope {
+            exported: HashMap::new(),
+            parent: None,
+            variables: HashMap::from([
+                (
+                    "true".to_string(),
+                    Variable::from(values::Boolean::new(true)),
+                ),
+                (
+                    "false".to_string(),
+                    Variable::from(values::Boolean::new(false)),
+                ),
+                ("null".to_string(), Variable::from(values::Null::new())),
+            ]),
+            scope_type: ScopeType::Normal,
+            file_name: file_name,
+        }
+    }
+
+    pub fn new_from_parent(parent: Arc<Mutex<Scope>>) -> Self {
+        let file_name = parent.lock().unwrap().file_name.clone();
+        Self::new_from_parent_new_file_name(parent, file_name)
+    }
+
+    pub fn new_from_parent_new_file_name(parent: Arc<Mutex<Scope>>, file_name: String) -> Self {
+        Scope {
+            parent: Some(parent.clone()),
+            variables: HashMap::new(),
+            scope_type: ScopeType::Normal,
+            exported: HashMap::new(),
+            file_name,
         }
     }
 
@@ -138,19 +149,20 @@ pub struct PrototypeStore {}
 impl PrototypeStore {
     pub fn init() {
         PROTOTYPE_STORE.get_or_init(|| {
-            Mutex::from(HashMap::from([(
-                "object".to_string(),
-                values::Object::new(HashMap::from([(
-                    "two".to_string(),
-                    values::Number::new(2f64),
-                )]))
-                .make_ref(),
-            )]))
+            Mutex::from(HashMap::from([
+                (
+                    "object".to_string(),
+                    values::Object::new(HashMap::from([])).as_ref(),
+                ),
+                (
+                    "event_emitter".to_string(),
+                    values::Object::new(HashMap::from([])).as_ref(),
+                ),
+            ]))
         });
     }
 
     pub fn get(name: String) -> usize {
-        PrototypeStore::init();
         if let Some(proto) = PROTOTYPE_STORE.get().unwrap().lock().unwrap().get(&name) {
             *proto
         } else {

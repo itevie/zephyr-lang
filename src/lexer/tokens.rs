@@ -42,7 +42,7 @@ pub enum TokenType {
     Import,
     Export,
     As,
-
+    Expose,
     Try,
     Catch,
     Finally,
@@ -60,6 +60,8 @@ pub enum TokenType {
     If,
     Else,
     Match,
+
+    Enum,
 
     Debug,
 }

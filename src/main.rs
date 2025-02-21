@@ -4,7 +4,7 @@
 use errors::ZephyrError;
 use lexer::lexer::lex;
 use parser::Parser;
-use runtime::{memory_store, values::RuntimeValue, Interpreter};
+use runtime::{memory_store, scope::PrototypeStore, values::RuntimeValue, Interpreter};
 use std::{env, fs};
 
 mod errors;
@@ -13,9 +13,9 @@ mod parser;
 mod runtime;
 mod util;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     memory_store::initialise_store();
+    PrototypeStore::init();
 
     let args = env::args().collect::<Vec<String>>();
     let file_name = args
@@ -41,5 +41,5 @@ fn run(file_name: &str) -> Result<RuntimeValue, ZephyrError> {
 
     let result = lex(&data, file_name.to_string())?;
     let parsed = Parser::new(result, String::from(file_name.to_string())).produce_ast()?;
-    Interpreter::new().run(parsed)
+    Interpreter::new(fs::canonicalize(file_name).unwrap().display().to_string()).base_run(parsed)
 }

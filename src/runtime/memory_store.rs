@@ -10,8 +10,12 @@ pub fn initialise_store() {
     FREE_LIST.get_or_init(|| Mutex::new(vec![]));
 }
 
+pub fn get_lock<'a>() -> std::sync::MutexGuard<'a, Vec<Option<Arc<RuntimeValue>>>> {
+    OBJECT_STORE.get().unwrap().lock().unwrap()
+}
+
 pub fn allocate(value: RuntimeValue) -> usize {
-    let mut store = OBJECT_STORE.get().unwrap().lock().unwrap();
+    let mut store = get_lock();
     let mut free_list = FREE_LIST.get().unwrap().lock().unwrap();
 
     if let Some(idx) = free_list.pop() {
@@ -24,7 +28,7 @@ pub fn allocate(value: RuntimeValue) -> usize {
 }
 
 pub fn deallocate(index: usize) -> () {
-    let mut store = OBJECT_STORE.get().unwrap().lock().unwrap();
+    let mut store = get_lock();
     let mut free_list = FREE_LIST.get().unwrap().lock().unwrap();
 
     if let Some(slot) = store.get_mut(index) {
@@ -34,17 +38,18 @@ pub fn deallocate(index: usize) -> () {
 }
 
 pub fn store_get(index: usize) -> RuntimeValue {
-    OBJECT_STORE
-        .get()
-        .unwrap()
-        .lock()
-        .unwrap()
+    get_lock()
         .get(index)
-        .unwrap()
+        .unwrap_or_else(|| panic!("Object {} does not exist", index))
         .as_ref()
         .unwrap()
         .as_ref()
         .clone()
+}
+
+pub fn store_set(index: usize, value: RuntimeValue) -> () {
+    let mut lock = get_lock();
+    lock[index] = Some(Arc::from(value));
 }
 
 #[cfg(test)]

@@ -2,12 +2,14 @@ use std::sync::{Arc, Mutex};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
+    lexer::tokens::Location,
     parser::nodes::{self, Node},
 };
 
 use super::{
+    native::NativeExecutionContext,
     scope::{Scope, Variable},
-    values::{self, RuntimeValue, RuntimeValueDetails},
+    values::{self, FunctionType, RuntimeValue, RuntimeValueDetails},
     Interpreter, R,
 };
 
@@ -22,29 +24,27 @@ impl Interpreter {
         }))
     }
 
-    pub fn run_call(&mut self, expr: nodes::Call) -> R {
-        let left = self.run(*expr.left.clone())?;
-
-        let mut args: Vec<RuntimeValue> = vec![];
-        for arg in expr.args {
-            args.push(self.run(*arg)?);
-        }
-
-        match left {
-            RuntimeValue::Function(func) => {
-                let mut scope = Scope::new(Some(self.scope.clone()));
+    pub fn run_function(
+        &mut self,
+        func: FunctionType,
+        args: Vec<RuntimeValue>,
+        location: Location,
+    ) -> R {
+        match func {
+            FunctionType::Function(func) => {
+                let mut scope = Scope::new_from_parent(func.scope.clone());
                 for (i, v) in func.arguments.iter().enumerate() {
                     if i >= args.len() {
                         scope.insert(
                             v.clone(),
                             Variable::from(values::Null::new()),
-                            Some(expr.location.clone()),
+                            Some(location.clone()),
                         )?
                     } else {
                         scope.insert(
                             v.clone(),
                             Variable::from(args[i].clone()),
-                            Some(expr.location.clone()),
+                            Some(location.clone()),
                         )?
                     }
                 }
@@ -62,6 +62,37 @@ impl Interpreter {
                 }
 
                 return result;
+            }
+            FunctionType::NativeFunction(func) => {
+                let ctx = NativeExecutionContext {
+                    args,
+                    interpreter: self.clone(),
+                    location: location.clone(),
+                };
+
+                (func.func)(ctx)
+            }
+        }
+    }
+
+    pub fn run_call(&mut self, expr: nodes::Call) -> R {
+        let left = self.run(*expr.left.clone())?;
+
+        let mut args: Vec<RuntimeValue> = vec![];
+        for arg in expr.args {
+            args.push(self.run(*arg)?);
+        }
+
+        if let Some(val) = &left.options().proto_value {
+            args.insert(0, *val.clone());
+        }
+
+        match left {
+            RuntimeValue::Function(func) => {
+                self.run_function(FunctionType::Function(func), args, expr.location)
+            }
+            RuntimeValue::NativeFunction(func) => {
+                self.run_function(FunctionType::NativeFunction(func), args, expr.location)
             }
             _ => {
                 return Err(ZephyrError {
