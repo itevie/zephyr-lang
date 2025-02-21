@@ -130,14 +130,21 @@ impl Interpreter {
             mspc: None,
         };
 
-        let library_files: Vec<(&str, &str)> = vec![include_lib!("./lib/events.zr")];
+        let library_files: Vec<(&str, &str)> = vec![
+            include_lib!("./lib/events.zr"),
+            include_lib!("./lib/basic.zr"),
+        ];
 
         for lib in library_files {
             let lib_scope = Arc::new(Mutex::new(Scope::new_from_parent(global_scope.clone())));
 
-            let parsed = Parser::new(lex(lib.0, lib.1.to_string()).unwrap(), lib.1.to_string())
-                .produce_ast()
-                .unwrap();
+            let parsed = Parser::new(
+                lex(lib.0, lib.1.to_string())
+                    .unwrap_or_else(|e| panic!("{}", e._visualise(lib.0.to_string()))),
+                lib.1.to_string(),
+            )
+            .produce_ast()
+            .unwrap_or_else(|e| panic!("{}", e._visualise(lib.0.to_string())));
 
             std::mem::swap(&mut interpreter.scope, &mut lib_scope.clone());
             interpreter

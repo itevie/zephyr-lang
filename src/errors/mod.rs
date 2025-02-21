@@ -41,7 +41,7 @@ pub struct ZephyrError {
 }
 
 impl ZephyrError {
-    pub fn visualise(&self) -> String {
+    pub fn _visualise(&self, file_contents: String) -> String {
         let mut string = format!(
             "{}{:?} error: {}{}",
             util::FG_RED,
@@ -51,23 +51,11 @@ impl ZephyrError {
         );
 
         if let Some(ref location) = self.location {
-            let mut file_contents: Result<String, String> = Err("<no file provided>".to_string());
-            if let Some(ref file_name) = location.file_name {
-                file_contents = match fs::read_to_string(file_name) {
-                    Ok(ok) => Ok(ok),
-                    Err(err) => Err(format!("<failed to read {}: {}>", file_name, err.kind())),
-                }
-            }
-
-            let result = if let Ok(contents) = file_contents {
-                let lines = contents.split('\n').collect::<Vec<&str>>();
-                if location.line >= lines.len() {
-                    "<invalid location>".to_string()
-                } else {
-                    lines[location.line].to_string()
-                }
+            let lines = file_contents.split('\n').collect::<Vec<&str>>();
+            let result = if location.line >= lines.len() {
+                "<invalid location>".to_string()
             } else {
-                file_contents.unwrap_err()
+                lines[location.line].to_string()
             };
 
             string.push_str(&format!(
@@ -87,5 +75,22 @@ impl ZephyrError {
         }
 
         return string;
+    }
+
+    pub fn visualise(&self) -> String {
+        let mut file_contents: Result<String, String> = Err("<no file provided>".to_string());
+
+        if let Some(ref location) = self.location {
+            if let Some(ref file_name) = location.file_name {
+                file_contents = match fs::read_to_string(file_name) {
+                    Ok(ok) => Ok(ok),
+                    Err(err) => Err(format!("<failed to read {}: {}>", file_name, err.kind())),
+                }
+            }
+
+            return self._visualise(file_contents.unwrap());
+        }
+
+        return self._visualise("<no location>".to_string());
     }
 }
