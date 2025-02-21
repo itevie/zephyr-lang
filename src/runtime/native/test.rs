@@ -1,9 +1,16 @@
 use crate::runtime::{
+    native::add_native,
     values::{self, RuntimeValue},
     R,
 };
 
+use std::sync::Arc;
+
 use super::NativeExecutionContext;
+
+pub fn all() -> Vec<(String, RuntimeValue)> {
+    vec![add_native!("test", test)]
+}
 
 pub fn test(ctx: NativeExecutionContext) -> R {
     let event = values::EventEmitter::new(vec!["test".to_string()]);

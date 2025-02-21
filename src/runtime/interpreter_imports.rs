@@ -9,7 +9,7 @@ use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::lexer::lex,
     parser::{
-        nodes::{self, ExportType, ExposeType, Node},
+        nodes::{self, DeclareType, ExportType, ExposeType, Node},
         Parser,
     },
     runtime::{scope::Variable, values::Reference, Module},
@@ -20,19 +20,28 @@ use super::{scope::Scope, values, Interpreter, R};
 impl Interpreter {
     pub fn run_export(&mut self, node: nodes::Export) -> R {
         match node.export {
-            ExportType::Symbol(symbol) => self
-                .scope
-                .lock()
-                .unwrap()
-                .exported
-                .insert(symbol.value, node.export_as),
-            ExportType::Declaration(dec) => {
-                self.run_declare(dec.clone())?;
+            ExportType::Symbol(symbol) => {
                 self.scope
                     .lock()
                     .unwrap()
                     .exported
-                    .insert(dec.symbol.value.clone(), node.export_as)
+                    .insert(symbol.value, node.export_as);
+            }
+            ExportType::Declaration(dec) => {
+                self.run_declare(dec.clone())?;
+
+                let mut lock = self.scope.lock().unwrap();
+
+                match dec.assignee {
+                    DeclareType::Symbol(s) => lock.exported.insert(s.value.clone(), node.export_as),
+                    _ => {
+                        return Err(ZephyrError {
+                            message: "Can only export declarations with symbol".to_string(),
+                            code: ErrorCode::TypeError,
+                            location: Some(dec.location.clone()),
+                        })
+                    }
+                };
             }
             _ => panic!("Cannot handle this yet"),
         };

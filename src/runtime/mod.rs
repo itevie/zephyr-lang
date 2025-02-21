@@ -37,15 +37,6 @@ pub mod values;
 
 type R = Result<RuntimeValue, ZephyrError>;
 
-macro_rules! add_native {
-    ($name:expr, $nv_path:expr) => {
-        (
-            $name.to_string(),
-            values::NativeFunction::new(Arc::from($nv_path)),
-        )
-    };
-}
-
 macro_rules! include_lib {
     ($what:expr) => {
         (include_str!($what), $what)
@@ -113,11 +104,9 @@ impl Interpreter {
             .unwrap()
             .insert(
                 "__zephyr_native".to_string(),
-                Variable::from(values::Object::new_ref(HashMap::from([
-                    add_native!("test", native::test::test),
-                    add_native!("add_event_listener", native::events::add_listener),
-                    add_native!("get_proto_obj", native::proto::get_proto_obj),
-                ]))),
+                Variable::from(values::Object::new_ref(
+                    native::all().iter().cloned().collect::<HashMap<_, _>>(),
+                )),
                 None,
             )
             .unwrap();
@@ -177,6 +166,10 @@ impl Interpreter {
         self.mspc = Some(MspcChannel { mspc: tx });
 
         let result = self.run(node);
+
+        if self.thread_count == 0 {
+            return result;
+        }
 
         while let Ok(value) = rx.recv() {
             match value {

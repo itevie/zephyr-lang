@@ -27,6 +27,7 @@ pub enum ErrorCode {
     Unresolved,
     NotExported,
     UndefinedEventMessage,
+    InvalidProperty,
 
     Break,
     Continue,

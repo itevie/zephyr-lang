@@ -1,11 +1,11 @@
 use crate::{
     errors::{ErrorCode, ZephyrError},
-    parser::nodes::{self, Node},
+    parser::nodes::{self, DeclareType, Node},
 };
 
 use super::{
     scope::Variable,
-    values::{self},
+    values::{self, RuntimeValue},
     Interpreter, R,
 };
 
@@ -17,14 +17,49 @@ impl Interpreter {
             values::Null::new()
         };
 
-        self.scope.lock().unwrap().insert(
-            expr.symbol.value,
-            Variable {
-                is_const: expr.is_const,
-                value: value.clone(),
+        match expr.assignee {
+            DeclareType::Symbol(s) => self.scope.lock().unwrap().insert(
+                s.value,
+                Variable {
+                    is_const: expr.is_const,
+                    value: value.clone(),
+                },
+                Some(s.location.clone()),
+            )?,
+            DeclareType::Array(a) => match value.as_ref_tuple()? {
+                (RuntimeValue::Array(arr), Some(_)) => {
+                    for (i, v) in a.iter().enumerate() {
+                        if let Some(val) = arr.items.get(i) {
+                            self.scope.lock().unwrap().insert(
+                                v.value.clone(),
+                                Variable {
+                                    is_const: expr.is_const,
+                                    value: val.clone(),
+                                },
+                                Some(v.location.clone()),
+                            )?;
+                        } else {
+                            return Err(ZephyrError {
+                                message: "Out of bounds".to_string(),
+                                code: ErrorCode::OutOfBounds,
+                                location: Some(v.location.clone()),
+                            });
+                        }
+                    }
+                }
+                (x, _) => {
+                    return Err(ZephyrError {
+                        message: format!(
+                            "Cannot assign to a array declaration with a {}",
+                            x.type_name()
+                        ),
+                        code: ErrorCode::TypeError,
+                        location: Some(expr.location.clone()),
+                    })
+                }
             },
-            Some(expr.location),
-        )?;
+            _ => panic!(),
+        }
 
         Ok(value)
     }

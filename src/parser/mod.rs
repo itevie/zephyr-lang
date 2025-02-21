@@ -3,7 +3,7 @@ use std::{
     mem::{discriminant, Discriminant},
 };
 
-use nodes::{ExposeType, InterruptType, MatchCase, MatchCaseType, Node, TaggedSymbol};
+use nodes::{DeclareType, ExposeType, InterruptType, MatchCase, MatchCaseType, Node, TaggedSymbol};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -314,28 +314,65 @@ impl Parser {
         let token = self.eat();
         let is_const = !matches!(token.t, TokenType::Let);
 
-        let symbol = self.expect(
-            discriminant(&TokenType::Symbol),
-            ZephyrError {
-                code: ErrorCode::UnexpectedToken,
-                message: "Expected name of variable".to_string(),
-                location: Some(self.at().location.clone()),
-            },
-        )?;
+        let symbol = match self.at().t {
+            TokenType::Symbol => DeclareType::Symbol(Parser::make_symbol(self.eat())),
+            TokenType::OpenSquare => {
+                let start = self.eat();
+                let mut names: Vec<nodes::Symbol> = vec![];
+
+                loop {
+                    let name = self.expect(
+                        discriminant(&TokenType::Symbol),
+                        ZephyrError {
+                            message: "Expected symbol".to_string(),
+                            code: ErrorCode::UnexpectedToken,
+                            location: Some(self.at().location.clone()),
+                        },
+                    )?;
+
+                    names.push(Parser::make_symbol(name));
+
+                    if matches!(self.at().t, TokenType::Comma) {
+                        self.eat();
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+
+                self.expect(
+                    discriminant(&TokenType::CloseSquare),
+                    ZephyrError {
+                        message: "Expected close square paran".to_string(),
+                        code: ErrorCode::UnexpectedToken,
+                        location: Some(self.at().location.clone()),
+                    },
+                )?;
+
+                DeclareType::Array(names)
+            }
+            _ => {
+                return Err(ZephyrError {
+                    message: "Cannot assign to this".to_string(),
+                    code: ErrorCode::UnexpectedToken,
+                    location: Some(self.at().location.clone()),
+                })
+            }
+        };
 
         if let TokenType::Assign = self.at().t {
             let assign = self.eat();
             let value = self.expression()?;
 
             Ok(Node::Declare(nodes::Declare {
-                symbol: Parser::make_symbol(symbol),
+                assignee: symbol,
                 location: assign.location,
                 value: Some(Box::from(value)),
                 is_const,
             }))
         } else {
             Ok(Node::Declare(nodes::Declare {
-                symbol: Parser::make_symbol(symbol),
+                assignee: symbol,
                 location: token.location,
                 value: None,
                 is_const,
@@ -409,7 +446,7 @@ impl Parser {
 
         if is_statement {
             Ok(Node::Declare(nodes::Declare {
-                symbol: Parser::make_symbol(name.unwrap()),
+                assignee: nodes::DeclareType::Symbol(Parser::make_symbol(name.unwrap())),
                 value: Some(Box::from(function)),
                 location: token.location,
                 is_const: false,

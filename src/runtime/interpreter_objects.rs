@@ -121,6 +121,10 @@ impl Interpreter {
             }
         }
 
-        Ok(values::Null::new())
+        Err(ZephyrError {
+            message: format!("Object does not define property {}", key),
+            code: ErrorCode::InvalidProperty,
+            location: None,
+        })
     }
 }

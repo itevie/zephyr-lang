@@ -155,8 +155,15 @@ pub struct Member {
 }
 
 #[derive(Debug, Clone)]
+pub enum DeclareType {
+    Symbol(Symbol),
+    Array(Vec<Symbol>),
+    Object(HashMap<String, String>),
+}
+
+#[derive(Debug, Clone)]
 pub struct Declare {
-    pub symbol: Symbol,
+    pub assignee: DeclareType,
     pub value: Option<Box<Node>>,
     pub location: Location,
     pub is_const: bool,
