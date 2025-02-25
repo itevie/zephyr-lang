@@ -26,13 +26,30 @@ impl Interpreter {
         } else {
             let right = self.run(*expr.right.clone())?.as_ref_tuple()?;
 
-            // Check for basic string key
-            if let RuntimeValue::ZString(string) = right.0 {
-                return self.member_check_basic(left.clone(), string.value, set);
-            }
-        }
+            return match right.0 {
+                RuntimeValue::ZString(string) => {
+                    self.member_check_basic(left.clone(), string.value, set)
+                }
+                RuntimeValue::Number(number) => {
+                    let iter = left.iter()?;
 
-        Ok(values::Null::new())
+                    if let Some(val) = iter.get(number.value as usize) {
+                        return Ok(val.clone());
+                    } else {
+                        return Err(ZephyrError {
+                            message: "Out of bounds".to_string(),
+                            code: ErrorCode::OutOfBounds,
+                            location: Some(expr.location),
+                        });
+                    }
+                }
+                x => Err(ZephyrError {
+                    message: format!("Cannot access {} via {}", left.type_name(), x.type_name()),
+                    code: ErrorCode::TypeError,
+                    location: Some(expr.location),
+                }),
+            };
+        }
     }
 
     pub fn member_check_basic(

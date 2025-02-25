@@ -103,6 +103,10 @@ impl Scope {
         variable: Variable,
         location: Option<Location>,
     ) -> Result<(), ZephyrError> {
+        if name == "_" {
+            return Ok(());
+        }
+
         if self.variables.contains_key(&name) {
             return Err(ZephyrError {
                 code: ErrorCode::AlreadyDefined,
@@ -146,18 +150,23 @@ impl Scope {
 
 pub struct PrototypeStore {}
 
+macro_rules! make_proto {
+    ($name:expr) => {
+        (
+            $name.to_string(),
+            values::Object::new(HashMap::from([])).as_ref(),
+        )
+    };
+}
+
 impl PrototypeStore {
     pub fn init() {
         PROTOTYPE_STORE.get_or_init(|| {
             Mutex::from(HashMap::from([
-                (
-                    "object".to_string(),
-                    values::Object::new(HashMap::from([])).as_ref(),
-                ),
-                (
-                    "event_emitter".to_string(),
-                    values::Object::new(HashMap::from([])).as_ref(),
-                ),
+                make_proto!("string"),
+                make_proto!("array"),
+                make_proto!("object"),
+                make_proto!("event_emitter"),
             ]))
         });
     }

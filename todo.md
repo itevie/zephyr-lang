@@ -3,7 +3,6 @@
 - Raw strings
 - A "rest" operator
 - Combine all args into one arg, like `__args` or something
-- For & While
 - Return & Continue & Break
   - Labels
 - Ranges
@@ -23,5 +22,4 @@
   - You can call it and it produces an int
   - You can use it in a match case
   - You can check if a type is it
-- Prototype chain
 - Where clauses

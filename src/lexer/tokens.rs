@@ -49,6 +49,7 @@ pub enum TokenType {
     Throw,
 
     For,
+    In,
     While,
     Break,
     Continue,
@@ -77,6 +78,7 @@ pub enum Multiplicative {
     Multiply,
     Divide,
     Modulo,
+    Exponent,
 }
 
 #[derive(Debug, Clone)]

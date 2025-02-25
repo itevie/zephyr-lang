@@ -3,11 +3,13 @@ use std::{
     mem::{discriminant, Discriminant},
 };
 
-use nodes::{DeclareType, ExposeType, InterruptType, MatchCase, MatchCaseType, Node, TaggedSymbol};
+use nodes::{
+    DeclareType, ExposeType, InterruptType, MatchCase, MatchCaseType, Node, TaggedSymbol, UnaryType,
+};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
-    lexer::tokens::{self, Token, TokenType, NO_LOCATION},
+    lexer::tokens::{self, Token, TokenType, Unary, NO_LOCATION},
 };
 
 type NR = Result<Node, ZephyrError>;
@@ -134,6 +136,7 @@ impl Parser {
             TokenType::Export => self.export(),
             TokenType::Import => self.import(),
             TokenType::While => self.while_stmt(),
+            TokenType::For => self.for_loop(),
             TokenType::Continue => Ok(Node::Interrupt(nodes::Interrupt {
                 location: self.eat().location,
                 t: InterruptType::Continue,
@@ -380,6 +383,53 @@ impl Parser {
         }
     }
 
+    pub fn for_loop(&mut self) -> NR {
+        let token = self.eat();
+        let index_symbol = Parser::make_symbol(self.expect(
+            discriminant(&TokenType::Symbol),
+            ZephyrError {
+                message: "Expected symbol for the index".to_string(),
+                code: ErrorCode::UnexpectedToken,
+                location: Some(self.at().location.clone()),
+            },
+        )?);
+
+        let value_symbol = if matches!(self.at().t, TokenType::Comma) {
+            self.eat();
+            Some(Parser::make_symbol(self.expect(
+                discriminant(&TokenType::Symbol),
+                ZephyrError {
+                    message: "Expected symbol for the value".to_string(),
+                    code: ErrorCode::UnexpectedToken,
+                    location: Some(self.at().location.clone()),
+                },
+            )?))
+        } else {
+            None
+        };
+
+        self.expect(
+            discriminant(&TokenType::In),
+            ZephyrError {
+                message: "Expected \"in\"".to_string(),
+                code: ErrorCode::UnexpectedToken,
+                location: Some(self.at().location.clone()),
+            },
+        )?;
+
+        let iterator = self.expression()?;
+
+        let block = self.block(false)?;
+
+        Ok(Node::For(nodes::For {
+            location: token.location,
+            value_symbol: value_symbol,
+            index_symbol: index_symbol,
+            block: Box::from(block),
+            iterator: Box::from(iterator),
+        }))
+    }
+
     pub fn function(&mut self, is_statement: bool) -> NR {
         let token = self.eat();
 
@@ -613,7 +663,7 @@ impl Parser {
     }
 
     pub fn comparison(&mut self) -> NR {
-        let mut left = self.call()?;
+        let mut left = self.unary()?;
 
         while let TokenType::Comparison(v) = self.at().t.clone() {
             let token = self.eat();
@@ -627,6 +677,55 @@ impl Parser {
         }
 
         Ok(left)
+    }
+
+    pub fn unary(&mut self) -> NR {
+        if matches!(self.at().t, TokenType::Unary(_))
+            || matches!(self.at().t, TokenType::Additive(tokens::Additive::Minus))
+            || matches!(self.at().t, TokenType::Additive(tokens::Additive::Plus))
+        {
+            let token = self.eat();
+            let t = match token.t {
+                TokenType::Unary(Unary::Length) => UnaryType::LengthOf,
+                TokenType::Unary(Unary::Not) => UnaryType::Not,
+                TokenType::Unary(Unary::Decrement) => UnaryType::Increment,
+                TokenType::Unary(Unary::Increment) => UnaryType::Increment,
+                TokenType::Additive(tokens::Additive::Plus) => UnaryType::Plus,
+                TokenType::Additive(tokens::Additive::Minus) => UnaryType::Minus,
+                _ => unreachable!(),
+            };
+
+            let value = self.unary()?;
+
+            return Ok(Node::Unary(nodes::Unary {
+                t,
+                value: Box::from(value),
+                is_right: false,
+                location: token.location,
+            }));
+        }
+
+        let value = self.call()?;
+
+        if matches!(self.at().t, TokenType::Unary(_)) {
+            let token = self.eat();
+            let t = match token.t {
+                TokenType::Unary(Unary::Decrement) => UnaryType::Increment,
+                TokenType::Unary(Unary::Increment) => UnaryType::Increment,
+                _ => unreachable!(),
+            };
+
+            let value = self.call()?;
+
+            return Ok(Node::Unary(nodes::Unary {
+                t,
+                value: Box::from(value),
+                is_right: true,
+                location: token.location,
+            }));
+        }
+
+        return Ok(value);
     }
 
     pub fn call(&mut self) -> NR {

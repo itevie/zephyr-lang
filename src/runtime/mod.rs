@@ -122,6 +122,7 @@ impl Interpreter {
         let library_files: Vec<(&str, &str)> = vec![
             include_lib!("./lib/events.zr"),
             include_lib!("./lib/basic.zr"),
+            include_lib!("./lib/strings.zr"),
         ];
 
         for lib in library_files {
@@ -208,10 +209,12 @@ impl Interpreter {
 
             // ----- loops -----
             Node::WhileLoop(expr) => self.run_while(expr),
+            Node::For(expr) => self.run_for(expr),
 
             // ----- operators -----
             Node::Arithmetic(expr) => self.run_arithmetic(expr),
             Node::Comp(expr) => self.run_comp(expr),
+            Node::Unary(expr) => self.run_unary(expr),
 
             // ----- variables -----
             Node::Declare(expr) => self.run_declare(expr),

@@ -1,7 +1,7 @@
 use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::{self, TokenType},
-    parser::nodes,
+    parser::nodes::{self, UnaryType},
 };
 
 use super::{
@@ -28,7 +28,10 @@ impl Interpreter {
                     left_number.value / right_number.value
                 }
                 TokenType::Multiplicative(tokens::Multiplicative::Multiply) => {
-                    left_number.value / right_number.value
+                    left_number.value * right_number.value
+                }
+                TokenType::Multiplicative(tokens::Multiplicative::Exponent) => {
+                    left_number.value.powf(right_number.value)
                 }
                 TokenType::Multiplicative(tokens::Multiplicative::Modulo) => {
                     left_number.value % right_number.value
@@ -73,5 +76,21 @@ impl Interpreter {
             expr.t,
             Some(expr.location),
         )?))
+    }
+
+    pub fn run_unary(&mut self, expr: nodes::Unary) -> R {
+        let left = self.run(*expr.value)?;
+
+        if !expr.is_right {
+            match expr.t {
+                UnaryType::LengthOf => Ok(values::Number::new(left.iter()?.len() as f64)),
+                UnaryType::Not => Ok(values::Boolean::new(!left.is_truthy())),
+                _ => unreachable!(),
+            }
+        } else {
+            match expr.t {
+                _ => unreachable!(),
+            }
+        }
     }
 }

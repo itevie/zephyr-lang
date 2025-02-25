@@ -73,6 +73,21 @@ impl RuntimeValue {
         }
     }
 
+    pub fn iter(&self) -> Result<Vec<RuntimeValue>, ZephyrError> {
+        match self {
+            RuntimeValue::ZString(str) => Ok(str
+                .value
+                .chars()
+                .map(|v| ZString::new(v.to_string()))
+                .collect::<Vec<RuntimeValue>>()),
+            v => Err(ZephyrError {
+                message: format!("Cannot iter a {}", v.type_name()),
+                code: ErrorCode::CannotIterate,
+                location: None,
+            }),
+        }
+    }
+
     /// Gets the options struct no matter what the underlying type is
     pub fn options(&self) -> &RuntimeValueDetails {
         match self {
@@ -222,7 +237,7 @@ impl ZString {
     pub fn new(value: String) -> RuntimeValue {
         RuntimeValue::ZString(ZString {
             value,
-            options: RuntimeValueDetails::default(),
+            options:  RuntimeValueDetails::with_proto(PrototypeStore::get("string".to_string())),
         })
     }
 }

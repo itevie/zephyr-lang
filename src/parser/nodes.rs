@@ -19,6 +19,7 @@ pub enum Node {
 
     WhileLoop(WhileLoop),
     Interrupt(Interrupt),
+    For(For),
 
     Import(Import),
     Export(Export),
@@ -29,6 +30,7 @@ pub enum Node {
     Assign(Assign),
     Call(Call),
     Member(Member),
+    Unary(Unary),
 
     DebugNode(DebugNode),
 }
@@ -50,6 +52,7 @@ impl Node {
             Node::Match(v) => &v.location,
 
             Node::WhileLoop(v) => &v.location,
+            Node::For(v) => &v.location,
             Node::Interrupt(v) => &v.location,
 
             Node::Import(v) => &v.location,
@@ -61,6 +64,7 @@ impl Node {
             Node::Assign(v) => &v.location,
             Node::Call(v) => &v.location,
             Node::Member(v) => &v.location,
+            Node::Unary(v) => &v.location,
             Node::DebugNode(v) => &v.location,
         }
     }
@@ -255,5 +259,32 @@ pub enum ExposeType {
 pub struct Import {
     pub import: String,
     pub exposing: Vec<ExposeType>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct For {
+    pub value_symbol: Option<Symbol>,
+    pub index_symbol: Symbol,
+    pub iterator: Box<Node>,
+    pub block: Box<Node>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub enum UnaryType {
+    Not,
+    Plus,
+    Minus,
+    LengthOf,
+    Increment,
+    Decrement,
+}
+
+#[derive(Debug, Clone)]
+pub struct Unary {
+    pub t: UnaryType,
+    pub value: Box<Node>,
+    pub is_right: bool,
     pub location: Location,
 }

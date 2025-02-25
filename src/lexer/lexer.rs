@@ -126,6 +126,7 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                     "expose" => TokenType::Expose,
 
                     "for" => TokenType::For,
+                    "in" => TokenType::In,
                     "while" => TokenType::While,
                     "continue" => TokenType::Continue,
                     "break" => TokenType::Break,
@@ -187,7 +188,15 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                         }
                     }
 
-                    '*' => TokenType::Multiplicative(Multiplicative::Multiply),
+                    '*' => {
+                        if next_char == '*' {
+                            chars.next();
+                            actual_value = Some(String::from("**"));
+                            TokenType::Multiplicative(Multiplicative::Exponent)
+                        } else {
+                            TokenType::Multiplicative(Multiplicative::Multiply)
+                        }
+                    }
                     '/' => TokenType::Multiplicative(Multiplicative::Divide),
                     '%' => TokenType::Multiplicative(Multiplicative::Modulo),
 

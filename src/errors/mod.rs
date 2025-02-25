@@ -28,6 +28,7 @@ pub enum ErrorCode {
     NotExported,
     UndefinedEventMessage,
     InvalidProperty,
+    CannotIterate,
 
     Break,
     Continue,

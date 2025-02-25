@@ -1,0 +1,23 @@
+let proto = __zephyr_native.get_proto_obj("string");
+
+proto.starts_with = func starts_with (value, what) {
+  for i, v in value {
+    if value[i] != v {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+proto.ends_with = func ends_with(value, what) {
+  for i, v in what {
+    if value[$value-$what-i] != v {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export let String = proto;
