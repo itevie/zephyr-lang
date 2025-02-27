@@ -17,13 +17,13 @@ use super::{
 };
 
 #[derive(Debug, Clone)]
-pub struct RuntimeValueDetails {
-    pub tags: Arc<Mutex<HashMap<String, String>>>,
+pub struct RuntimeValueDetails<'a> {
+    pub tags: HashMap<String, String>,
     pub proto: Option<usize>,
-    pub proto_value: Option<Box<RuntimeValue>>,
+    pub proto_value: Option<&'a RuntimeValue<'a>>,
 }
 
-impl RuntimeValueDetails {
+impl RuntimeValueDetails<'_> {
     pub fn with_proto(id: usize) -> Self {
         Self {
             proto: Some(id),
@@ -32,7 +32,7 @@ impl RuntimeValueDetails {
     }
 }
 
-impl Default for RuntimeValueDetails {
+impl Default for RuntimeValueDetails<'_> {
     fn default() -> Self {
         Self {
             tags: Arc::from(Mutex::from(HashMap::default())),
@@ -43,20 +43,20 @@ impl Default for RuntimeValueDetails {
 }
 
 #[derive(Debug, Clone)]
-pub enum RuntimeValue {
-    Number(Number),
-    Null(Null),
-    ZString(ZString),
-    Boolean(Boolean),
-    Reference(Reference),
-    Function(Function),
-    NativeFunction(NativeFunction),
-    Array(Array),
-    Object(Object),
-    EventEmitter(EventEmitter),
+pub enum RuntimeValue<'a> {
+    Number(Number<'a>),
+    Null(Null<'a>),
+    ZString(ZString<'a>),
+    Boolean(Boolean<'a>),
+    Reference(Reference<'a>),
+    Function(Function<'a>),
+    NativeFunction(NativeFunction<'a>),
+    Array(Array<'a>),
+    Object(Object<'a>),
+    EventEmitter(EventEmitter<'a>),
 }
 
-impl RuntimeValue {
+impl RuntimeValue<'_> {
     /// Returns the predefined type of the value
     pub fn type_name(&self) -> &str {
         match self {
@@ -213,13 +213,13 @@ impl RuntimeValue {
 }
 
 #[derive(Debug, Clone)]
-pub struct Number {
-    pub options: RuntimeValueDetails,
+pub struct Number<'a> {
+    pub options: RuntimeValueDetails<'a>,
     pub value: f64,
 }
 
-impl Number {
-    pub fn new(value: f64) -> RuntimeValue {
+impl Number<'_> {
+    pub fn new<'a>(value: f64) -> RuntimeValue<'a> {
         RuntimeValue::Number(Number {
             value,
             options: RuntimeValueDetails::with_proto(PrototypeStore::get("object".to_string())),
@@ -228,27 +228,27 @@ impl Number {
 }
 
 #[derive(Debug, Clone)]
-pub struct ZString {
-    pub options: RuntimeValueDetails,
+pub struct ZString<'a> {
+    pub options: RuntimeValueDetails<'a>,
     pub value: String,
 }
 
-impl ZString {
-    pub fn new(value: String) -> RuntimeValue {
+impl ZString<'_> {
+    pub fn new<'a>(value: String) -> RuntimeValue<'a> {
         RuntimeValue::ZString(ZString {
             value,
-            options:  RuntimeValueDetails::with_proto(PrototypeStore::get("string".to_string())),
+            options: RuntimeValueDetails::with_proto(PrototypeStore::get("string".to_string())),
         })
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct Null {
-    pub options: RuntimeValueDetails,
+pub struct Null<'a> {
+    pub options: RuntimeValueDetails<'a>,
 }
 
-impl Null {
-    pub fn new() -> RuntimeValue {
+impl Null<'_> {
+    pub fn new<'a>() -> RuntimeValue<'a> {
         RuntimeValue::Null(Null {
             options: RuntimeValueDetails::default(),
         })
@@ -256,13 +256,13 @@ impl Null {
 }
 
 #[derive(Debug, Clone)]
-pub struct Boolean {
-    pub options: RuntimeValueDetails,
+pub struct Boolean<'a> {
+    pub options: RuntimeValueDetails<'a>,
     pub value: bool,
 }
 
-impl Boolean {
-    pub fn new(value: bool) -> RuntimeValue {
+impl Boolean<'_> {
+    pub fn new<'a>(value: bool) -> RuntimeValue<'a> {
         RuntimeValue::Boolean(Boolean {
             value,
             options: RuntimeValueDetails::default(),
@@ -271,13 +271,13 @@ impl Boolean {
 }
 
 #[derive(Debug, Clone)]
-pub enum FunctionType {
-    Function(Function),
-    NativeFunction(NativeFunction),
+pub enum FunctionType<'a> {
+    Function(Function<'a>),
+    NativeFunction(NativeFunction<'a>),
 }
 
-impl FunctionType {
-    pub fn from(val: RuntimeValue) -> Result<FunctionType, ZephyrError> {
+impl FunctionType<'_> {
+    pub fn from<'a>(val: RuntimeValue) -> Result<FunctionType<'a>, ZephyrError> {
         match val {
             RuntimeValue::Function(f) => Ok(FunctionType::Function(f)),
             RuntimeValue::NativeFunction(f) => Ok(FunctionType::NativeFunction(f)),
@@ -291,22 +291,24 @@ impl FunctionType {
 }
 
 #[derive(Debug, Clone)]
-pub struct Function {
-    pub options: RuntimeValueDetails,
+pub struct Function<'a> {
+    pub options: RuntimeValueDetails<'a>,
     pub body: nodes::Block,
     pub name: Option<String>,
     pub arguments: Vec<String>,
-    pub scope: Arc<Mutex<Scope>>,
+    pub scope: Scope<'a>,
 }
 
 #[derive(Clone)]
-pub struct NativeFunction {
-    pub options: RuntimeValueDetails,
-    pub func: Arc<dyn Fn(NativeExecutionContext) -> R + Send + Sync>,
+pub struct NativeFunction<'a> {
+    pub options: RuntimeValueDetails<'a>,
+    pub func: Arc<dyn Fn(NativeExecutionContext) -> R<'a> + Send + Sync>,
 }
 
-impl NativeFunction {
-    pub fn new(f: Arc<dyn Fn(NativeExecutionContext) -> R + Send + Sync>) -> RuntimeValue {
+impl NativeFunction<'_> {
+    pub fn new<'a>(
+        f: Arc<dyn Fn(NativeExecutionContext) -> R<'a> + Send + Sync>,
+    ) -> RuntimeValue<'a> {
         RuntimeValue::NativeFunction(NativeFunction {
             func: f,
             options: RuntimeValueDetails::default(),
@@ -314,19 +316,19 @@ impl NativeFunction {
     }
 }
 
-impl std::fmt::Debug for NativeFunction {
+impl std::fmt::Debug for NativeFunction<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "NativeFunction")
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct Array {
-    pub options: RuntimeValueDetails,
-    pub items: Vec<RuntimeValue>,
+pub struct Array<'a> {
+    pub options: RuntimeValueDetails<'a>,
+    pub items: Vec<RuntimeValue<'a>>,
 }
 
-impl Array {
+impl Array<'_> {
     pub fn new(items: Vec<RuntimeValue>) -> RuntimeValue {
         RuntimeValue::Array(Array {
             items,
@@ -340,12 +342,12 @@ impl Array {
 }
 
 #[derive(Debug, Clone)]
-pub struct Object {
-    pub options: RuntimeValueDetails,
-    pub items: HashMap<String, RuntimeValue>,
+pub struct Object<'a> {
+    pub options: RuntimeValueDetails<'a>,
+    pub items: HashMap<String, RuntimeValue<'a>>,
 }
 
-impl Object {
+impl Object<'_> {
     pub fn new(items: HashMap<String, RuntimeValue>) -> RuntimeValue {
         RuntimeValue::Object(Object {
             items,
@@ -359,13 +361,13 @@ impl Object {
 }
 
 #[derive(Debug, Clone)]
-pub struct EventEmitter {
-    pub options: RuntimeValueDetails,
+pub struct EventEmitter<'a> {
+    pub options: RuntimeValueDetails<'a>,
     pub defined_events: Vec<String>,
-    pub listeners: Arc<Mutex<HashMap<String, Arc<Mutex<Vec<FunctionType>>>>>>,
+    pub listeners: Arc<Mutex<HashMap<String, Arc<Mutex<Vec<FunctionType<'a>>>>>>>,
 }
 
-impl EventEmitter {
+impl EventEmitter<'_> {
     pub fn new(events: Vec<String>) -> Self {
         EventEmitter {
             options: RuntimeValueDetails::with_proto(PrototypeStore::get(
@@ -420,25 +422,25 @@ impl EventEmitter {
 }
 
 #[derive(Debug, Clone)]
-pub enum ReferenceType {
+pub enum ReferenceType<'a> {
     Basic(usize),
-    ModuleExport((Arc<Mutex<Scope>>, Option<String>)),
+    ModuleExport((Scope<'a>, Option<String>)),
 }
 
 #[derive(Debug, Clone)]
-pub struct Reference {
-    pub options: RuntimeValueDetails,
-    pub location: ReferenceType,
+pub struct Reference<'a> {
+    pub options: RuntimeValueDetails<'a>,
+    pub location: ReferenceType<'a>,
 }
 
-impl Reference {
-    pub fn new(location: usize) -> RuntimeValue {
+impl Reference<'_> {
+    pub fn new<'a>(location: usize) -> RuntimeValue<'a> {
         RuntimeValue::Reference(Reference {
             location: ReferenceType::Basic(location),
             options: RuntimeValueDetails::default(),
         })
     }
-    pub fn new_export(scope: Arc<Mutex<Scope>>, ident: Option<String>) -> RuntimeValue {
+    pub fn new_export<'a>(scope: Arc<Mutex<Scope>>, ident: Option<String>) -> RuntimeValue<'a> {
         RuntimeValue::Reference(Reference {
             location: ReferenceType::ModuleExport((scope, ident)),
             options: RuntimeValueDetails::default(),

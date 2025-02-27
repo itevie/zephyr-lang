@@ -35,7 +35,7 @@ pub mod native;
 pub mod scope;
 pub mod values;
 
-type R = Result<RuntimeValue, ZephyrError>;
+type R<'a> = Result<RuntimeValue<'a>, ZephyrError>;
 
 macro_rules! include_lib {
     ($what:expr) => {
@@ -43,31 +43,31 @@ macro_rules! include_lib {
     };
 }
 
-pub struct Module {
-    pub exports: HashMap<String, Option<RuntimeValue>>,
-    pub scope: Arc<Mutex<Scope>>,
+pub struct Module<'a> {
+    pub exports: HashMap<String, Option<RuntimeValue<'a>>>,
+    pub scope: Arc<Mutex<Scope<'a>>>,
     pub wanted: Vec<(String, Location)>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Job {
-    pub func: FunctionType,
-    pub args: Vec<RuntimeValue>,
+pub struct Job<'a> {
+    pub func: FunctionType<'a>,
+    pub args: Vec<RuntimeValue<'a>>,
 }
 
 #[derive(Debug, Clone)]
-pub enum MspcSendType {
+pub enum MspcSendType<'a> {
     ThreadCreate,
     ThreadDestroy,
-    ThreadMessage(Job),
+    ThreadMessage(Job<'a>),
 }
 
 #[derive(Debug, Clone)]
-pub struct MspcChannel {
-    pub mspc: Sender<MspcSendType>,
+pub struct MspcChannel<'a> {
+    pub mspc: Sender<MspcSendType<'a>>,
 }
 
-impl MspcChannel {
+impl<'a> MspcChannel<'a> {
     pub fn thread_start(&mut self) {
         self.mspc
             .send(MspcSendType::ThreadCreate)
@@ -80,7 +80,7 @@ impl MspcChannel {
             .unwrap_or_else(|_| panic!("Failed to send thread_destroy"));
     }
 
-    pub fn thread_message(&mut self, job: Job) {
+    pub fn thread_message(&mut self, job: Job<'a>) {
         self.mspc
             .send(MspcSendType::ThreadMessage(job))
             .unwrap_or_else(|_| panic!("Failed to send thread_message"))
@@ -88,16 +88,16 @@ impl MspcChannel {
 }
 
 #[derive(Clone)]
-pub struct Interpreter {
-    pub scope: Arc<Mutex<Scope>>,
-    pub global_scope: Arc<Mutex<Scope>>,
-    pub module_cache: HashMap<String, Arc<Mutex<Module>>>,
-    pub mspc: Option<MspcChannel>,
+pub struct Interpreter<'a> {
+    pub scope: Arc<Mutex<Scope<'a>>>,
+    pub global_scope: Arc<Mutex<Scope<'a>>>,
+    pub module_cache: HashMap<String, Arc<Mutex<Module<'a>>>>,
+    pub mspc: Option<MspcChannel<'a>>,
     pub thread_count: usize,
 }
 
-impl Interpreter {
-    pub fn new(file_name: String) -> Self {
+impl<'a> Interpreter<'a> {
+    pub fn new(file_name: &'a str) -> Self {
         let global_scope = Arc::from(Mutex::from(Scope::new(file_name)));
         global_scope
             .lock()
@@ -339,7 +339,7 @@ impl Interpreter {
                 return Ok(Null::new());
             }
         }
-        .map_err(|ref x| {
+        .map_err(|x| {
             let mut err = x.clone();
             if let None = x.location {
                 err.location = Some(node.location().clone())
@@ -374,7 +374,7 @@ impl Interpreter {
                             });
                         }
 
-                        Ok(obj.items.get(&string.value).unwrap().clone())
+                        Ok(obj.items.get(&string.value).cloned().unwrap().clone())
                     }
                     _ => {
                         return Err(ZephyrError {

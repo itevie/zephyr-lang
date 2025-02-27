@@ -12,14 +12,14 @@ use super::values::{self, RuntimeValue};
 
 static PROTOTYPE_STORE: OnceLock<Mutex<HashMap<String, usize>>> = OnceLock::new();
 
-#[derive(Debug)]
-pub struct Variable {
+#[derive(Debug, Clone)]
+pub struct Variable<'a> {
     pub is_const: bool,
-    pub value: RuntimeValue,
+    pub value: RuntimeValue<'a>,
 }
 
-impl Variable {
-    pub fn from(value: RuntimeValue) -> Self {
+impl<'a> Variable<'a> {
+    pub fn from(value: RuntimeValue<'a>) -> Self {
         Self {
             is_const: false,
             value,
@@ -27,24 +27,24 @@ impl Variable {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ScopeType {
     Normal,
     Global,
     Package,
 }
 
-#[derive(Debug)]
-pub struct Scope {
-    pub parent: Option<Arc<Mutex<Scope>>>,
-    pub variables: HashMap<String, Variable>,
+#[derive(Debug, Clone)]
+pub struct Scope<'a> {
+    pub parent: Option<Arc<Mutex<Scope<'a>>>>,
+    pub variables: HashMap<String, Variable<'a>>,
     pub exported: HashMap<String, Option<String>>,
     pub scope_type: ScopeType,
-    pub file_name: String,
+    pub file_name: &'a str,
 }
 
-impl Scope {
-    pub fn new(file_name: String) -> Self {
+impl<'a> Scope<'a> {
+    pub fn new(file_name: &'a str) -> Self {
         Scope {
             exported: HashMap::new(),
             parent: None,
@@ -60,16 +60,19 @@ impl Scope {
                 ("null".to_string(), Variable::from(values::Null::new())),
             ]),
             scope_type: ScopeType::Normal,
-            file_name: file_name,
+            file_name,
         }
     }
 
-    pub fn new_from_parent(parent: Arc<Mutex<Scope>>) -> Self {
-        let file_name = parent.lock().unwrap().file_name.clone();
-        Self::new_from_parent_new_file_name(parent, file_name)
+    pub fn new_from_parent(parent: Arc<Mutex<Scope<'a>>>) -> Self {
+        let file_name = parent.lock().unwrap().file_name;
+        Self::new(file_name)
     }
 
-    pub fn new_from_parent_new_file_name(parent: Arc<Mutex<Scope>>, file_name: String) -> Self {
+    pub fn new_from_parent_new_file_name(
+        parent: Arc<Mutex<Scope<'a>>>,
+        file_name: &'a str,
+    ) -> Self {
         Scope {
             parent: Some(parent.clone()),
             variables: HashMap::new(),
@@ -83,7 +86,7 @@ impl Scope {
         &self,
         name: String,
         location: Option<Location>,
-    ) -> Result<RuntimeValue, ZephyrError> {
+    ) -> Result<RuntimeValue<'a>, ZephyrError> {
         if let Some(variable) = self.variables.get(&name) {
             Ok(variable.value.clone())
         } else if let Some(ref parent) = self.parent {
@@ -100,7 +103,7 @@ impl Scope {
     pub fn insert(
         &mut self,
         name: String,
-        variable: Variable,
+        variable: Variable<'a>,
         location: Option<Location>,
     ) -> Result<(), ZephyrError> {
         if name == "_" {
@@ -122,7 +125,7 @@ impl Scope {
     pub fn modify(
         &mut self,
         name: String,
-        value: RuntimeValue,
+        value: RuntimeValue<'a>,
         location: Option<Location>,
     ) -> Result<(), ZephyrError> {
         if let Some(variable) = self.variables.get_mut(&name) {
