@@ -44,7 +44,13 @@ impl Interpreter {
                     }
                 }
                 x => Err(ZephyrError {
-                    message: format!("Cannot access {} via {}", left.type_name(), x.type_name()),
+                    message: format!(
+                        "Cannot access
+{} via
+{}",
+                        left.type_name(),
+                        x.type_name()
+                    ),
                     code: ErrorCode::TypeError,
                     location: Some(expr.location),
                 }),
@@ -139,7 +145,11 @@ impl Interpreter {
         }
 
         Err(ZephyrError {
-            message: format!("Object does not define property {}", key),
+            message: format!(
+                "Object does not define property
+{}",
+                key
+            ),
             code: ErrorCode::InvalidProperty,
             location: None,
         })

@@ -1,3 +1,4 @@
+use core::num;
 use std::{
     collections::HashMap,
     mem::{discriminant, Discriminant},
@@ -790,6 +791,23 @@ impl Parser {
                     matches!(token.t, TokenType::OpenSquare),
                 )
             };
+
+            // Check for floating point numbers
+            if matches!(token.t, TokenType::Dot) && matches!(self.at().t, TokenType::Number) {
+                let num_tok = self.eat();
+                if let Node::Number(n) = left {
+                    return Ok(Node::Number(nodes::Number {
+                        value: format!("{}.{}", n.value, num_tok.value)
+                            .parse()
+                            .map_err(|e| ZephyrError {
+                                message: format!("Failed to parse float: {}", e),
+                                code: ErrorCode::InvalidOperation,
+                                location: Some(num_tok.location),
+                            })?,
+                        location: token.location,
+                    }));
+                }
+            }
 
             let right = if computed {
                 self.expression()?
