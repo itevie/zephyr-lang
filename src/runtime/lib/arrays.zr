@@ -1,0 +1,22 @@
+let proto = __zephyr_native.get_proto_obj("array");
+
+proto.join = func join(what, sep) {
+  if sep == null {
+    sep = "";
+  }
+
+  let result = "";
+
+  for i, v in what {
+    result = result + v;
+    if i != $what {
+      result = result + sep;
+    }
+  }
+
+  result;
+}
+
+proto.reverse = func reverse(what) {
+  what[-1..=0];
+}

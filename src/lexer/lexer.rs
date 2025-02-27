@@ -153,7 +153,21 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                 let next_char = chars.peek().copied().unwrap_or('n');
 
                 let token = Some(match char {
-                    '.' => TokenType::Dot,
+                    '.' => {
+                        if next_char == '.' {
+                            chars.next();
+                            if chars.peek().copied().unwrap_or('n') == '=' {
+                                chars.next();
+                                actual_value = Some(String::from("..="));
+                                TokenType::RangeInclusive
+                            } else {
+                                actual_value = Some(String::from(".."));
+                                TokenType::Range
+                            }
+                        } else {
+                            TokenType::Dot
+                        }
+                    }
                     ',' => TokenType::Comma,
                     ':' => TokenType::Colon,
                     ';' => TokenType::Semicolon,

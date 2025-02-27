@@ -7,7 +7,7 @@ use std::{
 };
 
 use scope::{Scope, Variable};
-use values::{FunctionType, Null, RuntimeValue};
+use values::{FunctionType, Null, RuntimeValue, RuntimeValueDetails};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -34,6 +34,7 @@ pub mod memory_store;
 pub mod native;
 pub mod scope;
 pub mod values;
+pub mod values_new;
 
 type R = Result<RuntimeValue, ZephyrError>;
 
@@ -123,6 +124,7 @@ impl Interpreter {
             include_lib!("./lib/events.zr"),
             include_lib!("./lib/basic.zr"),
             include_lib!("./lib/strings.zr"),
+            include_lib!("./lib/arrays.zr"),
         ];
 
         for lib in library_files {
@@ -215,6 +217,49 @@ impl Interpreter {
             Node::Arithmetic(expr) => self.run_arithmetic(expr),
             Node::Comp(expr) => self.run_comp(expr),
             Node::Unary(expr) => self.run_unary(expr),
+            Node::Range(expr) => {
+                let start = match self.run(*expr.start.clone())? {
+                    RuntimeValue::Number(n) => n.value,
+                    _ => {
+                        return Err(ZephyrError {
+                            message: "Expected number for start of range".to_string(),
+                            code: ErrorCode::TypeError,
+                            location: Some(expr.start.location().clone()),
+                        })
+                    }
+                };
+                let end = match self.run(*expr.end.clone())? {
+                    RuntimeValue::Number(n) => n.value,
+                    _ => {
+                        return Err(ZephyrError {
+                            message: "Expected number for end of range".to_string(),
+                            code: ErrorCode::TypeError,
+                            location: Some(expr.end.location().clone()),
+                        })
+                    }
+                };
+                let step = match expr.step {
+                    Some(v) => match self.run(*v.clone())? {
+                        RuntimeValue::Number(n) => Some(n.value),
+                        _ => {
+                            return Err(ZephyrError {
+                                message: "Expected number for step of range".to_string(),
+                                code: ErrorCode::TypeError,
+                                location: Some(v.location().clone()),
+                            })
+                        }
+                    },
+                    None => None,
+                };
+
+                Ok(RuntimeValue::RangeValue(values::RangeValue {
+                    options: RuntimeValueDetails::default(),
+                    start,
+                    end,
+                    step,
+                    inclusive_end: expr.inclusive_end,
+                }))
+            }
 
             // ----- variables -----
             Node::Declare(expr) => self.run_declare(expr),

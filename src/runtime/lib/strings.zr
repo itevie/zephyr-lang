@@ -1,6 +1,6 @@
 let proto = __zephyr_native.get_proto_obj("string");
 
-proto.starts_with = func starts_with (value, what) {
+proto.starts_with = func starts_with(value, what) {
   for i, v in value {
     if value[i] != v {
       return false;
@@ -18,6 +18,22 @@ proto.ends_with = func ends_with(value, what) {
   }
 
   return true;
+}
+
+proto.contains = func contains(value, what) {
+  for i in value {
+    for ii in value {
+      if value[ii + i] != what[ii] {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+proto.reverse = func reverse(what) {
+  what[-1..=0].join("");
 }
 
 export let String = proto;

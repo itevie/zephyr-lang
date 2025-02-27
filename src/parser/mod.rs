@@ -1,9 +1,9 @@
-use core::num;
 use std::{
     collections::HashMap,
     mem::{discriminant, Discriminant},
 };
 
+use either::Either::{Left, Right};
 use nodes::{
     DeclareType, ExposeType, InterruptType, MatchCase, MatchCaseType, Node, TaggedSymbol, UnaryType,
 };
@@ -613,7 +613,7 @@ impl Parser {
     }
 
     pub fn assign(&mut self) -> NR {
-        let left = self.additive()?;
+        let left = self.comparison()?;
 
         if let TokenType::Assign = self.at().t {
             let token = self.eat();
@@ -629,12 +629,102 @@ impl Parser {
         Ok(left)
     }
 
+    pub fn comparison(&mut self) -> NR {
+        let mut left = self.range()?;
+
+        while let TokenType::Comparison(v) = self.at().t.clone() {
+            let token = self.eat();
+            let right = self.expression()?;
+            left = Node::Comp(nodes::Comp {
+                left: Box::from(left),
+                right: Box::from(right),
+                t: v,
+                location: token.location,
+            })
+        }
+
+        Ok(left)
+    }
+
+    pub fn range(&mut self) -> NR {
+        // expr as Some(expr) or .. as None
+        let left = if matches!(self.at().t, TokenType::Range)
+            || matches!(self.at().t, TokenType::RangeInclusive)
+        {
+            Right(self.eat())
+        } else {
+            Left(self.additive()?)
+        };
+
+        // ..
+        // expr..
+        // expr..=
+        if matches!(left, Right(_))
+            || matches!(self.at().t, TokenType::Range)
+            || matches!(self.at().t, TokenType::RangeInclusive)
+        {
+            // Right = alread taken
+            // Left = need to take
+            let mut range_token = match left {
+                Right(ref v) => v.clone(),
+                Left(_) => self.eat(),
+            };
+
+            // .. = 0..
+            // expr..(=) = expr..(=)
+            let actual_left = match left {
+                Right(ref v) => Node::Number(nodes::Number {
+                    value: 0f64,
+                    location: v.location.clone(),
+                }),
+                Left(ref v) => v.clone(),
+            };
+
+            // ..(=)(identifier | number | open_paran | unary)
+            // expr = ..(=)expr
+            let actual_right = if matches!(self.at().t, TokenType::Symbol)
+                || matches!(self.at().t, TokenType::Number)
+            {
+                self.additive()?
+            } else {
+                range_token.t = TokenType::RangeInclusive;
+                Node::Number(nodes::Number {
+                    value: -1f64,
+                    location: range_token.location.clone(),
+                })
+            };
+
+            // range:step
+            let step = if matches!(self.at().t, TokenType::Colon) {
+                self.eat();
+                Some(self.additive()?)
+            } else {
+                None
+            };
+
+            // done
+            return Ok(Node::Range(nodes::Range {
+                start: Box::from(actual_left),
+                end: Box::from(actual_right),
+                inclusive_end: match range_token.t {
+                    TokenType::Range => false,
+                    TokenType::RangeInclusive => true,
+                    _ => unreachable!(),
+                },
+                step: step.map(|x| Box::from(x)),
+                location: range_token.location.clone(),
+            }));
+        }
+
+        Ok(left.left().unwrap())
+    }
+
     pub fn additive(&mut self) -> NR {
         let mut left = self.multiplicative()?;
 
         while let TokenType::Additive(_) = &self.at().t {
             let token = self.eat();
-            let right = self.expression()?;
+            let right = self.additive()?;
             left = Node::Arithmetic(nodes::Arithmetic {
                 left: Box::from(left),
                 right: Box::from(right),
@@ -647,7 +737,7 @@ impl Parser {
     }
 
     pub fn multiplicative(&mut self) -> NR {
-        let mut left = self.comparison()?;
+        let mut left = self.unary()?;
 
         while let TokenType::Multiplicative(_) = self.at().t {
             let token = self.eat();
@@ -656,23 +746,6 @@ impl Parser {
                 left: Box::from(left),
                 right: Box::from(right),
                 t: token.t,
-                location: token.location,
-            })
-        }
-
-        Ok(left)
-    }
-
-    pub fn comparison(&mut self) -> NR {
-        let mut left = self.unary()?;
-
-        while let TokenType::Comparison(v) = self.at().t.clone() {
-            let token = self.eat();
-            let right = self.expression()?;
-            left = Node::Comp(nodes::Comp {
-                left: Box::from(left),
-                right: Box::from(right),
-                t: v,
                 location: token.location,
             })
         }

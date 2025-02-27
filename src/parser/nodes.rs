@@ -31,6 +31,7 @@ pub enum Node {
     Call(Call),
     Member(Member),
     Unary(Unary),
+    Range(Range),
 
     DebugNode(DebugNode),
 }
@@ -65,6 +66,7 @@ impl Node {
             Node::Call(v) => &v.location,
             Node::Member(v) => &v.location,
             Node::Unary(v) => &v.location,
+            Node::Range(v) => &v.location,
             Node::DebugNode(v) => &v.location,
         }
     }
@@ -286,5 +288,14 @@ pub struct Unary {
     pub t: UnaryType,
     pub value: Box<Node>,
     pub is_right: bool,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct Range {
+    pub start: Box<Node>,
+    pub end: Box<Node>,
+    pub inclusive_end: bool,
+    pub step: Option<Box<Node>>,
     pub location: Location,
 }

@@ -85,6 +85,16 @@ impl Interpreter {
             match expr.t {
                 UnaryType::LengthOf => Ok(values::Number::new(left.iter()?.len() as f64)),
                 UnaryType::Not => Ok(values::Boolean::new(!left.is_truthy())),
+                UnaryType::Minus => match left {
+                    RuntimeValue::Number(n) => Ok(values::Number::new(-n.value)),
+                    x => {
+                        return Err(ZephyrError {
+                            message: format!("Cannot make {} negative", x.type_name()),
+                            code: ErrorCode::TypeError,
+                            location: Some(expr.location.clone()),
+                        })
+                    }
+                },
                 _ => unreachable!(),
             }
         } else {

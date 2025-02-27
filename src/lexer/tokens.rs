@@ -21,6 +21,8 @@ pub enum TokenType {
     Semicolon,
     QuestionMark,
     Arrow,
+    Range,
+    RangeInclusive,
 
     EOF,
 

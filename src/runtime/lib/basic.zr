@@ -1,3 +1,7 @@
 export func print(what) {
   debug what;
 }
+
+export func iter(what) {
+  __zephyr_native.iter(what);
+}

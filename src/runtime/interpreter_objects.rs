@@ -30,8 +30,41 @@ impl Interpreter {
                 RuntimeValue::ZString(string) => {
                     self.member_check_basic(left.clone(), string.value, set)
                 }
+                RuntimeValue::RangeValue(_range) => {
+                    let mut range = _range.clone();
+                    let iter = left.as_ref_tuple()?.0.iter()?;
+
+                    if range.start < 0f64 {
+                        range.start = iter.len() as f64 + range.start;
+                    }
+
+                    if range.end < 0f64 {
+                        range.end = iter.len() as f64 + range.end;
+                    }
+
+                    let indexes = range
+                        .iter()?
+                        .iter()
+                        .map(|x| *x as usize)
+                        .collect::<Vec<usize>>();
+                    let mut parts: Vec<RuntimeValue> = vec![];
+
+                    for index in indexes {
+                        if let Some(val) = iter.get(index) {
+                            parts.push(val.clone());
+                        } else {
+                            return Err(ZephyrError {
+                                message: "Out of bounds".to_string(),
+                                code: ErrorCode::OutOfBounds,
+                                location: Some(expr.location),
+                            });
+                        }
+                    }
+
+                    return Ok(values::Array::new(parts));
+                }
                 RuntimeValue::Number(number) => {
-                    let iter = left.iter()?;
+                    let iter = left.as_ref_tuple()?.0.iter()?;
 
                     if let Some(val) = iter.get(number.value as usize) {
                         return Ok(val.clone());
@@ -44,13 +77,7 @@ impl Interpreter {
                     }
                 }
                 x => Err(ZephyrError {
-                    message: format!(
-                        "Cannot access
-{} via
-{}",
-                        left.type_name(),
-                        x.type_name()
-                    ),
+                    message: format!("Cannot access {} via {}", left.type_name(), x.type_name()),
                     code: ErrorCode::TypeError,
                     location: Some(expr.location),
                 }),
@@ -127,7 +154,7 @@ impl Interpreter {
             _ => (),
         }
 
-        if let Some(proto_ref) = value.options().proto {
+        if let Some(proto_ref) = value.as_ref_tuple()?.0.options().proto {
             let prototype = match store_get(proto_ref) {
                 RuntimeValue::Object(o) => o,
                 _ => panic!("Expected an object as the prototype."),
@@ -145,11 +172,7 @@ impl Interpreter {
         }
 
         Err(ZephyrError {
-            message: format!(
-                "Object does not define property
-{}",
-                key
-            ),
+            message: format!("Object does not define property {}", key),
             code: ErrorCode::InvalidProperty,
             location: None,
         })

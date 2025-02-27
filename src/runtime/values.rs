@@ -54,6 +54,7 @@ pub enum RuntimeValue {
     Array(Array),
     Object(Object),
     EventEmitter(EventEmitter),
+    RangeValue(RangeValue),
 }
 
 impl RuntimeValue {
@@ -70,6 +71,7 @@ impl RuntimeValue {
             RuntimeValue::Array(_) => "array",
             RuntimeValue::Object(_) => "object",
             RuntimeValue::EventEmitter(_) => "event_emitter",
+            RuntimeValue::RangeValue(_) => "range",
         }
     }
 
@@ -80,6 +82,8 @@ impl RuntimeValue {
                 .chars()
                 .map(|v| ZString::new(v.to_string()))
                 .collect::<Vec<RuntimeValue>>()),
+            RuntimeValue::Array(a) => Ok(a.items.clone()),
+            RuntimeValue::RangeValue(r) => Ok(r.iter()?.iter().map(|x| Number::new(*x)).collect()),
             v => Err(ZephyrError {
                 message: format!("Cannot iter a {}", v.type_name()),
                 code: ErrorCode::CannotIterate,
@@ -101,6 +105,7 @@ impl RuntimeValue {
             RuntimeValue::Reference(v) => &v.options,
             RuntimeValue::ZString(v) => &v.options,
             RuntimeValue::EventEmitter(v) => &v.options,
+            RuntimeValue::RangeValue(v) => &v.options,
         }
     }
 
@@ -116,6 +121,7 @@ impl RuntimeValue {
             RuntimeValue::Reference(v) => v.options = new,
             RuntimeValue::ZString(v) => v.options = new,
             RuntimeValue::EventEmitter(v) => v.options = new,
+            RuntimeValue::RangeValue(v) => v.options = new,
         };
     }
 
@@ -125,8 +131,20 @@ impl RuntimeValue {
             RuntimeValue::Boolean(v) => v.value.to_string(),
             RuntimeValue::Null(_) => "null".to_string(),
             RuntimeValue::Number(v) => v.value.to_string(),
-            RuntimeValue::Reference(v) => format!("{:#?}", v.inner()),
-            RuntimeValue::ZString(v) => v.value.clone(),
+            RuntimeValue::Reference(v) => {
+                return v.inner().unwrap().to_string();
+            }
+            RuntimeValue::ZString(v) => format!("{}", v.value),
+            RuntimeValue::Array(a) => {
+                format!(
+                    "[{}]",
+                    a.items
+                        .iter()
+                        .map(|x| x.to_string().unwrap())
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                )
+            }
             v => {
                 format!("{:#?}", v)
                 /*return Err(ZephyrError {
@@ -237,7 +255,7 @@ impl ZString {
     pub fn new(value: String) -> RuntimeValue {
         RuntimeValue::ZString(ZString {
             value,
-            options:  RuntimeValueDetails::with_proto(PrototypeStore::get("string".to_string())),
+            options: RuntimeValueDetails::with_proto(PrototypeStore::get("string".to_string())),
         })
     }
 }
@@ -330,12 +348,50 @@ impl Array {
     pub fn new(items: Vec<RuntimeValue>) -> RuntimeValue {
         RuntimeValue::Array(Array {
             items,
-            options: RuntimeValueDetails::default(),
+            options: RuntimeValueDetails::with_proto(PrototypeStore::get("array".to_string())),
         })
     }
 
     pub fn new_ref(items: Vec<RuntimeValue>) -> RuntimeValue {
         Reference::new_from(Array::new(items))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RangeValue {
+    pub options: RuntimeValueDetails,
+    pub start: f64,
+    pub end: f64,
+    pub step: Option<f64>,
+    pub inclusive_end: bool,
+}
+
+impl RangeValue {
+    pub fn iter(&self) -> Result<Vec<f64>, ZephyrError> {
+        let step = self
+            .step
+            .unwrap_or(if self.end < self.start { -1.0 } else { 1.0 });
+
+        let end = if self.inclusive_end {
+            self.end
+        } else {
+            self.end - step
+        };
+
+        if (self.start > self.end && step > 0.0) || (self.start < self.end && step < 0.0) {
+            return Err(ZephyrError {
+                message: "This range would result in an infinite loop".to_string(),
+                code: ErrorCode::RangeError,
+                location: None,
+            });
+        }
+
+        let values: Vec<f64> = (0..)
+            .map(|i| self.start + i as f64 * step)
+            .take_while(|&x| (step > 0.0 && x <= end) || (step < 0.0 && x >= end))
+            .collect();
+
+        Ok(values.iter().map(|z| *z).collect())
     }
 }
 
