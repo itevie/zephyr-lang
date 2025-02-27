@@ -1,3 +1,7 @@
+use crate::runtime::scope::PrototypeStore;
+
+use super::{RuntimeValue, RuntimeValueDetails};
+
 #[derive(Debug, Clone)]
 pub struct ZString {
     pub options: RuntimeValueDetails,

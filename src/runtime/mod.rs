@@ -34,7 +34,6 @@ pub mod memory_store;
 pub mod native;
 pub mod scope;
 pub mod values;
-pub mod values_new;
 
 type R = Result<RuntimeValue, ZephyrError>;
 
