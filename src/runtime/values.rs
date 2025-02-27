@@ -18,7 +18,7 @@ use super::{
 
 #[derive(Debug, Clone)]
 pub struct RuntimeValueDetails {
-    pub tags: Arc<Mutex<HashMap<String, String>>>,
+    pub tags: HashMap<String, String>,
     pub proto: Option<usize>,
     pub proto_value: Option<Box<RuntimeValue>>,
 }
@@ -35,7 +35,7 @@ impl RuntimeValueDetails {
 impl Default for RuntimeValueDetails {
     fn default() -> Self {
         Self {
-            tags: Arc::from(Mutex::from(HashMap::default())),
+            tags: HashMap::default(),
             proto: None,
             proto_value: None,
         }
@@ -237,7 +237,7 @@ impl ZString {
     pub fn new(value: String) -> RuntimeValue {
         RuntimeValue::ZString(ZString {
             value,
-            options:  RuntimeValueDetails::with_proto(PrototypeStore::get("string".to_string())),
+            options: RuntimeValueDetails::with_proto(PrototypeStore::get("string".to_string())),
         })
     }
 }
@@ -296,7 +296,7 @@ pub struct Function {
     pub body: nodes::Block,
     pub name: Option<String>,
     pub arguments: Vec<String>,
-    pub scope: Arc<Mutex<Scope>>,
+    pub scope: Box<Scope>,
 }
 
 #[derive(Clone)]
@@ -422,7 +422,7 @@ impl EventEmitter {
 #[derive(Debug, Clone)]
 pub enum ReferenceType {
     Basic(usize),
-    ModuleExport((Arc<Mutex<Scope>>, Option<String>)),
+    ModuleExport((Box<Scope>, Option<String>)),
 }
 
 #[derive(Debug, Clone)]
@@ -438,7 +438,7 @@ impl Reference {
             options: RuntimeValueDetails::default(),
         })
     }
-    pub fn new_export(scope: Arc<Mutex<Scope>>, ident: Option<String>) -> RuntimeValue {
+    pub fn new_export(scope: Box<Scope>, ident: Option<String>) -> RuntimeValue {
         RuntimeValue::Reference(Reference {
             location: ReferenceType::ModuleExport((scope, ident)),
             options: RuntimeValueDetails::default(),
@@ -468,7 +468,7 @@ impl Reference {
             },
             ReferenceType::ModuleExport((ref scope, ref name)) => {
                 if let Some(name) = name {
-                    match scope.lock().unwrap().lookup(name.clone(), None) {
+                    match scope.lookup(name.clone(), None) {
                         Ok(ok) => Ok(Arc::from(ok)),
                         Err(err) => Err(ZephyrError {
                             message: format!("Exported variable {} has not been resolved. Please move this expression to the init block, or fix the cyclic dependency.", name),

@@ -1,9 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{
-        mpsc::{channel, Receiver, Sender},
-        Arc, Mutex,
-    },
+    sync::mpsc::{channel, Receiver, Sender},
 };
 
 use scope::{Scope, Variable};
@@ -43,9 +40,10 @@ macro_rules! include_lib {
     };
 }
 
+#[derive(Debug, Clone)]
 pub struct Module {
     pub exports: HashMap<String, Option<RuntimeValue>>,
-    pub scope: Arc<Mutex<Scope>>,
+    pub scope: Box<Scope>,
     pub wanted: Vec<(String, Location)>,
 }
 
@@ -89,19 +87,17 @@ impl MspcChannel {
 
 #[derive(Clone)]
 pub struct Interpreter {
-    pub scope: Arc<Mutex<Scope>>,
-    pub global_scope: Arc<Mutex<Scope>>,
-    pub module_cache: HashMap<String, Arc<Mutex<Module>>>,
+    pub scope: Box<Scope>,
+    pub global_scope: Box<Scope>,
+    pub module_cache: HashMap<String, Box<Module>>,
     pub mspc: Option<MspcChannel>,
     pub thread_count: usize,
 }
 
 impl Interpreter {
     pub fn new(file_name: String) -> Self {
-        let global_scope = Arc::from(Mutex::from(Scope::new(file_name)));
+        let mut global_scope = Box::from(Scope::new(file_name));
         global_scope
-            .lock()
-            .unwrap()
             .insert(
                 "__zephyr_native".to_string(),
                 Variable::from(values::Object::new_ref(
@@ -112,8 +108,8 @@ impl Interpreter {
             .unwrap();
 
         let mut interpreter = Interpreter {
-            global_scope: global_scope.clone(),
-            scope: global_scope.clone(),
+            global_scope: Box::from(global_scope.clone()),
+            scope: Box::from(global_scope.clone()),
             module_cache: HashMap::new(),
             thread_count: 0,
             mspc: None,
@@ -126,7 +122,7 @@ impl Interpreter {
         ];
 
         for lib in library_files {
-            let lib_scope = Arc::new(Mutex::new(Scope::new_from_parent(global_scope.clone())));
+            let lib_scope = Box::from(Scope::new_from_parent(global_scope.clone()));
 
             let parsed = Parser::new(
                 lex(lib.0, lib.1.to_string())
@@ -148,12 +144,10 @@ impl Interpreter {
                 .unwrap();
             std::mem::swap(&mut interpreter.scope, &mut lib_scope.clone());
 
-            let finished_scope = lib_scope.lock().unwrap();
-            for (name, _) in &finished_scope.exported {
+            let finished_scope = lib_scope;
+            for (name, _) in finished_scope.exported.borrow().iter() {
                 let value = finished_scope.lookup(name.clone(), None).unwrap();
                 global_scope
-                    .lock()
-                    .unwrap()
                     .insert(name.clone(), Variable::from(value), None)
                     .unwrap();
             }
@@ -189,7 +183,7 @@ impl Interpreter {
         return result;
     }
 
-    pub fn swap_scope(&mut self, scope: Arc<Mutex<Scope>>) -> Arc<Mutex<Scope>> {
+    pub fn swap_scope(&mut self, scope: Box<Scope>) -> Box<Scope> {
         std::mem::replace(&mut self.scope, scope)
     }
 
@@ -318,13 +312,7 @@ impl Interpreter {
             Node::Number(expr) => Ok(values::Number::new(expr.value)),
             Node::ZString(expr) => Ok(values::ZString::new(expr.value)),
             Node::Symbol(expr) => Ok(
-                match self
-                    .scope
-                    .lock()
-                    .unwrap()
-                    .lookup(expr.value, Some(expr.location))?
-                    .clone()
-                {
+                match self.scope.lookup(expr.value, Some(expr.location))?.clone() {
                     RuntimeValue::Reference(r) => match r.location {
                         values::ReferenceType::Basic(_) => RuntimeValue::Reference(r.clone()),
                         values::ReferenceType::ModuleExport(_) => (*r.inner()?).clone(),

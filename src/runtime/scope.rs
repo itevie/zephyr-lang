@@ -1,6 +1,8 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
-    sync::{Arc, Mutex, OnceLock},
+    rc::Rc,
+    sync::{Mutex, OnceLock},
 };
 
 use crate::{
@@ -12,7 +14,7 @@ use super::values::{self, RuntimeValue};
 
 static PROTOTYPE_STORE: OnceLock<Mutex<HashMap<String, usize>>> = OnceLock::new();
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variable {
     pub is_const: bool,
     pub value: RuntimeValue,
@@ -27,18 +29,18 @@ impl Variable {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ScopeType {
     Normal,
     Global,
     Package,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Scope {
-    pub parent: Option<Arc<Mutex<Scope>>>,
-    pub variables: HashMap<String, Variable>,
-    pub exported: HashMap<String, Option<String>>,
+    pub parent: Option<Box<Scope>>,
+    pub variables: RefCell<HashMap<String, Variable>>,
+    pub exported: RefCell<HashMap<String, Option<String>>>,
     pub scope_type: ScopeType,
     pub file_name: String,
 }
@@ -46,7 +48,7 @@ pub struct Scope {
 impl Scope {
     pub fn new(file_name: String) -> Self {
         Scope {
-            exported: HashMap::new(),
+            exported: HashMap::new().into(),
             parent: None,
             variables: HashMap::from([
                 (
@@ -58,23 +60,24 @@ impl Scope {
                     Variable::from(values::Boolean::new(false)),
                 ),
                 ("null".to_string(), Variable::from(values::Null::new())),
-            ]),
+            ])
+            .into(),
             scope_type: ScopeType::Normal,
             file_name: file_name,
         }
     }
 
-    pub fn new_from_parent(parent: Arc<Mutex<Scope>>) -> Self {
-        let file_name = parent.lock().unwrap().file_name.clone();
+    pub fn new_from_parent(parent: Box<Scope>) -> Self {
+        let file_name = parent.file_name.clone();
         Self::new_from_parent_new_file_name(parent, file_name)
     }
 
-    pub fn new_from_parent_new_file_name(parent: Arc<Mutex<Scope>>, file_name: String) -> Self {
+    pub fn new_from_parent_new_file_name(parent: Box<Scope>, file_name: String) -> Self {
         Scope {
             parent: Some(parent.clone()),
-            variables: HashMap::new(),
+            variables: HashMap::new().into(),
             scope_type: ScopeType::Normal,
-            exported: HashMap::new(),
+            exported: HashMap::new().into(),
             file_name,
         }
     }
@@ -84,10 +87,10 @@ impl Scope {
         name: String,
         location: Option<Location>,
     ) -> Result<RuntimeValue, ZephyrError> {
-        if let Some(variable) = self.variables.get(&name) {
+        if let Some(variable) = self.variables.borrow().get(&name) {
             Ok(variable.value.clone())
         } else if let Some(ref parent) = self.parent {
-            parent.lock().unwrap().lookup(name, location)
+            parent.lookup(name, location)
         } else {
             Err(ZephyrError {
                 code: ErrorCode::UnknownReference,
@@ -107,7 +110,7 @@ impl Scope {
             return Ok(());
         }
 
-        if self.variables.contains_key(&name) {
+        if self.variables.borrow().contains_key(&name) {
             return Err(ZephyrError {
                 code: ErrorCode::AlreadyDefined,
                 message: format!("Variable {} already exists in the current scope", name),
@@ -115,7 +118,7 @@ impl Scope {
             });
         }
 
-        self.variables.insert(name, variable);
+        self.variables.borrow_mut().insert(name, variable);
         Ok(())
     }
 
@@ -125,7 +128,7 @@ impl Scope {
         value: RuntimeValue,
         location: Option<Location>,
     ) -> Result<(), ZephyrError> {
-        if let Some(variable) = self.variables.get_mut(&name) {
+        if let Some(variable) = self.variables.borrow_mut().get_mut(&name) {
             if variable.is_const {
                 return Err(ZephyrError {
                     code: ErrorCode::ConstantAssignment,
@@ -134,8 +137,8 @@ impl Scope {
                 });
             }
             variable.value = value;
-        } else if let Some(ref parent) = self.parent {
-            parent.lock().unwrap().modify(name, value, location)?;
+        } else if let Some(ref mut parent) = self.parent {
+            parent.modify(name, value, location)?;
         } else {
             return Err(ZephyrError {
                 code: ErrorCode::UnknownReference,

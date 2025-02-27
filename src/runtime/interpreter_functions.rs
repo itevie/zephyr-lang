@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::Location,
@@ -32,7 +30,7 @@ impl Interpreter {
     ) -> R {
         match func {
             FunctionType::Function(func) => {
-                let mut scope = Scope::new_from_parent(func.scope.clone());
+                let mut scope = Box::from(Scope::new_from_parent(func.scope.clone()));
                 for (i, v) in func.arguments.iter().enumerate() {
                     if i >= args.len() {
                         scope.insert(
@@ -49,7 +47,7 @@ impl Interpreter {
                     }
                 }
 
-                let old = self.swap_scope(Arc::from(Mutex::from(scope)));
+                let old = self.swap_scope(scope);
                 let result = self.run(Node::Block(func.body));
                 self.swap_scope(old);
 

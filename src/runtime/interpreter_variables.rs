@@ -18,7 +18,7 @@ impl Interpreter {
         };
 
         match expr.assignee {
-            DeclareType::Symbol(s) => self.scope.lock().unwrap().insert(
+            DeclareType::Symbol(s) => self.scope.insert(
                 s.value,
                 Variable {
                     is_const: expr.is_const,
@@ -30,7 +30,7 @@ impl Interpreter {
                 (RuntimeValue::Array(arr), Some(_)) => {
                     for (i, v) in a.iter().enumerate() {
                         if let Some(val) = arr.items.get(i) {
-                            self.scope.lock().unwrap().insert(
+                            self.scope.insert(
                                 v.value.clone(),
                                 Variable {
                                     is_const: expr.is_const,
@@ -69,7 +69,7 @@ impl Interpreter {
 
         match *expr.assignee {
             Node::Symbol(ref symbol) => {
-                self.scope.lock().unwrap().modify(
+                self.scope.modify(
                     symbol.value.clone(),
                     value.clone(),
                     Some(expr.assignee.location().clone()),

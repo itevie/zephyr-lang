@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use crate::{errors::ErrorCode, parser::nodes};
 
 use super::{
@@ -42,7 +40,7 @@ impl Interpreter {
                 )?;
             }
 
-            let old_scope = self.swap_scope(Arc::from(Mutex::from(scope)));
+            let old_scope = self.swap_scope(Box::from(scope));
             self.run(*expr.block.clone())?;
             self.swap_scope(old_scope);
         }

@@ -94,8 +94,6 @@ impl Interpreter {
                 value
                     .options()
                     .tags
-                    .lock()
-                    .unwrap()
                     .clone()
                     .iter()
                     .map(|v| (v.0.clone(), values::ZString::new(v.1.clone())))

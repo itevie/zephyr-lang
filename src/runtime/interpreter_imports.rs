@@ -1,9 +1,4 @@
-use std::{
-    collections::HashMap,
-    fs,
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -21,19 +16,15 @@ impl Interpreter {
     pub fn run_export(&mut self, node: nodes::Export) -> R {
         match node.export {
             ExportType::Symbol(symbol) => {
-                self.scope
-                    .lock()
-                    .unwrap()
-                    .exported
-                    .insert(symbol.value, node.export_as);
+                self.scope.exported.insert(symbol.value, node.export_as);
             }
             ExportType::Declaration(dec) => {
                 self.run_declare(dec.clone())?;
 
-                let mut lock = self.scope.lock().unwrap();
-
                 match dec.assignee {
-                    DeclareType::Symbol(s) => lock.exported.insert(s.value.clone(), node.export_as),
+                    DeclareType::Symbol(s) => {
+                        self.scope.exported.insert(s.value.clone(), node.export_as)
+                    }
                     _ => {
                         return Err(ZephyrError {
                             message: "Can only export declarations with symbol".to_string(),
@@ -54,7 +45,7 @@ impl Interpreter {
         let path = &if PathBuf::from(node.import.clone()).is_absolute() {
             PathBuf::from(node.import.clone())
         } else {
-            let _path = &PathBuf::from(self.scope.lock().unwrap().file_name.clone())
+            let _path = &PathBuf::from(self.scope.file_name.clone())
                 .parent()
                 .unwrap()
                 .join(node.import.clone());
@@ -69,7 +60,7 @@ impl Interpreter {
 
         let scope = if let Some(cache) = self.module_cache.get(path) {
             // The module is in module cache and is awaiting to be loaded
-            (cache.lock().unwrap().scope.clone(), false)
+            (cache.scope.clone(), false)
         } else {
             let read = fs::read_to_string(path).map_err(|err| ZephyrError {
                 message: format!("Cannot read {}: {}", path, err.kind()),
@@ -85,15 +76,13 @@ impl Interpreter {
                 }),
                 _ => unreachable!(),
             };
-            let scope = Arc::from(Mutex::from(Scope::new_from_parent(
-                self.global_scope.clone(),
-            )));
+            let scope = Box::from(Scope::new_from_parent(self.global_scope.clone()));
 
-            let module = Arc::from(Mutex::from(Module {
+            let module = Box::from(Module {
                 scope: scope.clone(),
                 wanted: vec![],
                 exports: HashMap::new(),
-            }));
+            });
 
             self.module_cache.insert(path.to_string(), module.clone());
 
@@ -102,9 +91,9 @@ impl Interpreter {
             self.swap_scope(old_scope);
 
             // Check all the places that have tried to import from this module
-            let wanted = module.lock().unwrap().wanted.clone();
+            let wanted = module.wanted.clone();
             for i in wanted {
-                if !scope.lock().unwrap().exported.contains_key(&i.0) {
+                if !scope.exported.contains_key(&i.0) {
                     return Err(ZephyrError {
                         message: format!("Module {} does not export {}", path, i.0.clone()),
                         code: ErrorCode::NotExported,
@@ -128,7 +117,7 @@ impl Interpreter {
             // Check if module actually exports it
             if scope.1 {
                 if let Some(ref name) = t.0 {
-                    if !scope.0.lock().unwrap().variables.contains_key(name) {
+                    if !scope.0.variables.contains_key(name) {
                         return Err(ZephyrError {
                             message: format!("Module {} does not export {}", path, name.clone()),
                             code: ErrorCode::NotExported,
@@ -139,16 +128,11 @@ impl Interpreter {
             }
 
             if !scope.1 {
-                self.module_cache
-                    .get(path)
-                    .unwrap()
-                    .lock()
-                    .unwrap()
-                    .wanted
-                    .push((t.1.clone(), node.location.clone()));
+                let temp = &mut self.module_cache.get_mut(path).unwrap().wanted;
+                temp.push((t.1.clone(), node.location.clone()));
             }
 
-            self.scope.lock().unwrap().insert(
+            self.scope.insert(
                 t.1,
                 Variable::from(Reference::new_export(scope.0.clone(), t.0)),
                 Some(node.location.clone()),
