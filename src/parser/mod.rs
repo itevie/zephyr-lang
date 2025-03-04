@@ -129,6 +129,7 @@ impl Parser {
     pub fn statement(&mut self) -> NR {
         match self.at().t {
             TokenType::Let | TokenType::Const => self.declare(),
+            TokenType::Enum => self.enum_stmt(),
             TokenType::Function => self.function(true),
             TokenType::Debug => Ok(Node::DebugNode(nodes::DebugNode {
                 location: self.eat().location.clone(),
@@ -161,6 +162,72 @@ impl Parser {
             }
             _ => self.expression(),
         }
+    }
+
+    pub fn enum_stmt(&mut self) -> NR {
+        let token = self.eat();
+        let name = Parser::make_symbol(self.expect(
+            discriminant(&TokenType::Symbol),
+            ZephyrError {
+                message: "Expected symbol for enum name".to_string(),
+                code: ErrorCode::UnexpectedToken,
+                location: Some(self.at().location.clone()),
+            },
+        )?);
+
+        self.expect(
+            discriminant(&TokenType::OpenBrace),
+            ZephyrError {
+                message: "Expected open brace".to_string(),
+                code: ErrorCode::UnexpectedToken,
+                location: Some(self.at().location.clone()),
+            },
+        )?;
+
+        let mut items: Vec<(nodes::Symbol, String)> = vec![];
+
+        while !matches!(self.at().t, TokenType::CloseBrace) {
+            let symbol = Parser::make_symbol(self.expect(
+                discriminant(&TokenType::Symbol),
+                ZephyrError {
+                    message: "Expected symbol for enum item".to_string(),
+                    code: ErrorCode::UnexpectedToken,
+                    location: Some(self.at().location.clone()),
+                },
+            )?);
+
+            let symbol_clone = symbol.clone();
+            items.push((
+                symbol,
+                format!(
+                    "{}.{}__{}",
+                    name.value,
+                    symbol_clone.value,
+                    uuid::Uuid::new_v4()
+                ),
+            ));
+
+            if matches!(self.at().t, TokenType::Comma) {
+                self.eat();
+            } else {
+                break;
+            }
+        }
+
+        self.expect(
+            discriminant(&TokenType::CloseBrace),
+            ZephyrError {
+                message: "Expected close brace".to_string(),
+                code: ErrorCode::UnexpectedToken,
+                location: Some(self.at().location.clone()),
+            },
+        )?;
+
+        Ok(Node::Enum(nodes::Enum {
+            name,
+            values: items,
+            location: token.location,
+        }))
     }
 
     /*pub fn when(&mut self) -> NR {

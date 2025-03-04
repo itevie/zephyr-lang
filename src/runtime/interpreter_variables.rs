@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     errors::{ErrorCode, ZephyrError},
     parser::nodes::{self, DeclareType, Node},
@@ -86,5 +88,30 @@ impl Interpreter {
         }
 
         Ok(value)
+    }
+
+    pub fn run_enum(&mut self, expr: nodes::Enum) -> R {
+        let mut items: HashMap<String, RuntimeValue> = HashMap::new();
+
+        for (key, value) in expr.values {
+            let val = values::ZString::new("".to_string());
+            val.options()
+                .tags
+                .lock()
+                .unwrap()
+                .insert("__enum_base".to_string(), value.clone());
+            items.insert(key.value, val);
+        }
+
+        self.scope.lock().unwrap().insert(
+            expr.name.value,
+            Variable {
+                is_const: true,
+                value: values::Object::new_ref(items),
+            },
+            Some(expr.name.location.clone()),
+        )?;
+
+        Ok(values::Null::new())
     }
 }

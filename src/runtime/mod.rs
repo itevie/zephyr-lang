@@ -266,6 +266,7 @@ impl Interpreter {
             // ----- variables -----
             Node::Declare(expr) => self.run_declare(expr),
             Node::Assign(expr) => self.run_assign(expr),
+            Node::Enum(expr) => self.run_enum(expr),
 
             // ----- imports -----
             Node::Import(expr) => self.run_import(expr),

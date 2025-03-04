@@ -33,6 +33,7 @@ pub enum Node {
     Unary(Unary),
     Range(Range),
     Is(Is),
+    Enum(Enum),
 
     DebugNode(DebugNode),
 }
@@ -70,6 +71,7 @@ impl Node {
             Node::Range(v) => &v.location,
             Node::DebugNode(v) => &v.location,
             Node::Is(v) => &v.location,
+            Node::Enum(v) => &v.location,
         }
     }
 }
@@ -313,5 +315,12 @@ pub struct Is {
     pub left: Box<Node>,
     pub right: IsType,
     pub r#as: Option<Symbol>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct Enum {
+    pub name: Symbol,
+    pub values: Vec<(Symbol, String)>,
     pub location: Location,
 }

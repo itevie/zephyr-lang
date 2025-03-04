@@ -1,19 +1,20 @@
-let Result = .{
-  Ok: "",
-  Err: "",
-};
-
-__zephyr_native.add_tag(Result.Ok, "__enum_base", "Zephyr.Result.Ok");
-__zephyr_native.add_tag(Result.Err, "__enum_base", "Zephyr.Result.Err");
-
-func make(val, e) {
-  __zephyr_native.add_tag(val, "__enum_variant", e.__tags.__enum_base);
-  val;
+enum Result {
+  Ok,
+  Err,
 }
 
-let value = Result.Ok("2");
-print(value);
+func divide(a, b) {
+  if b == 0 {
+    return Result.Err("Cannot divide by 0");
+  }
 
-if value is Result.Ok {
-  print("yes")
+  return Result.Ok(a / b);
+}
+
+let value = divide(1, 0);
+
+if value is Result.Err {
+  print("Error!: " + value);
+} else {
+  print(value);
 }
