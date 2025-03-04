@@ -5,7 +5,7 @@ use crate::{
     runtime::{memory_store, scope::Scope},
 };
 
-use super::{RuntimeValue, RuntimeValueDetails};
+use super::{RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
 #[derive(Debug, Clone)]
 pub enum ReferenceType {
@@ -69,5 +69,11 @@ impl Reference {
                 }
             }
         }
+    }
+}
+
+impl RuntimeValueUtils for Reference {
+    fn type_name(&self) -> &str {
+        "reference"
     }
 }

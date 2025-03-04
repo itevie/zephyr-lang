@@ -7,6 +7,8 @@ use super::{values::RuntimeValue, Interpreter};
 
 pub mod basics;
 pub mod events;
+pub mod fs;
+pub mod module;
 pub mod proto;
 pub mod test;
 
@@ -18,6 +20,8 @@ pub fn all() -> Vec<(String, RuntimeValue)> {
         .chain(events::all().iter().cloned())
         .chain(test::all().iter().cloned())
         .chain(basics::all().iter().cloned())
+        .chain(fs::all().iter().cloned())
+        .chain(module::all().iter().cloned())
         .collect()
 }
 
@@ -25,6 +29,7 @@ pub struct NativeExecutionContext {
     pub interpreter: Interpreter,
     pub args: Vec<RuntimeValue>,
     pub location: Location,
+    pub file_name: String,
 }
 
 pub fn make_no_args_error(location: Location) -> ZephyrError {

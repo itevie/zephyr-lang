@@ -38,6 +38,26 @@ use crate::{
 
 use super::memory_store;
 
+pub trait RuntimeValueUtils {
+    fn type_name(&self) -> &str;
+
+    fn to_string(&self) -> Result<String, ZephyrError> {
+        return Err(ZephyrError {
+            message: format!("Cannot stringify {}", self.type_name()),
+            code: ErrorCode::TypeError,
+            location: None,
+        });
+    }
+
+    fn iter(&self) -> Result<Vec<RuntimeValue>, ZephyrError> {
+        return Err(ZephyrError {
+            message: format!("Cannot iter a {}", self.type_name()),
+            code: ErrorCode::CannotIterate,
+            location: None,
+        });
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum RuntimeValue {
     Number(Number),
@@ -53,38 +73,31 @@ pub enum RuntimeValue {
     RangeValue(RangeValue),
 }
 
+macro_rules! run_as_any {
+    ($s:ident, $i:ident, $e:expr) => {
+        match $s {
+            RuntimeValue::Boolean($i) => $e,
+            RuntimeValue::Null($i) => $e,
+            RuntimeValue::Number($i) => $e,
+            RuntimeValue::ZString($i) => $e,
+            RuntimeValue::Reference($i) => $e,
+            RuntimeValue::Function($i) => $e,
+            RuntimeValue::NativeFunction($i) => $e,
+            RuntimeValue::Array($i) => $e,
+            RuntimeValue::Object($i) => $e,
+            RuntimeValue::EventEmitter($i) => $e,
+            RuntimeValue::RangeValue($i) => $e,
+        }
+    };
+}
+
 impl RuntimeValue {
     pub fn type_name(&self) -> &str {
-        match self {
-            RuntimeValue::Boolean(_) => "boolean",
-            RuntimeValue::Null(_) => "null",
-            RuntimeValue::Number(_) => "number",
-            RuntimeValue::ZString(_) => "string",
-            RuntimeValue::Reference(_) => "reference",
-            RuntimeValue::Function(_) => "function",
-            RuntimeValue::NativeFunction(_) => "native_function",
-            RuntimeValue::Array(_) => "array",
-            RuntimeValue::Object(_) => "object",
-            RuntimeValue::EventEmitter(_) => "event_emitter",
-            RuntimeValue::RangeValue(_) => "range",
-        }
+        run_as_any!(self, v, v.type_name())
     }
 
     pub fn iter(&self) -> Result<Vec<RuntimeValue>, ZephyrError> {
-        match self {
-            RuntimeValue::ZString(str) => Ok(str
-                .value
-                .chars()
-                .map(|v| ZString::new(v.to_string()))
-                .collect::<Vec<RuntimeValue>>()),
-            RuntimeValue::Array(a) => Ok(a.items.clone()),
-            RuntimeValue::RangeValue(r) => Ok(r.iter()?.iter().map(|x| Number::new(*x)).collect()),
-            v => Err(ZephyrError {
-                message: format!("Cannot iter a {}", v.type_name()),
-                code: ErrorCode::CannotIterate,
-                location: None,
-            }),
-        }
+        run_as_any!(self, v, v.iter())
     }
 
     /// Gets the options struct no matter what the underlying type is

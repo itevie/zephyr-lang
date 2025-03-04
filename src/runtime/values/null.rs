@@ -1,4 +1,4 @@
-use super::{RuntimeValue, RuntimeValueDetails};
+use super::{RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
 #[derive(Debug, Clone)]
 pub struct Null {
@@ -10,5 +10,11 @@ impl Null {
         RuntimeValue::Null(Null {
             options: RuntimeValueDetails::default(),
         })
+    }
+}
+
+impl RuntimeValueUtils for Null {
+    fn type_name(&self) -> &str {
+        "null"
     }
 }

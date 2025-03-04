@@ -43,7 +43,7 @@ impl Interpreter {
                     }
 
                     let indexes = range
-                        .iter()?
+                        .iter_f64()?
                         .iter()
                         .map(|x| *x as usize)
                         .collect::<Vec<usize>>();

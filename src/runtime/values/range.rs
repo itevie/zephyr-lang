@@ -1,6 +1,6 @@
 use crate::errors::{ErrorCode, ZephyrError};
 
-use super::RuntimeValueDetails;
+use super::{Number, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
 #[derive(Debug, Clone)]
 pub struct RangeValue {
@@ -12,7 +12,7 @@ pub struct RangeValue {
 }
 
 impl RangeValue {
-    pub fn iter(&self) -> Result<Vec<f64>, ZephyrError> {
+    pub fn iter_f64(&self) -> Result<Vec<f64>, ZephyrError> {
         let step = self
             .step
             .unwrap_or(if self.end < self.start { -1.0 } else { 1.0 });
@@ -37,5 +37,15 @@ impl RangeValue {
             .collect();
 
         Ok(values.iter().map(|z| *z).collect())
+    }
+}
+
+impl RuntimeValueUtils for RangeValue {
+    fn type_name(&self) -> &str {
+        "range"
+    }
+
+    fn iter(&self) -> Result<Vec<RuntimeValue>, ZephyrError> {
+        Ok(self.iter_f64()?.iter().map(|x| Number::new(*x)).collect())
     }
 }

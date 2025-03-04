@@ -124,6 +124,8 @@ impl Interpreter {
             include_lib!("./lib/basic.zr"),
             include_lib!("./lib/strings.zr"),
             include_lib!("./lib/arrays.zr"),
+            include_lib!("./lib/fs.zr"),
+            include_lib!("./lib/module.zr"),
         ];
 
         for lib in library_files {

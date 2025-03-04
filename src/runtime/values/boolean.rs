@@ -1,4 +1,4 @@
-use super::{RuntimeValue, RuntimeValueDetails};
+use super::{RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
 #[derive(Debug, Clone)]
 pub struct Boolean {
@@ -12,5 +12,11 @@ impl Boolean {
             value,
             options: RuntimeValueDetails::default(),
         })
+    }
+}
+
+impl RuntimeValueUtils for Boolean {
+    fn type_name(&self) -> &str {
+        "boolean"
     }
 }

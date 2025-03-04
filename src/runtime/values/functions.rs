@@ -6,7 +6,7 @@ use crate::{
     runtime::{native::NativeExecutionContext, scope::Scope, R},
 };
 
-use super::{RuntimeValue, RuntimeValueDetails};
+use super::{RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
 #[derive(Debug, Clone)]
 pub enum FunctionType {
@@ -37,6 +37,12 @@ pub struct Function {
     pub scope: Arc<Mutex<Scope>>,
 }
 
+impl RuntimeValueUtils for Function {
+    fn type_name(&self) -> &str {
+        "function"
+    }
+}
+
 #[derive(Clone)]
 pub struct NativeFunction {
     pub options: RuntimeValueDetails,
@@ -49,6 +55,12 @@ impl NativeFunction {
             func: f,
             options: RuntimeValueDetails::default(),
         })
+    }
+}
+
+impl RuntimeValueUtils for NativeFunction {
+    fn type_name(&self) -> &str {
+        "native_function"
     }
 }
 

@@ -47,10 +47,10 @@ impl ZephyrError {
     pub fn _visualise(&self, file_contents: String) -> String {
         let mut string = format!(
             "{}{:?} error: {}{}",
-            util::FG_RED,
+            util::colors::FG_RED,
             self.code,
             self.message,
-            util::COLOR_RESET
+            util::colors::COLOR_RESET
         );
 
         if let Some(ref location) = self.location {
@@ -63,17 +63,17 @@ impl ZephyrError {
 
             string.push_str(&format!(
                 "\n\n{}{}{}",
-                util::FG_GRAY,
+                util::colors::FG_GRAY,
                 result,
-                util::COLOR_RESET
+                util::colors::COLOR_RESET
             ));
 
             string.push_str(&format!(
                 "\n{}{}{}{}",
-                util::FG_CYAN,
+                util::colors::FG_CYAN,
                 " ".repeat(location.start),
                 "^".repeat(location.end - location.start),
-                util::COLOR_RESET
+                util::colors::COLOR_RESET
             ));
         }
 

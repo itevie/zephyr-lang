@@ -68,6 +68,7 @@ impl Interpreter {
                     args,
                     interpreter: self.clone(),
                     location: location.clone(),
+                    file_name: self.scope.lock().unwrap().file_name.clone(),
                 };
 
                 (func.func)(ctx)

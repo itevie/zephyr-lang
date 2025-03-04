@@ -9,7 +9,7 @@ use crate::{
     runtime::{scope::PrototypeStore, Job, MspcChannel},
 };
 
-use super::{FunctionType, RuntimeValue, RuntimeValueDetails};
+use super::{FunctionType, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
 #[derive(Debug, Clone)]
 pub struct EventEmitter {
@@ -69,5 +69,11 @@ impl EventEmitter {
         }
 
         Ok(())
+    }
+}
+
+impl RuntimeValueUtils for EventEmitter {
+    fn type_name(&self) -> &str {
+        "event_emitter"
     }
 }
