@@ -32,6 +32,7 @@ pub enum Node {
     Member(Member),
     Unary(Unary),
     Range(Range),
+    Is(Is),
 
     DebugNode(DebugNode),
 }
@@ -68,6 +69,7 @@ impl Node {
             Node::Unary(v) => &v.location,
             Node::Range(v) => &v.location,
             Node::DebugNode(v) => &v.location,
+            Node::Is(v) => &v.location,
         }
     }
 }
@@ -297,5 +299,19 @@ pub struct Range {
     pub end: Box<Node>,
     pub inclusive_end: bool,
     pub step: Option<Box<Node>>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub enum IsType {
+    Basic(Box<Node>),
+    Comparison(tokens::Comparison, Box<Node>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Is {
+    pub left: Box<Node>,
+    pub right: IsType,
+    pub r#as: Option<Symbol>,
     pub location: Location,
 }

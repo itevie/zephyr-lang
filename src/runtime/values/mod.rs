@@ -34,6 +34,7 @@ pub use details::*;
 use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::{Comparison, Location},
+    util::colors,
 };
 
 use super::memory_store;
@@ -41,7 +42,7 @@ use super::memory_store;
 pub trait RuntimeValueUtils {
     fn type_name(&self) -> &str;
 
-    fn to_string(&self) -> Result<String, ZephyrError> {
+    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
         return Err(ZephyrError {
             message: format!("Cannot stringify {}", self.type_name()),
             code: ErrorCode::TypeError,
@@ -134,34 +135,27 @@ impl RuntimeValue {
     }
 
     /// Converts the value into a string (not display)
-    pub fn to_string(&self) -> Result<String, ZephyrError> {
-        Ok(match self {
-            RuntimeValue::Boolean(v) => v.value.to_string(),
-            RuntimeValue::Null(_) => "null".to_string(),
-            RuntimeValue::Number(v) => v.value.to_string(),
-            RuntimeValue::Reference(v) => {
-                return v.inner().unwrap().to_string();
-            }
-            RuntimeValue::ZString(v) => format!("{}", v.value),
-            RuntimeValue::Array(a) => {
-                format!(
-                    "[{}]",
-                    a.items
-                        .iter()
-                        .map(|x| x.to_string().unwrap())
-                        .collect::<Vec<String>>()
-                        .join(", ")
-                )
-            }
-            v => {
-                format!("{:#?}", v)
-                /*return Err(ZephyrError {
-                    code: ErrorCode::CannotCoerce,
-                    message: format!("Cannot coerce {} into a string", self.type_name()),
-                    location: None,
-                })*/
-            }
-        })
+    pub fn to_string(
+        &self,
+        is_display: bool,
+        color: bool,
+        full: bool,
+    ) -> Result<String, ZephyrError> {
+        let mut string = run_as_any!(self, v, v.to_string(is_display, color))?;
+
+        if full {
+            string.push_str(&match color {
+                true => format!(
+                    "\n{}# {:?}{}",
+                    colors::FG_GRAY,
+                    self.options().tags.lock().unwrap(),
+                    colors::COLOR_RESET
+                ),
+                false => format!("\n# {:?}", self.options().tags.lock().unwrap()),
+            });
+        }
+
+        Ok(string)
     }
 
     /// Checks whether or not the value is "truthy" following set rules

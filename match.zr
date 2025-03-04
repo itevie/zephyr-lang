@@ -1,0 +1,19 @@
+let Result = .{
+  Ok: "",
+  Err: "",
+};
+
+__zephyr_native.add_tag(Result.Ok, "__enum_base", "Zephyr.Result.Ok");
+__zephyr_native.add_tag(Result.Err, "__enum_base", "Zephyr.Result.Err");
+
+func make(val, e) {
+  __zephyr_native.add_tag(val, "__enum_variant", e.__tags.__enum_base);
+  val;
+}
+
+let value = Result.Ok("2");
+print(value);
+
+if value is Result.Ok {
+  print("yes")
+}

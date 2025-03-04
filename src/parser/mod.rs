@@ -163,10 +163,6 @@ impl Parser {
         }
     }
 
-    pub fn expression(&mut self) -> NR {
-        self.assign()
-    }
-
     /*pub fn when(&mut self) -> NR {
         let token = self.eat();
         let emitter = self.expression()?;
@@ -612,8 +608,12 @@ impl Parser {
         }))
     }
 
+    pub fn expression(&mut self) -> NR {
+        self.assign()
+    }
+
     pub fn assign(&mut self) -> NR {
-        let left = self.comparison()?;
+        let left = self.is()?;
 
         if let TokenType::Assign = self.at().t {
             let token = self.eat();
@@ -622,6 +622,24 @@ impl Parser {
             return Ok(Node::Assign(nodes::Assign {
                 assignee: Box::from(left),
                 value: Box::from(value),
+                location: token.location,
+            }));
+        }
+
+        Ok(left)
+    }
+
+    pub fn is(&mut self) -> NR {
+        let left = self.comparison()?;
+
+        if matches!(self.at().t, TokenType::Is) {
+            let token = self.eat();
+            let right = self.expression()?;
+
+            return Ok(Node::Is(nodes::Is {
+                left: Box::from(left),
+                right: nodes::IsType::Basic(Box::from(right)),
+                r#as: None,
                 location: token.location,
             }));
         }

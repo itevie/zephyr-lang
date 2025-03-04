@@ -1,1 +1,9 @@
-module.dirname();
+let val = module.dirname();
+__zephyr_native.add_tag(val, "test", "2");
+val;
+
+let emitter = __zephyr_native.test();
+
+let part = [true, false, 10..=10:2, null, __zephyr_native.add_tag, String.contains, [1, "hi", .{ key: 1, key2: [false], null: null}], emitter];
+__zephyr_native.add_tag(part, "gay", "yes");
+part;

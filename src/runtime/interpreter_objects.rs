@@ -117,7 +117,7 @@ impl Interpreter {
                 });
             }
 
-            return Ok(values::Object::new(
+            return Ok(values::Object::new_ref(
                 value
                     .options()
                     .tags

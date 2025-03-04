@@ -29,4 +29,20 @@ impl RuntimeValueUtils for Array {
     fn iter(&self) -> Result<Vec<RuntimeValue>, crate::errors::ZephyrError> {
         Ok(self.items.clone())
     }
+
+    fn to_string(
+        &self,
+        is_display: bool,
+        color: bool,
+    ) -> Result<String, crate::errors::ZephyrError> {
+        let mut result = String::from("[");
+        for (i, item) in self.items.iter().enumerate() {
+            if i > 0 {
+                result.push_str(", ");
+            }
+            result.push_str(&item.to_string(true, color, false)?);
+        }
+        result.push_str("]");
+        Ok(result)
+    }
 }

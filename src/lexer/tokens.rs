@@ -50,6 +50,8 @@ pub enum TokenType {
     Finally,
     Throw,
 
+    Is,
+
     For,
     In,
     While,

@@ -21,4 +21,20 @@ impl RuntimeValueUtils for Number {
     fn type_name(&self) -> &str {
         "number"
     }
+
+    fn to_string(
+        &self,
+        is_display: bool,
+        color: bool,
+    ) -> Result<String, crate::errors::ZephyrError> {
+        Ok(match color {
+            true => format!(
+                "{}{}{}",
+                crate::util::colors::FG_YELLOW,
+                self.value,
+                crate::util::colors::COLOR_RESET
+            ),
+            false => self.value.to_string(),
+        })
+    }
 }

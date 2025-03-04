@@ -7,6 +7,7 @@ use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::Location,
     runtime::{scope::PrototypeStore, Job, MspcChannel},
+    util::colors,
 };
 
 use super::{FunctionType, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
@@ -75,5 +76,27 @@ impl EventEmitter {
 impl RuntimeValueUtils for EventEmitter {
     fn type_name(&self) -> &str {
         "event_emitter"
+    }
+
+    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
+        let keys = self
+            .defined_events
+            .iter()
+            .map(|x| format!("\"{}\"", x))
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        Ok(match color {
+            true => format!(
+                "{}EventEmitter<{}{}{}{}>{}",
+                colors::FG_CYAN,
+                colors::FG_YELLOW,
+                keys,
+                colors::COLOR_RESET,
+                colors::FG_CYAN,
+                colors::COLOR_RESET,
+            ),
+            false => format!("EventEmitter<{}>", keys),
+        })
     }
 }

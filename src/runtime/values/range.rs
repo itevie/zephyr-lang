@@ -1,4 +1,7 @@
-use crate::errors::{ErrorCode, ZephyrError};
+use crate::{
+    errors::{ErrorCode, ZephyrError},
+    util::colors,
+};
 
 use super::{Number, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
@@ -47,5 +50,24 @@ impl RuntimeValueUtils for RangeValue {
 
     fn iter(&self) -> Result<Vec<RuntimeValue>, ZephyrError> {
         Ok(self.iter_f64()?.iter().map(|x| Number::new(*x)).collect())
+    }
+
+    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
+        let string = format!(
+            "({}{}{}{})",
+            self.start,
+            if self.inclusive_end { "..=" } else { ".." },
+            self.end,
+            if let Some(step) = self.step {
+                format!(":{}", step)
+            } else {
+                "".to_string()
+            }
+        );
+
+        Ok(match color {
+            true => format!("{}{}{}", colors::FG_YELLOW, string, colors::COLOR_RESET),
+            false => string,
+        })
     }
 }

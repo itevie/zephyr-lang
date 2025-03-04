@@ -71,19 +71,19 @@ impl MspcChannel {
     pub fn thread_start(&mut self) {
         self.mspc
             .send(MspcSendType::ThreadCreate)
-            .unwrap_or_else(|_| panic!("Failed to send thread_start"));
+            .unwrap_or_else(|e| panic!("Failed to send thread_start {:#?}", e.0))
     }
 
     pub fn thread_destroy(&mut self) {
         self.mspc
             .send(MspcSendType::ThreadDestroy)
-            .unwrap_or_else(|_| panic!("Failed to send thread_destroy"));
+            .unwrap_or_else(|e| panic!("Failed to send thread_destroy {:#?}", e.0))
     }
 
     pub fn thread_message(&mut self, job: Job) {
         self.mspc
             .send(MspcSendType::ThreadMessage(job))
-            .unwrap_or_else(|_| panic!("Failed to send thread_message"))
+            .unwrap_or_else(|e| panic!("Failed to send thread_message: {:?}", e))
     }
 }
 
@@ -216,6 +216,7 @@ impl Interpreter {
 
             // ----- operators -----
             Node::Arithmetic(expr) => self.run_arithmetic(expr),
+            Node::Is(expr) => self.run_is(expr),
             Node::Comp(expr) => self.run_comp(expr),
             Node::Unary(expr) => self.run_unary(expr),
             Node::Range(expr) => {
@@ -381,7 +382,7 @@ impl Interpreter {
 
             Node::DebugNode(expr) => {
                 let result = self.run(*expr.node)?;
-                println!("{}", result.to_string().unwrap());
+                println!("{}", result.to_string(true, true, true).unwrap());
                 return Ok(Null::new());
             }
         }

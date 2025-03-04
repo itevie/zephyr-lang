@@ -76,4 +76,8 @@ impl RuntimeValueUtils for Reference {
     fn type_name(&self) -> &str {
         "reference"
     }
+
+    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
+        self.inner()?.to_string(is_display, color, false)
+    }
 }

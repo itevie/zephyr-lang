@@ -4,6 +4,7 @@ use crate::{
     errors::{ErrorCode, ZephyrError},
     parser::nodes,
     runtime::{native::NativeExecutionContext, scope::Scope, R},
+    util::colors,
 };
 
 use super::{RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
@@ -41,6 +42,31 @@ impl RuntimeValueUtils for Function {
     fn type_name(&self) -> &str {
         "function"
     }
+
+    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
+        let string = format!(
+            "{}",
+            self.arguments
+                .iter()
+                .map(|x| format!("\"{}\"", x))
+                .collect::<Vec<String>>()
+                .join(", ")
+        );
+
+        Ok(match color {
+            true => {
+                format!(
+                    "{}Function<{}{}{}>{}",
+                    colors::FG_CYAN,
+                    colors::FG_YELLOW,
+                    string,
+                    colors::FG_CYAN,
+                    colors::COLOR_RESET
+                )
+            }
+            false => format!("Function<{}>", string),
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -61,6 +87,18 @@ impl NativeFunction {
 impl RuntimeValueUtils for NativeFunction {
     fn type_name(&self) -> &str {
         "native_function"
+    }
+
+    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
+        Ok(match color {
+            true => format!(
+                "{}{}{}",
+                colors::FG_CYAN,
+                "NativeFunction<>",
+                colors::COLOR_RESET
+            ),
+            false => "NativeFunction<>".to_string(),
+        })
     }
 }
 

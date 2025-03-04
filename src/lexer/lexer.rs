@@ -159,6 +159,8 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                     "finally" => TokenType::Finally,
                     "throw" => TokenType::Throw,
 
+                    "is" => TokenType::Is,
+
                     "import" => TokenType::Import,
                     "export" => TokenType::Export,
                     "as" => TokenType::As,

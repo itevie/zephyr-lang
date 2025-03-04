@@ -26,7 +26,7 @@ fn main() {
     println!(
         "{}",
         match run(&file_name) {
-            Ok(ok) => match ok.to_string() {
+            Ok(ok) => match ok.to_string(true, true, true) {
                 Ok(ok) => ok,
                 Err(err) => err.visualise(),
             },

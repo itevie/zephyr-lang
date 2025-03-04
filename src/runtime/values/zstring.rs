@@ -29,4 +29,28 @@ impl RuntimeValueUtils for ZString {
             .map(|v| ZString::new(v.to_string()))
             .collect::<Vec<RuntimeValue>>())
     }
+
+    fn to_string(
+        &self,
+        is_display: bool,
+        color: bool,
+    ) -> Result<String, crate::errors::ZephyrError> {
+        let mut res = if is_display { "\"" } else { "" }.to_string();
+
+        res.push_str(&self.value);
+
+        if is_display {
+            res.push_str("\"");
+        }
+
+        Ok(match color {
+            true => format!(
+                "{}{}{}",
+                crate::util::colors::FG_YELLOW,
+                res,
+                crate::util::colors::COLOR_RESET
+            ),
+            false => res,
+        })
+    }
 }

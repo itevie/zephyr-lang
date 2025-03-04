@@ -88,6 +88,28 @@ impl Interpreter {
             args.insert(0, *val.clone());
         }
 
+        let left_clone = left.clone();
+        let tag_lock = left_clone.options().tags.lock().unwrap();
+        if let Some(enum_id) = tag_lock.get("__enum_base").cloned() {
+            if args.len() > 1 {
+                return Err(ZephyrError {
+                    code: ErrorCode::TypeError,
+                    message: "Expected 1 or 0 arguments for enum variant".to_string(),
+                    location: Some(expr.location.clone()),
+                });
+            }
+
+            let null_value = values::Null::new();
+            let value = args.get(0).unwrap_or(&null_value);
+            value
+                .options()
+                .tags
+                .lock()
+                .unwrap()
+                .insert("__enum_variant".to_string(), enum_id.clone());
+            return Ok(value.clone());
+        }
+
         match left {
             RuntimeValue::Function(func) => {
                 self.run_function(FunctionType::Function(func), args, expr.location)

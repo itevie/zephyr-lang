@@ -10,6 +10,7 @@ pub mod events;
 pub mod fs;
 pub mod module;
 pub mod proto;
+pub mod tags;
 pub mod test;
 
 pub fn all() -> Vec<(String, RuntimeValue)> {
@@ -22,6 +23,7 @@ pub fn all() -> Vec<(String, RuntimeValue)> {
         .chain(basics::all().iter().cloned())
         .chain(fs::all().iter().cloned())
         .chain(module::all().iter().cloned())
+        .chain(tags::all().iter().cloned())
         .collect()
 }
 

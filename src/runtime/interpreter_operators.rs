@@ -45,7 +45,7 @@ impl Interpreter {
             RuntimeValue::ZString(ref left_value) => match expr.t {
                 // string + *
                 TokenType::Additive(tokens::Additive::Plus) => Some(values::ZString::new(
-                    left_value.value.clone() + &right.to_string()?,
+                    left_value.value.clone() + &right.to_string(false, false, false)?,
                 )),
                 _ => None,
             },
@@ -102,5 +102,29 @@ impl Interpreter {
                 _ => unreachable!(),
             }
         }
+    }
+
+    pub fn run_is(&mut self, expr: nodes::Is) -> R {
+        let left = self.run(*expr.left)?;
+
+        Ok(values::Boolean::new(match expr.right {
+            nodes::IsType::Basic(_right) => {
+                let right = self.run(*_right)?;
+
+                // Check for __enum_base
+                let right_tags = right.options().tags.lock().unwrap();
+                if let Some(enum_id) = right_tags.get("__enum_base").cloned() {
+                    let left_tags = left.options().tags.lock().unwrap();
+                    if let Some(value_id) = left_tags.get("__enum_variant").cloned() {
+                        value_id == enum_id
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+            _ => todo!(),
+        }))
     }
 }
