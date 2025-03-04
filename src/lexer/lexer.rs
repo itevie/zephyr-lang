@@ -33,6 +33,45 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                 continue;
             }
 
+            '/' => {
+                if let Some(next_char) = chars.peek() {
+                    match next_char {
+                        '/' => {
+                            // Single-line comment
+                            while let Some(c) = chars.next() {
+                                if c == '\n' {
+                                    break;
+                                }
+                            }
+                            current_line += 1;
+                            current_char = 0;
+                            continue;
+                        }
+                        '*' => {
+                            chars.next();
+                            while let Some(c) = chars.next() {
+                                if c == '*' {
+                                    if let Some('/') = chars.peek() {
+                                        chars.next();
+                                        break;
+                                    }
+                                }
+                                if c == '\n' {
+                                    current_line += 1;
+                                    current_char = 0;
+                                }
+                            }
+                            current_char += 2;
+                            continue;
+                        }
+                        _ => {}
+                    }
+                }
+                current_token = Some(TokenType::Multiplicative(Multiplicative::Divide));
+                current_length = 1;
+                current_value = char.to_string();
+            }
+
             _ if char.is_numeric() => {
                 let mut value = char.to_string();
                 while chars.peek().unwrap_or(&'n').is_numeric() {
