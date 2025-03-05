@@ -7,35 +7,34 @@ pub enum Node {
     Block(Block),
     ExportedBlock(ExportedBlock),
 
-    Number(Number),
-    ZString(ZString),
-    Symbol(Symbol),
-    Array(Array),
-    Object(Object),
-    Function(Function),
-
-    If(If),
-    Match(Match),
-
-    WhileLoop(WhileLoop),
-    Interrupt(Interrupt),
-    For(For),
-
-    Import(Import),
+    Assign(Assign),
+    Declare(Declare),
     Export(Export),
+    For(For),
+    If(If),
+    Import(Import),
+    Interrupt(Interrupt),
+    Match(Match),
+    WhileLoop(WhileLoop),
 
     Arithmetic(Arithmetic),
-    Comp(Comp),
-    Declare(Declare),
-    Assign(Assign),
     Call(Call),
-    Member(Member),
-    Unary(Unary),
-    Range(Range),
-    Is(Is),
-    Enum(Enum),
-
+    Comp(Comp),
     DebugNode(DebugNode),
+    EncapsulateError(EncapsulateError),
+    PropogateError(PropogateError),
+    Enum(Enum),
+    Function(Function),
+    Is(Is),
+    Member(Member),
+    Range(Range),
+    Unary(Unary),
+
+    Array(Array),
+    Number(Number),
+    Symbol(Symbol),
+    Object(Object),
+    ZString(ZString),
 }
 
 impl Node {
@@ -44,34 +43,34 @@ impl Node {
             Node::Block(v) => &v.location,
             Node::ExportedBlock(v) => &v.location,
 
-            Node::Number(v) => &v.location,
-            Node::ZString(v) => &v.location,
-            Node::Symbol(v) => &v.location,
-            Node::Function(v) => &v.location,
-            Node::Array(v) => &v.location,
-            Node::Object(v) => &v.location,
-
-            Node::If(v) => &v.location,
-            Node::Match(v) => &v.location,
-
-            Node::WhileLoop(v) => &v.location,
-            Node::For(v) => &v.location,
-            Node::Interrupt(v) => &v.location,
-
-            Node::Import(v) => &v.location,
+            Node::Assign(v) => &v.location,
+            Node::Declare(v) => &v.location,
             Node::Export(v) => &v.location,
+            Node::For(v) => &v.location,
+            Node::If(v) => &v.location,
+            Node::Import(v) => &v.location,
+            Node::Interrupt(v) => &v.location,
+            Node::Match(v) => &v.location,
+            Node::WhileLoop(v) => &v.location,
 
             Node::Arithmetic(v) => &v.location,
-            Node::Comp(v) => &v.location,
-            Node::Declare(v) => &v.location,
-            Node::Assign(v) => &v.location,
             Node::Call(v) => &v.location,
-            Node::Member(v) => &v.location,
-            Node::Unary(v) => &v.location,
-            Node::Range(v) => &v.location,
+            Node::Comp(v) => &v.location,
             Node::DebugNode(v) => &v.location,
-            Node::Is(v) => &v.location,
+            Node::EncapsulateError(v) => &v.location,
+            Node::PropogateError(v) => &v.location,
             Node::Enum(v) => &v.location,
+            Node::Function(v) => &v.location,
+            Node::Is(v) => &v.location,
+            Node::Member(v) => &v.location,
+            Node::Range(v) => &v.location,
+            Node::Unary(v) => &v.location,
+
+            Node::Array(v) => &v.location,
+            Node::Number(v) => &v.location,
+            Node::Object(v) => &v.location,
+            Node::Symbol(v) => &v.location,
+            Node::ZString(v) => &v.location,
         }
     }
 }
@@ -322,5 +321,17 @@ pub struct Is {
 pub struct Enum {
     pub name: Symbol,
     pub values: Vec<(Symbol, String)>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct EncapsulateError {
+    pub left: Box<Node>,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct PropogateError {
+    pub left: Box<Node>,
     pub location: Location,
 }

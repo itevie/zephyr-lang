@@ -19,7 +19,13 @@ impl Interpreter {
         if !expr.computed {
             let key = match *expr.right {
                 Node::Symbol(sym) => sym.value,
-                _ => unreachable!(),
+                _ => {
+                    return Err(ZephyrError {
+                        message: "Expected a symbol".to_string(),
+                        code: ErrorCode::TypeError,
+                        location: Some(expr.location),
+                    })
+                }
             };
 
             return self.member_check_basic(left.clone(), key, set);

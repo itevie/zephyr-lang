@@ -34,6 +34,7 @@ pub enum ErrorCode {
     Break,
     Continue,
     Return(Option<RuntimeValue>),
+    ReturnError,
 }
 
 #[derive(Debug, Clone)]
@@ -48,7 +49,11 @@ impl ZephyrError {
         let mut string = format!(
             "{}{:?} error: {}{}",
             util::colors::FG_RED,
-            self.code,
+            if matches!(self.code, ErrorCode::Return(_)) {
+                ErrorCode::ReturnError
+            } else {
+                self.code.clone()
+            },
             self.message,
             util::colors::COLOR_RESET
         );

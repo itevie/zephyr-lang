@@ -17,12 +17,14 @@ pub enum TokenType {
     CloseBrace,
     Comma,
     Dot,
+    DotOptional,
     Colon,
     Semicolon,
     QuestionMark,
     Arrow,
     Range,
     RangeInclusive,
+    ShortCircuit,
 
     EOF,
 

@@ -22,6 +22,7 @@ use crate::{
 };
 
 pub mod interpreter_conditionals;
+pub mod interpreter_errors;
 pub mod interpreter_functions;
 pub mod interpreter_helper;
 pub mod interpreter_imports;
@@ -126,6 +127,7 @@ impl Interpreter {
             include_lib!("./lib/arrays.zr"),
             include_lib!("./lib/fs.zr"),
             include_lib!("./lib/module.zr"),
+            include_lib!("./lib/result.zr"),
         ];
 
         for lib in library_files {
@@ -148,7 +150,7 @@ impl Interpreter {
                     },
                     _ => panic!(),
                 })
-                .unwrap();
+                .unwrap_or_else(|e| panic!("{}", e._visualise(lib.0.to_string())));
             std::mem::swap(&mut interpreter.scope, &mut lib_scope.clone());
 
             let finished_scope = lib_scope.lock().unwrap();
@@ -213,6 +215,10 @@ impl Interpreter {
             // ----- loops -----
             Node::WhileLoop(expr) => self.run_while(expr),
             Node::For(expr) => self.run_for(expr),
+
+            // ----- errors -----
+            Node::PropogateError(expr) => self.run_propogate_error(expr),
+            Node::EncapsulateError(expr) => self.run_encapsulate_error(expr),
 
             // ----- operators -----
             Node::Arithmetic(expr) => self.run_arithmetic(expr),

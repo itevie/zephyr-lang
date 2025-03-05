@@ -18,3 +18,17 @@ if value is Result.Err {
 } else {
   print(value);
 }
+
+/*let value = returns_result(1, 0).^; // this is now the ok 
+let value = returns_exception(1, 0)!; // this is now the result
+let value = returns_exception(1, 0)!.^; // this is now the ok 
+
+let value = returns_reslt(1, 0).^;
+let value = catch { returns_exception(1, 0); };
+let value = catch { returns_exception(1, 0); }.^;
+let value = catch { a.b.c; }; // Used for turning object access into Result<>
+
+let value = returns_result(1).^;
+let value = returns_exception(1)!;
+let value = returns_exception(1)!.^;
+let value = a.b.c!.^;*/

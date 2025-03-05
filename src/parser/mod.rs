@@ -864,7 +864,7 @@ impl Parser {
             }));
         }
 
-        let value = self.call()?;
+        let value = self.call_member_new()?;
 
         if matches!(self.at().t, TokenType::Unary(_)) {
             let token = self.eat();
@@ -874,7 +874,7 @@ impl Parser {
                 _ => unreachable!(),
             };
 
-            let value = self.call()?;
+            let value = self.call_member_new()?;
 
             return Ok(Node::Unary(nodes::Unary {
                 t,
@@ -887,7 +887,143 @@ impl Parser {
         return Ok(value);
     }
 
-    pub fn call(&mut self) -> NR {
+    // Possiblities:
+    // symbol.symbol2         => MEMBER: left = symbol, right = symbol2
+    // symbol[symbol2]        => MEMBER: left = symbol, right = symbol2, computed = true
+    // symbol?.symbol2        => MEMBER: left = symbol, right = symbol2, optional = true
+    // symbol?.[symbol2]      => MEMBER: left = symbol, right = symbol2, optional = true, computed = true
+    // symbol()               => CALL: left = symbol, args = []
+    // symbol().symbol2       => MEMBER: left = (CALL: left = symbol, args = []), right = symbol2
+    // symbol()?.symbol2      => MEMBER: left = (CALL: left = symbol, args = []), right = symbol2, optional = true
+    // symbol()[symbol2]      => MEMBER: left = (CALL: left = symbol, args = []), right = symbol2, computed = true
+    // symbol()?.[symbol2]    => MEMBER: left = (CALL: left = symbol, args = []), right = symbol2, optional = true, computed = true
+    // [any of the above]!
+    // [any of the above].^
+
+    pub fn call_member_new(&mut self) -> NR {
+        let mut left = self.literal()?;
+
+        let check = |x: Token| -> bool {
+            matches!(x.t, TokenType::Dot)
+                || matches!(x.t, TokenType::OpenSquare)
+                || matches!(x.t, TokenType::DotOptional)
+                || matches!(x.t, TokenType::OpenParan)
+                || matches!(x.t, TokenType::OpenSquare)
+        };
+
+        while check(self.at().clone()) {
+            // Check for left()
+            if matches!(self.at().t, TokenType::OpenParan) {
+                let token = self.eat();
+                let mut arguments: Vec<Box<Node>> = vec![];
+
+                // Collect arguments
+                while !matches!(self.at().t, TokenType::CloseParan)
+                    && !matches!(self.at().t, TokenType::EOF)
+                {
+                    arguments.push(Box::from(self.expression()?));
+                    if let TokenType::Comma = self.at().t {
+                        self.eat();
+                    } else {
+                        break;
+                    }
+                }
+
+                // Expect )
+                self.expect(
+                    discriminant(&TokenType::CloseParan),
+                    ZephyrError {
+                        code: ErrorCode::UnexpectedToken,
+                        message: "Expected closing paran for call".to_string(),
+                        location: Some(token.location.clone()),
+                    },
+                )?;
+
+                // left = left(args)
+                left = Node::Call(nodes::Call {
+                    left: Box::from(left),
+                    args: arguments,
+                    location: token.location,
+                });
+            } else {
+                // Member
+                let (optional, optional_token) = if matches!(self.at().t, TokenType::DotOptional) {
+                    (true, Some(self.eat()))
+                } else {
+                    (false, None)
+                };
+
+                let (computed, token) = if matches!(self.at().t, TokenType::OpenSquare) {
+                    (true, self.eat())
+                } else {
+                    (
+                        false,
+                        if optional {
+                            optional_token.unwrap()
+                        } else {
+                            self.eat()
+                        },
+                    )
+                };
+
+                let right = if computed {
+                    self.expression()?
+                } else {
+                    match self.at().t {
+                        TokenType::Symbol => Node::Symbol(Parser::make_symbol(self.eat())),
+                        _ => {
+                            return Err(ZephyrError {
+                                message: "Expected symbol for member expression".to_string(),
+                                code: ErrorCode::UnexpectedToken,
+                                location: Some(self.at().location.clone()),
+                            })
+                        }
+                    }
+                };
+
+                if computed {
+                    self.expect(
+                        discriminant(&TokenType::CloseSquare),
+                        ZephyrError {
+                            code: ErrorCode::UnexpectedToken,
+                            message: "Expected closing of computed key".to_string(),
+                            location: Some(self.at().location.clone()),
+                        },
+                    )?;
+                }
+
+                left = Node::Member(nodes::Member {
+                    left: Box::from(left),
+                    right: Box::from(right),
+                    optional,
+                    computed,
+                    location: token.location,
+                });
+            }
+
+            // Check for !
+            if matches!(self.at().t, TokenType::Unary(Unary::Not)) {
+                let token = self.eat();
+                left = Node::EncapsulateError(nodes::EncapsulateError {
+                    left: Box::from(left),
+                    location: token.location,
+                });
+            }
+
+            // Check for .^
+            if matches!(self.at().t, TokenType::ShortCircuit) {
+                let token = self.eat();
+                left = Node::PropogateError(nodes::PropogateError {
+                    left: Box::from(left),
+                    location: token.location,
+                });
+            }
+        }
+
+        Ok(left)
+    }
+
+    /*pub fn call(&mut self) -> NR {
         let mut left = self.member()?;
 
         while let TokenType::OpenParan = self.at().t {
@@ -1019,7 +1155,7 @@ impl Parser {
         }
 
         Ok(left)
-    }
+    }*/
 
     pub fn literal(&mut self) -> NR {
         match self.at().t {
