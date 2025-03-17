@@ -8,7 +8,7 @@ use crate::{
     lexer::tokens::Location,
 };
 
-use super::values::{self, RuntimeValue};
+use super::values::{self, RuntimeValue, RuntimeValueUtils};
 
 static PROTOTYPE_STORE: OnceLock<Mutex<HashMap<String, usize>>> = OnceLock::new();
 
@@ -51,13 +51,16 @@ impl Scope {
             variables: HashMap::from([
                 (
                     "true".to_string(),
-                    Variable::from(values::Boolean::new(true)),
+                    Variable::from(values::Boolean::new(true).wrap()),
                 ),
                 (
                     "false".to_string(),
-                    Variable::from(values::Boolean::new(false)),
+                    Variable::from(values::Boolean::new(false).wrap()),
                 ),
-                ("null".to_string(), Variable::from(values::Null::new())),
+                (
+                    "null".to_string(),
+                    Variable::from(values::Null::new().wrap()),
+                ),
             ]),
             scope_type: ScopeType::Normal,
             file_name: file_name,
@@ -167,6 +170,7 @@ impl PrototypeStore {
                 make_proto!("array"),
                 make_proto!("object"),
                 make_proto!("event_emitter"),
+                make_proto!("any"),
             ]))
         });
     }

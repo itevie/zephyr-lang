@@ -96,7 +96,7 @@ impl ZephyrError {
                 }
             }
 
-            return self._visualise(file_contents.unwrap());
+            return self._visualise(file_contents.unwrap_or("<no file provided>".to_string()));
         }
 
         return self._visualise("<no location>".to_string());

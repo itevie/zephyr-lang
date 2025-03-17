@@ -1,6 +1,6 @@
 use crate::runtime::{
     native::add_native,
-    values::{self, FunctionType, RuntimeValue},
+    values::{self, FunctionType, RuntimeValue, RuntimeValueUtils},
     R,
 };
 
@@ -18,7 +18,7 @@ pub fn add_listener(ctx: NativeExecutionContext) -> R {
             let func = FunctionType::from(val.clone())?;
             event.add_listener(string.value.clone(), func, ctx.location)?;
 
-            Ok(values::Null::new())
+            Ok(values::Null::new().wrap())
         }
         _ => Err(make_no_args_error(ctx.location)),
     }

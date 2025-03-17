@@ -1,6 +1,6 @@
 use crate::runtime::{
     native::add_native,
-    values::{self, RuntimeValue},
+    values::{self, RuntimeValue, RuntimeValueUtils},
     R,
 };
 
@@ -14,9 +14,9 @@ pub fn all() -> Vec<(String, RuntimeValue)> {
 
 pub fn file_exists(ctx: NativeExecutionContext) -> R {
     match &ctx.args[..] {
-        [RuntimeValue::ZString(path)] => Ok(values::Boolean::new(
-            fs::metadata(path.value.clone()).is_ok(),
-        )),
+        [RuntimeValue::ZString(path)] => {
+            Ok(values::Boolean::new(fs::metadata(path.value.clone()).is_ok()).wrap())
+        }
         _ => Err(make_no_args_error(ctx.location)),
     }
 }

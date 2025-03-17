@@ -8,16 +8,20 @@ pub struct Null {
 }
 
 impl Null {
-    pub fn new() -> RuntimeValue {
-        RuntimeValue::Null(Null {
+    pub fn new() -> Self {
+        Null {
             options: RuntimeValueDetails::default(),
-        })
+        }
     }
 }
 
 impl RuntimeValueUtils for Null {
     fn type_name(&self) -> &str {
         "null"
+    }
+
+    fn wrap(&self) -> RuntimeValue {
+        RuntimeValue::Null(self.clone())
     }
 
     fn to_string(

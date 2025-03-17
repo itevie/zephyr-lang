@@ -15,7 +15,11 @@ use crate::{
     runtime::{scope::Variable, values::Reference, Module},
 };
 
-use super::{scope::Scope, values, Interpreter, R};
+use super::{
+    scope::Scope,
+    values::{self, RuntimeValueUtils},
+    Interpreter, R,
+};
 
 impl Interpreter {
     pub fn run_export(&mut self, node: nodes::Export) -> R {
@@ -46,7 +50,7 @@ impl Interpreter {
             _ => panic!("Cannot handle this yet"),
         };
 
-        Ok(values::Null::new())
+        Ok(values::Null::new().wrap())
     }
 
     pub fn run_import(&mut self, node: nodes::Import) -> R {
@@ -150,11 +154,11 @@ impl Interpreter {
 
             self.scope.lock().unwrap().insert(
                 t.1,
-                Variable::from(Reference::new_export(scope.0.clone(), t.0)),
+                Variable::from(Reference::new_export(scope.0.clone(), t.0).wrap()),
                 Some(node.location.clone()),
             )?;
         }
 
-        return Ok(values::Null::new());
+        return Ok(values::Null::new().wrap());
     }
 }

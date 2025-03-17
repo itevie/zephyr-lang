@@ -1,6 +1,6 @@
 use crate::runtime::{
     native::add_native,
-    values::{self, RuntimeValue},
+    values::{self, RuntimeValue, RuntimeValueUtils},
     R,
 };
 
@@ -17,7 +17,7 @@ pub fn all() -> Vec<(String, RuntimeValue)> {
 
 pub fn filename(ctx: NativeExecutionContext) -> R {
     match &ctx.args[..] {
-        [] => Ok(values::ZString::new(ctx.file_name.clone())),
+        [] => Ok(values::ZString::new(ctx.file_name.clone()).wrap()),
         _ => Err(make_no_args_error(ctx.location)),
     }
 }
@@ -31,7 +31,8 @@ pub fn dirname(ctx: NativeExecutionContext) -> R {
                 .to_str()
                 .unwrap()
                 .to_string(),
-        )),
+        )
+        .wrap()),
         _ => Err(make_no_args_error(ctx.location)),
     }
 }

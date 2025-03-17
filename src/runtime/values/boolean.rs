@@ -9,17 +9,21 @@ pub struct Boolean {
 }
 
 impl Boolean {
-    pub fn new(value: bool) -> RuntimeValue {
-        RuntimeValue::Boolean(Boolean {
+    pub fn new(value: bool) -> Self {
+        Boolean {
             value,
             options: RuntimeValueDetails::default(),
-        })
+        }
     }
 }
 
 impl RuntimeValueUtils for Boolean {
     fn type_name(&self) -> &str {
         "boolean"
+    }
+
+    fn wrap(&self) -> RuntimeValue {
+        RuntimeValue::Boolean(self.clone())
     }
 
     fn to_string(

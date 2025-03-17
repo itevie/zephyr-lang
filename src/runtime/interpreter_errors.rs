@@ -3,7 +3,10 @@ use crate::{
     parser::nodes,
 };
 
-use super::{values, Interpreter, R};
+use super::{
+    values::{self, RuntimeValueUtils},
+    Interpreter, R,
+};
 
 impl Interpreter {
     pub fn run_encapsulate_error(&mut self, expr: nodes::EncapsulateError) -> R {
@@ -19,11 +22,11 @@ impl Interpreter {
             }
             Err(err) => {
                 let string = values::ZString::new(err.message);
-                string.options().tags.lock().unwrap().insert(
+                string.options.tags.lock().unwrap().insert(
                     "__enum_variant".to_string(),
                     "Result.Err__Zephyr".to_string(),
                 );
-                string
+                string.wrap()
             }
         })
     }

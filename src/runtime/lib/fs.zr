@@ -2,6 +2,6 @@ func exists(path) {
   __zephyr_native.file_exists(path);
 }
 
-export const fs = .{
+export const Fs = .{
   exists,
 };

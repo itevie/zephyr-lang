@@ -1,7 +1,11 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    mpsc::{channel, Receiver, Sender},
+    Arc, Mutex,
+};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
+    lexer::tokens::Location,
     parser::nodes,
     runtime::{native::NativeExecutionContext, scope::Scope, R},
     util::colors,
@@ -43,6 +47,10 @@ impl RuntimeValueUtils for Function {
         "function"
     }
 
+    fn wrap(&self) -> RuntimeValue {
+        RuntimeValue::Function(self.clone())
+    }
+
     fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
         let string = format!(
             "{}",
@@ -76,17 +84,21 @@ pub struct NativeFunction {
 }
 
 impl NativeFunction {
-    pub fn new(f: Arc<dyn Fn(NativeExecutionContext) -> R + Send + Sync>) -> RuntimeValue {
-        RuntimeValue::NativeFunction(NativeFunction {
+    pub fn new(f: Arc<dyn Fn(NativeExecutionContext) -> R + Send + Sync>) -> Self {
+        NativeFunction {
             func: f,
             options: RuntimeValueDetails::default(),
-        })
+        }
     }
 }
 
 impl RuntimeValueUtils for NativeFunction {
     fn type_name(&self) -> &str {
         "native_function"
+    }
+
+    fn wrap(&self) -> RuntimeValue {
+        RuntimeValue::NativeFunction(self.clone())
     }
 
     fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
@@ -105,5 +117,40 @@ impl RuntimeValueUtils for NativeFunction {
 impl std::fmt::Debug for NativeFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "NativeFunction")
+    }
+}
+
+pub struct MspcSenderOptions {
+    args: Vec<RuntimeValue>,
+    location: Location,
+}
+
+#[derive(Clone, Debug)]
+pub struct MspcSender {
+    pub options: RuntimeValueDetails,
+    pub sender: Sender<MspcSenderOptions>,
+}
+
+impl MspcSender {
+    pub fn new(sender: Sender<MspcSenderOptions>) -> Self {
+        Self {
+            sender,
+            options: RuntimeValueDetails::default(),
+        }
+    }
+
+    pub fn new_handled() -> (Receiver<MspcSenderOptions>, Self) {
+        let (tx, rx) = channel();
+        (rx, Self::new(tx))
+    }
+}
+
+impl RuntimeValueUtils for MspcSender {
+    fn type_name(&self) -> &str {
+        "mspc_sender"
+    }
+
+    fn wrap(&self) -> RuntimeValue {
+        RuntimeValue::MspcSender(self.clone())
     }
 }

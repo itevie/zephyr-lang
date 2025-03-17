@@ -1,13 +1,11 @@
-func test1 {
-  Result.Ok(.{
-    a: func test2 {
-      true
-    }
-  })
-}
+let e = __zephyr_native.create_tcp_stream("dawn.rest:80");
 
-func test2 {
-  let value = test1().^?.a();
-}
+let value = "";
 
-test2();
+e.on("receive", func (m) {
+  value = value + m + "\n";
+});
+
+e.on("close", func {
+  debug value;
+});

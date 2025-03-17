@@ -1,4 +1,4 @@
-export const module = .{
+export const Module = .{
   dirname: __zephyr_native.dirname,
   filename: __zephyr_native.filename
 };

@@ -1,0 +1,9 @@
+let any_proto = __zephyr_native.get_proto_obj("any");
+
+any_proto.set_tag = func (what, tag, value) {
+  debug what;
+  debug tag;
+  debug value;
+  __zephyr_native.set_tag(what, tag, value);
+  what;
+}

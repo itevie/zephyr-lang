@@ -1,13 +1,13 @@
 use std::{
     collections::HashMap,
     sync::{
-        mpsc::{channel, Receiver, Sender},
+        mpsc::{channel, Receiver, Sender, TryRecvError},
         Arc, Mutex,
     },
 };
 
 use scope::{Scope, Variable};
-use values::{FunctionType, Null, RuntimeValue, RuntimeValueDetails};
+use values::{FunctionType, Null, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -105,9 +105,10 @@ impl Interpreter {
             .unwrap()
             .insert(
                 "__zephyr_native".to_string(),
-                Variable::from(values::Object::new_ref(
-                    native::all().iter().cloned().collect::<HashMap<_, _>>(),
-                )),
+                Variable::from(
+                    values::Object::new(native::all().iter().cloned().collect::<HashMap<_, _>>())
+                        .as_ref_val(),
+                ),
                 None,
             )
             .unwrap();
@@ -121,6 +122,7 @@ impl Interpreter {
         };
 
         let library_files: Vec<(&str, &str)> = vec![
+            include_lib!("./lib/any.zr"),
             include_lib!("./lib/events.zr"),
             include_lib!("./lib/basic.zr"),
             include_lib!("./lib/strings.zr"),
@@ -173,22 +175,40 @@ impl Interpreter {
 
         let result = self.run(node);
 
-        if self.thread_count == 0 {
-            return result;
-        }
-
-        while let Ok(value) = rx.recv() {
-            match value {
-                MspcSendType::ThreadCreate => self.thread_count += 1,
-                MspcSendType::ThreadDestroy => self.thread_count -= 1,
-                MspcSendType::ThreadMessage(job) => {
-                    self.run_function(job.func, job.args, NO_LOCATION.clone())?;
+        /*if self.thread_count == 0 {
+            loop {
+                match rx.try_recv() {
+                    Ok(value) => match value {
+                        MspcSendType::ThreadMessage(job) => {
+                            self.run_function(job.func, job.args, NO_LOCATION.clone())?;
+                        }
+                        _ => (),
+                    },
+                    Err(_) => break,
                 }
             }
+            return result;
+        }*/
 
-            if self.thread_count == 0 {
-                break;
-            };
+        loop {
+            match rx.try_recv() {
+                Ok(value) => match value {
+                    MspcSendType::ThreadCreate => self.thread_count += 1,
+                    MspcSendType::ThreadDestroy => self.thread_count -= 1,
+                    MspcSendType::ThreadMessage(job) => {
+                        self.run_function(job.func, job.args, NO_LOCATION.clone())?;
+                    }
+                },
+                Err(TryRecvError::Empty) => {
+                    if self.thread_count == 0 {
+                        break;
+                    }
+                    std::thread::yield_now();
+                }
+                Err(TryRecvError::Disconnected) => {
+                    break;
+                }
+            }
         }
 
         return result;
@@ -355,7 +375,7 @@ impl Interpreter {
                 for i in expr.items {
                     items.push(self.run(*i)?);
                 }
-                Ok(values::Array::new_ref(items))
+                Ok(values::Array::new(items).as_ref_val())
             }
             Node::Object(expr) => {
                 let mut items: HashMap<String, RuntimeValue> = HashMap::new();
@@ -364,13 +384,13 @@ impl Interpreter {
                     items.insert(k, self.run(*v.value)?);
                 }
 
-                Ok(values::Object::new_ref(items))
+                Ok(values::Object::new(items).as_ref_val())
             }
 
             Node::Member(expr) => self.run_member(expr, None),
 
-            Node::Number(expr) => Ok(values::Number::new(expr.value)),
-            Node::ZString(expr) => Ok(values::ZString::new(expr.value)),
+            Node::Number(expr) => Ok(values::Number::new(expr.value).wrap()),
+            Node::ZString(expr) => Ok(values::ZString::new(expr.value).wrap()),
             Node::Symbol(expr) => Ok(
                 match self
                     .scope
@@ -390,7 +410,7 @@ impl Interpreter {
             Node::DebugNode(expr) => {
                 let result = self.run(*expr.node)?;
                 println!("{}", result.to_string(true, true, true).unwrap());
-                return Ok(Null::new());
+                return Ok(Null::new().wrap());
             }
         }
         .map_err(|ref x| {
@@ -495,7 +515,7 @@ impl Interpreter {
                             }
                         }
 
-                        Ok(values::Array::new_ref(items))
+                        Ok(values::Array::new(items).as_ref_val())
                     }
                     _ => {
                         return Err(ZephyrError {

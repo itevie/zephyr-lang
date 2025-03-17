@@ -7,7 +7,8 @@ use crate::{
 
 use super::{
     memory_store::{self, store_get},
-    values::{self, ReferenceType, RuntimeValue, RuntimeValueDetails},
+    scope::PrototypeStore,
+    values::{self, ReferenceType, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils},
     Interpreter, R,
 };
 
@@ -67,7 +68,7 @@ impl Interpreter {
                         }
                     }
 
-                    return Ok(values::Array::new(parts));
+                    return Ok(values::Array::new(parts).wrap());
                 }
                 RuntimeValue::Number(number) => {
                     let iter = left.as_ref_tuple()?.0.iter()?;
@@ -104,8 +105,8 @@ impl Interpreter {
         // - property chain check
 
         if &key == "__proto" {
-            return match value.options().proto {
-                Some(proto) => Ok(values::Reference::new(proto)),
+            return match value.options().proto.lock().unwrap().as_ref() {
+                Some(proto) => Ok(values::Reference::new(*proto).wrap()),
                 None => Err(ZephyrError {
                     message: "The value does not have a prototype".to_string(),
                     code: ErrorCode::UnknownReference,
@@ -123,7 +124,7 @@ impl Interpreter {
                 });
             }
 
-            return Ok(values::Object::new_ref(
+            return Ok(values::Object::new(
                 value
                     .options()
                     .tags
@@ -131,9 +132,10 @@ impl Interpreter {
                     .unwrap()
                     .clone()
                     .iter()
-                    .map(|v| (v.0.clone(), values::ZString::new(v.1.clone())))
+                    .map(|v| (v.0.clone(), values::ZString::new(v.1.clone()).wrap()))
                     .collect::<HashMap<String, RuntimeValue>>(),
-            ));
+            )
+            .as_ref_val());
         }
 
         match value.as_ref_tuple()? {
@@ -152,7 +154,7 @@ impl Interpreter {
                         RuntimeValue::Object(obj),
                     );
 
-                    return Ok(values::Null::new());
+                    return Ok(values::Null::new().wrap());
                 } else if let Some(val) = obj.items.get(&key) {
                     return Ok(val.clone());
                 }
@@ -160,8 +162,16 @@ impl Interpreter {
             _ => (),
         }
 
-        if let Some(proto_ref) = value.as_ref_tuple()?.0.options().proto {
-            let prototype = match store_get(proto_ref) {
+        if let Some(proto_ref) = value
+            .as_ref_tuple()?
+            .0
+            .options()
+            .proto
+            .lock()
+            .unwrap()
+            .as_ref()
+        {
+            let prototype = match store_get(*proto_ref) {
                 RuntimeValue::Object(o) => o,
                 _ => panic!("Expected an object as the prototype."),
             };
@@ -176,6 +186,15 @@ impl Interpreter {
                 return Ok(new_value.clone());
             }
         }
+
+        match store_get(PrototypeStore::get("any".to_string())).as_ref_tuple()? {
+            (RuntimeValue::Object(obj), _) => {
+                if let Some(val) = obj.items.get(&key) {
+                    return Ok(val.clone());
+                }
+            }
+            _ => panic!("Expected an object as the prototype."),
+        };
 
         Err(ZephyrError {
             message: format!("Object does not define property {}", key),

@@ -1,4 +1,5 @@
 pub mod zstring;
+
 pub use zstring::*;
 
 pub mod number;
@@ -31,6 +32,9 @@ pub use object::*;
 pub mod details;
 pub use details::*;
 
+pub mod enum_variant;
+pub use enum_variant::*;
+
 use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::{Comparison, Location},
@@ -40,6 +44,7 @@ use crate::{
 use super::memory_store;
 
 pub trait RuntimeValueUtils {
+    fn wrap(&self) -> RuntimeValue;
     fn type_name(&self) -> &str;
 
     fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
@@ -57,6 +62,14 @@ pub trait RuntimeValueUtils {
             location: None,
         });
     }
+
+    fn as_ref(&self) -> usize {
+        memory_store::allocate(self.wrap())
+    }
+
+    fn as_ref_val(&self) -> RuntimeValue {
+        Reference::new(self.as_ref()).wrap()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -68,10 +81,12 @@ pub enum RuntimeValue {
     Reference(Reference),
     Function(Function),
     NativeFunction(NativeFunction),
+    MspcSender(MspcSender),
     Array(Array),
     Object(Object),
     EventEmitter(EventEmitter),
     RangeValue(RangeValue),
+    EnumVariant(EnumVariant),
 }
 
 macro_rules! run_as_any {
@@ -84,10 +99,12 @@ macro_rules! run_as_any {
             RuntimeValue::Reference($i) => $e,
             RuntimeValue::Function($i) => $e,
             RuntimeValue::NativeFunction($i) => $e,
+            RuntimeValue::MspcSender($i) => $e,
             RuntimeValue::Array($i) => $e,
             RuntimeValue::Object($i) => $e,
             RuntimeValue::EventEmitter($i) => $e,
             RuntimeValue::RangeValue($i) => $e,
+            RuntimeValue::EnumVariant($i) => $e,
         }
     };
 }
@@ -103,35 +120,21 @@ impl RuntimeValue {
 
     /// Gets the options struct no matter what the underlying type is
     pub fn options(&self) -> &RuntimeValueDetails {
-        match self {
-            RuntimeValue::Array(v) => &v.options,
-            RuntimeValue::Boolean(v) => &v.options,
-            RuntimeValue::Function(v) => &v.options,
-            RuntimeValue::NativeFunction(v) => &v.options,
-            RuntimeValue::Null(v) => &v.options,
-            RuntimeValue::Number(v) => &v.options,
-            RuntimeValue::Object(v) => &v.options,
-            RuntimeValue::Reference(v) => &v.options,
-            RuntimeValue::ZString(v) => &v.options,
-            RuntimeValue::EventEmitter(v) => &v.options,
-            RuntimeValue::RangeValue(v) => &v.options,
-        }
+        run_as_any!(self, v, &v.options)
     }
 
     pub fn set_options(&mut self, new: RuntimeValueDetails) -> () {
-        match self {
-            RuntimeValue::Array(v) => v.options = new,
-            RuntimeValue::Boolean(v) => v.options = new,
-            RuntimeValue::Function(v) => v.options = new,
-            RuntimeValue::NativeFunction(v) => v.options = new,
-            RuntimeValue::Null(v) => v.options = new,
-            RuntimeValue::Number(v) => v.options = new,
-            RuntimeValue::Object(v) => v.options = new,
-            RuntimeValue::Reference(v) => v.options = new,
-            RuntimeValue::ZString(v) => v.options = new,
-            RuntimeValue::EventEmitter(v) => v.options = new,
-            RuntimeValue::RangeValue(v) => v.options = new,
-        };
+        run_as_any!(self, v, v.options = new);
+    }
+
+    pub fn unwrap(&mut self) -> Box<dyn RuntimeValueUtils> {
+        run_as_any!(self, v, Box::from(v.clone()))
+    }
+
+    pub fn set_proto(self, id: usize) -> Self {
+        let mut old_options = self.options().proto.lock().unwrap();
+        *old_options = Some(id);
+        self.clone()
     }
 
     /// Converts the value into a string (not display)

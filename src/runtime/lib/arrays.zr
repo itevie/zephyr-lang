@@ -20,3 +20,5 @@ proto.join = func join(what, sep) {
 proto.reverse = func reverse(what) {
   what[-1..=0];
 }
+
+export const Array = proto;

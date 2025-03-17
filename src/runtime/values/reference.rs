@@ -13,6 +13,15 @@ pub enum ReferenceType {
     ModuleExport((Arc<Mutex<Scope>>, Option<String>)),
 }
 
+impl ReferenceType {
+    pub fn as_basic(&self) -> Option<usize> {
+        match self {
+            ReferenceType::Basic(loc) => Some(*loc),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Reference {
     pub options: RuntimeValueDetails,
@@ -20,17 +29,18 @@ pub struct Reference {
 }
 
 impl Reference {
-    pub fn new(location: usize) -> RuntimeValue {
-        RuntimeValue::Reference(Reference {
+    pub fn new(location: usize) -> Self {
+        Reference {
             location: ReferenceType::Basic(location),
             options: RuntimeValueDetails::default(),
-        })
+        }
     }
-    pub fn new_export(scope: Arc<Mutex<Scope>>, ident: Option<String>) -> RuntimeValue {
-        RuntimeValue::Reference(Reference {
+
+    pub fn new_export(scope: Arc<Mutex<Scope>>, ident: Option<String>) -> Self {
+        Reference {
             location: ReferenceType::ModuleExport((scope, ident)),
             options: RuntimeValueDetails::default(),
-        })
+        }
     }
 
     pub fn new_from(value: RuntimeValue) -> RuntimeValue {
@@ -75,6 +85,10 @@ impl Reference {
 impl RuntimeValueUtils for Reference {
     fn type_name(&self) -> &str {
         "reference"
+    }
+
+    fn wrap(&self) -> RuntimeValue {
+        RuntimeValue::Reference(self.clone())
     }
 
     fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {

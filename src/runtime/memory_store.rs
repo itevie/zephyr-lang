@@ -54,20 +54,20 @@ pub fn store_set(index: usize, value: RuntimeValue) -> () {
 
 #[cfg(test)]
 mod tests {
-    use crate::runtime::values;
+    use crate::runtime::values::{self, RuntimeValueUtils};
 
     #[test]
     fn main() {
         // Allocate
         super::initialise_store();
-        let index = super::allocate(values::Null::new());
+        let index = super::allocate(values::Null::new().wrap());
         assert_eq!(index, 0);
 
         // Deallocate
         super::deallocate(index);
 
         // Reallocate
-        let new = super::allocate(values::Null::new());
+        let new = super::allocate(values::Null::new().wrap());
         assert_eq!(new, 0);
     }
 }

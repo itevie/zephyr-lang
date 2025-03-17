@@ -9,17 +9,21 @@ pub struct Number {
 }
 
 impl Number {
-    pub fn new(value: f64) -> RuntimeValue {
-        RuntimeValue::Number(Number {
+    pub fn new(value: f64) -> Self {
+        Number {
             value,
             options: RuntimeValueDetails::with_proto(PrototypeStore::get("object".to_string())),
-        })
+        }
     }
 }
 
 impl RuntimeValueUtils for Number {
     fn type_name(&self) -> &str {
         "number"
+    }
+
+    fn wrap(&self) -> RuntimeValue {
+        RuntimeValue::Number(self.clone())
     }
 
     fn to_string(

@@ -3,3 +3,5 @@ let proto = (__zephyr_native.get_proto_obj("event_emitter"));
 proto.on = func (event, message, f) {
   __zephyr_native.add_event_listener(event, message, f);
 }
+
+export const EventEmitter = proto;

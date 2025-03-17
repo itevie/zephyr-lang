@@ -1,6 +1,9 @@
 use crate::parser::nodes::{self, MatchCaseType};
 
-use super::{values, Interpreter, R};
+use super::{
+    values::{self, RuntimeValueUtils},
+    Interpreter, R,
+};
 
 impl Interpreter {
     pub fn run_if(&mut self, expr: nodes::If) -> R {
@@ -11,7 +14,7 @@ impl Interpreter {
         } else if let Some(alt) = expr.alternate {
             self.run(*alt)
         } else {
-            Ok(values::Null::new())
+            Ok(values::Null::new().wrap())
         }
     }
 
@@ -31,6 +34,6 @@ impl Interpreter {
             }
         }
 
-        Ok(values::Null::new())
+        Ok(values::Null::new().wrap())
     }
 }

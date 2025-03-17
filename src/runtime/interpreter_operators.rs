@@ -5,7 +5,7 @@ use crate::{
 };
 
 use super::{
-    values::{self, RuntimeValue},
+    values::{self, RuntimeValue, RuntimeValueUtils},
     Interpreter, R,
 };
 
@@ -37,7 +37,8 @@ impl Interpreter {
                     left_number.value % right_number.value
                 }
                 _ => unreachable!(),
-            }));
+            })
+            .wrap());
         }
 
         let result = match left {
@@ -53,7 +54,7 @@ impl Interpreter {
         };
 
         match result {
-            Some(ok) => Ok(ok),
+            Some(ok) => Ok(ok.wrap()),
             None => Err(ZephyrError {
                 code: ErrorCode::InvalidOperation,
                 message: format!(
@@ -71,11 +72,7 @@ impl Interpreter {
         let left = self.run(*expr.left)?;
         let right = self.run(*expr.right)?;
 
-        Ok(values::Boolean::new(left.compare_with(
-            right,
-            expr.t,
-            Some(expr.location),
-        )?))
+        Ok(values::Boolean::new(left.compare_with(right, expr.t, Some(expr.location))?).wrap())
     }
 
     pub fn run_unary(&mut self, expr: nodes::Unary) -> R {
@@ -83,10 +80,10 @@ impl Interpreter {
 
         if !expr.is_right {
             match expr.t {
-                UnaryType::LengthOf => Ok(values::Number::new(left.iter()?.len() as f64)),
-                UnaryType::Not => Ok(values::Boolean::new(!left.is_truthy())),
+                UnaryType::LengthOf => Ok(values::Number::new(left.iter()?.len() as f64).wrap()),
+                UnaryType::Not => Ok(values::Boolean::new(!left.is_truthy()).wrap()),
                 UnaryType::Minus => match left {
-                    RuntimeValue::Number(n) => Ok(values::Number::new(-n.value)),
+                    RuntimeValue::Number(n) => Ok(values::Number::new(-n.value).wrap()),
                     x => {
                         return Err(ZephyrError {
                             message: format!("Cannot make {} negative", x.type_name()),
@@ -114,9 +111,12 @@ impl Interpreter {
                 // Check for __enum_base
                 let right_tags = right.options().tags.lock().unwrap();
                 if let Some(enum_id) = right_tags.get("__enum_base").cloned() {
-                    let left_tags = left.options().tags.lock().unwrap();
-                    if let Some(value_id) = left_tags.get("__enum_variant").cloned() {
-                        value_id == enum_id
+                    if let RuntimeValue::EnumVariant(e) = left {
+                        if e.enum_id == enum_id {
+                            true
+                        } else {
+                            false
+                        }
                     } else {
                         false
                     }
@@ -125,6 +125,7 @@ impl Interpreter {
                 }
             }
             _ => todo!(),
-        }))
+        })
+        .wrap())
     }
 }

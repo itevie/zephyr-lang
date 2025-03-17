@@ -48,8 +48,16 @@ impl RuntimeValueUtils for RangeValue {
         "range"
     }
 
+    fn wrap(&self) -> RuntimeValue {
+        RuntimeValue::RangeValue(self.clone())
+    }
+
     fn iter(&self) -> Result<Vec<RuntimeValue>, ZephyrError> {
-        Ok(self.iter_f64()?.iter().map(|x| Number::new(*x)).collect())
+        Ok(self
+            .iter_f64()?
+            .iter()
+            .map(|x| Number::new(*x).wrap())
+            .collect())
     }
 
     fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {

@@ -7,7 +7,7 @@ use crate::{
 
 use super::{
     scope::Variable,
-    values::{self, RuntimeValue},
+    values::{self, RuntimeValue, RuntimeValueUtils},
     Interpreter, R,
 };
 
@@ -16,7 +16,7 @@ impl Interpreter {
         let value = if let Some(e) = expr.value {
             self.run(*e)?
         } else {
-            values::Null::new()
+            values::Null::new().wrap()
         };
 
         match expr.assignee {
@@ -93,25 +93,38 @@ impl Interpreter {
     pub fn run_enum(&mut self, expr: nodes::Enum) -> R {
         let mut items: HashMap<String, RuntimeValue> = HashMap::new();
 
+        let proto = values::Object::new(HashMap::new())
+            .as_ref_val()
+            .as_ref_tuple()?
+            .1
+            .unwrap()
+            .location
+            .as_basic()
+            .unwrap();
+
         for (key, value) in expr.values {
             let val = values::ZString::new("".to_string());
-            val.options()
+            val.options.proto.lock().unwrap().replace(proto);
+            val.options
                 .tags
                 .lock()
                 .unwrap()
                 .insert("__enum_base".to_string(), value.clone());
-            items.insert(key.value, val);
+            items.insert(key.value, val.wrap());
         }
+
+        let obj = values::Object::new(items).as_ref_val();
+        obj.options().proto.lock().unwrap().replace(proto);
 
         self.scope.lock().unwrap().insert(
             expr.name.value,
             Variable {
                 is_const: true,
-                value: values::Object::new_ref(items),
+                value: obj,
             },
             Some(expr.name.location.clone()),
         )?;
 
-        Ok(values::Null::new())
+        Ok(values::Null::new().wrap())
     }
 }

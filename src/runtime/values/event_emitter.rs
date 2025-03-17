@@ -20,23 +20,23 @@ pub struct EventEmitter {
 }
 
 impl EventEmitter {
-    pub fn new(events: Vec<String>) -> Self {
+    pub fn new(events: Vec<&str>) -> Self {
         EventEmitter {
             options: RuntimeValueDetails::with_proto(PrototypeStore::get(
                 "event_emitter".to_string(),
             )),
-            defined_events: events,
+            defined_events: events.iter().map(|x| x.to_string()).collect(),
             listeners: Arc::from(Mutex::from(HashMap::new())),
         }
     }
 
     pub fn emit_from_thread(
         &self,
-        message: String,
+        message: &str,
         args: Vec<RuntimeValue>,
         sender: &mut MspcChannel,
     ) -> () {
-        if let Some(listeners) = self.listeners.lock().unwrap().get(&message) {
+        if let Some(listeners) = self.listeners.lock().unwrap().get(&message.to_string()) {
             let parts = listeners.lock().unwrap();
             for part in parts.iter() {
                 sender.thread_message(Job {
@@ -76,6 +76,10 @@ impl EventEmitter {
 impl RuntimeValueUtils for EventEmitter {
     fn type_name(&self) -> &str {
         "event_emitter"
+    }
+
+    fn wrap(&self) -> RuntimeValue {
+        RuntimeValue::EventEmitter(self.clone())
     }
 
     fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {

@@ -4,7 +4,8 @@ use crate::{errors::ErrorCode, parser::nodes};
 
 use super::{
     scope::{Scope, Variable},
-    values, Interpreter, R,
+    values::{self, RuntimeValueUtils},
+    Interpreter, R,
 };
 
 impl Interpreter {
@@ -20,7 +21,7 @@ impl Interpreter {
             }
         }
 
-        Ok(values::Null::new())
+        Ok(values::Null::new().wrap())
     }
 
     pub fn run_for(&mut self, expr: nodes::For) -> R {
@@ -30,7 +31,7 @@ impl Interpreter {
             let mut scope = Scope::new_from_parent(self.scope.clone());
             scope.insert(
                 expr.index_symbol.value.clone(),
-                Variable::from(values::Number::new(i as f64)),
+                Variable::from(values::Number::new(i as f64).wrap()),
                 Some(expr.index_symbol.location.clone()),
             )?;
 
@@ -47,6 +48,6 @@ impl Interpreter {
             self.swap_scope(old_scope);
         }
 
-        Ok(values::Null::new())
+        Ok(values::Null::new().wrap())
     }
 }

@@ -9,7 +9,7 @@ use crate::{
 use super::{
     native::NativeExecutionContext,
     scope::{Scope, Variable},
-    values::{self, FunctionType, RuntimeValue, RuntimeValueDetails},
+    values::{self, FunctionType, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils},
     Interpreter, R,
 };
 
@@ -37,7 +37,7 @@ impl Interpreter {
                     if i >= args.len() {
                         scope.insert(
                             v.clone(),
-                            Variable::from(values::Null::new()),
+                            Variable::from(values::Null::new().wrap()),
                             Some(location.clone()),
                         )?
                     } else {
@@ -57,7 +57,7 @@ impl Interpreter {
                     if let ErrorCode::Return(Some(val)) = &err.code {
                         return Ok(val.clone());
                     } else if let ErrorCode::Return(None) = &err.code {
-                        return Ok(values::Null::new());
+                        return Ok(values::Null::new().wrap());
                     }
                 }
 
@@ -99,15 +99,21 @@ impl Interpreter {
                 });
             }
 
-            let null_value = values::Null::new();
-            let value = args.get(0).unwrap_or(&null_value);
-            value
-                .options()
-                .tags
-                .lock()
-                .unwrap()
-                .insert("__enum_variant".to_string(), enum_id.clone());
-            return Ok(value.clone());
+            let null_value = values::Null::new().wrap();
+            if let Some(proto) = left_clone.options().proto.lock().unwrap().clone() {
+                return Ok(values::EnumVariant::new(
+                    args.get(0).unwrap_or(&null_value).clone(),
+                    enum_id.clone(),
+                )
+                .wrap()
+                .set_proto(proto));
+            } else {
+                return Ok(values::EnumVariant::new(
+                    args.get(0).unwrap_or(&null_value).clone(),
+                    enum_id.clone(),
+                )
+                .wrap());
+            }
         }
 
         match left {

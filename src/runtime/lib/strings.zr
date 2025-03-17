@@ -36,4 +36,4 @@ proto.reverse = func reverse(what) {
   what[-1..=0].join("");
 }
 
-export let String = proto;
+export const String = proto;

@@ -1,6 +1,6 @@
 use crate::runtime::{
-    native::add_native,
-    values::{self, RuntimeValue},
+    native::{add_native, native_util::handle_thread},
+    values::{self, RuntimeValue, RuntimeValueUtils},
     R,
 };
 
@@ -13,19 +13,13 @@ pub fn all() -> Vec<(String, RuntimeValue)> {
 }
 
 pub fn test(ctx: NativeExecutionContext) -> R {
-    let event = values::EventEmitter::new(vec!["test".to_string()]);
+    let event = values::EventEmitter::new(vec!["test"]);
     let event_2 = event.clone();
-    std::thread::spawn(move || {
-        let mut channel = ctx.interpreter.mspc.unwrap();
-        channel.thread_start();
+    let mut channel = ctx.interpreter.mspc.unwrap();
 
-        event_2.emit_from_thread(
-            "test".to_string(),
-            vec![values::Number::new(4f64)],
-            &mut channel,
-        );
-
-        channel.thread_destroy();
+    handle_thread!(channel, {
+        event_2.emit_from_thread("test", vec![values::Number::new(4f64).wrap()], &mut channel);
     });
+
     return Ok(RuntimeValue::EventEmitter(event.clone()));
 }

@@ -517,7 +517,7 @@ impl Parser {
 
         if let TokenType::OpenParan = self.at().t {
             self.eat();
-            loop {
+            while !matches!(self.at().t, TokenType::CloseParan) {
                 arguments.push(Parser::make_symbol(self.expect(
                     discriminant(&TokenType::Symbol),
                     ZephyrError {
@@ -529,7 +529,6 @@ impl Parser {
 
                 if matches!(self.at().t, TokenType::Comma) {
                     self.eat();
-                    continue;
                 } else {
                     break;
                 }
@@ -1022,140 +1021,6 @@ impl Parser {
 
         Ok(left)
     }
-
-    /*pub fn call(&mut self) -> NR {
-        let mut left = self.member()?;
-
-        while let TokenType::OpenParan = self.at().t {
-            let token = self.eat();
-            let mut arguments: Vec<Box<Node>> = vec![];
-
-            while !matches!(self.at().t, TokenType::CloseParan)
-                && !matches!(self.at().t, TokenType::EOF)
-            {
-                arguments.push(Box::from(self.expression()?));
-                if let TokenType::Comma = self.at().t {
-                    self.eat();
-                    continue;
-                } else {
-                    break;
-                }
-            }
-
-            self.expect(
-                discriminant(&TokenType::CloseParan),
-                ZephyrError {
-                    code: ErrorCode::UnexpectedToken,
-                    message: "Expected end of argument list".to_string(),
-                    location: Some(token.location.clone()),
-                },
-            )?;
-
-            left = Node::Call(nodes::Call {
-                left: Box::from(left),
-                args: arguments,
-                location: token.location,
-            });
-        }
-
-        Ok(left)
-    }
-
-    pub fn member(&mut self) -> NR {
-        let mut left = self.literal()?;
-
-        while matches!(self.at().t, TokenType::Dot)
-            || matches!(self.at().t, TokenType::OpenSquare)
-            || (matches!(self.at().t, TokenType::QuestionMark)
-                && matches!(self.tokens[1].t, TokenType::Dot))
-        {
-            let (token, optional, computed) = if let TokenType::QuestionMark = self.at().t {
-                self.eat();
-                let token = self.eat();
-                if let TokenType::OpenSquare = self.at().t {
-                    (self.eat(), true, true)
-                } else {
-                    (token, true, false)
-                }
-            } else {
-                let token = self.eat();
-                (
-                    token.clone(),
-                    false,
-                    matches!(token.t, TokenType::OpenSquare),
-                )
-            };
-
-            // Check for floating point numbers
-            if matches!(token.t, TokenType::Dot) && matches!(self.at().t, TokenType::Number) {
-                let num_tok = self.eat();
-                if let Node::Number(n) = left {
-                    return Ok(Node::Number(nodes::Number {
-                        value: format!("{}.{}", n.value, num_tok.value)
-                            .parse()
-                            .map_err(|e| ZephyrError {
-                                message: format!("Failed to parse float: {}", e),
-                                code: ErrorCode::InvalidOperation,
-                                location: Some(num_tok.location),
-                            })?,
-                        location: token.location,
-                    }));
-                }
-            }
-
-            let right = if computed {
-                self.expression()?
-            } else {
-                match self.at().t {
-                    TokenType::Symbol => Node::ZString(nodes::ZString {
-                        value: self.at().value.clone(),
-                        location: self.eat().location,
-                    }),
-                    _ => panic!("{:#?}", self.at()),
-                }
-            };
-
-            if computed {
-                self.expect(
-                    discriminant(&TokenType::CloseSquare),
-                    ZephyrError {
-                        code: ErrorCode::UnexpectedToken,
-                        message: "Expected closing of computed key".to_string(),
-                        location: Some(token.location.clone()),
-                    },
-                )?;
-            }
-
-            match right {
-                Node::Member(mem) => {
-                    left = Node::Member(nodes::Member {
-                        left: Box::from(Node::Member(nodes::Member {
-                            left: Box::from(left),
-                            right: mem.left,
-                            optional: mem.optional,
-                            computed: mem.computed,
-                            location: mem.location,
-                        })),
-                        right: mem.right,
-                        optional,
-                        computed,
-                        location: token.location,
-                    })
-                }
-                _ => {
-                    left = Node::Member(nodes::Member {
-                        left: Box::from(left),
-                        right: Box::from(right),
-                        optional,
-                        computed: true,
-                        location: token.location,
-                    })
-                }
-            }
-        }
-
-        Ok(left)
-    }*/
 
     pub fn literal(&mut self) -> NR {
         match self.at().t {

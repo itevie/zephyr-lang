@@ -1,6 +1,6 @@
 use crate::runtime::{
     native::add_native,
-    values::{self, RuntimeValue},
+    values::{self, RuntimeValue, RuntimeValueUtils},
     R,
 };
 
@@ -14,7 +14,7 @@ pub fn all() -> Vec<(String, RuntimeValue)> {
 
 pub fn iter(ctx: NativeExecutionContext) -> R {
     match &ctx.args[..] {
-        [r] => Ok(values::Array::new(r.iter()?)),
+        [r] => Ok(values::Array::new(r.iter()?).wrap()),
         _ => Err(make_no_args_error(ctx.location)),
     }
 }
