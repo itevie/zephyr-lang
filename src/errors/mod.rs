@@ -30,6 +30,7 @@ pub enum ErrorCode {
     InvalidProperty,
     CannotIterate,
     RangeError,
+    ChannelError,
 
     Break,
     Continue,

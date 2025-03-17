@@ -1,1 +1,15 @@
-print("Hello! How are you?".reverse());
+let client = __zephyr_native.create_tcp_stream("dawn.rest:80");
+
+let value = "";
+
+client.event.on("receive", func (m) {
+  value = value + m;
+  print(("Receive " + $m) + " bytes")
+});
+
+client.event.on("close", func () {
+  print(("Received " + $value) + " bytes (allegedly)")
+  print(value);
+});
+
+client.send("GET / HTTP/1.1\r\nHost: dawn.rest\r\nConnection: close\r\n\r\n");

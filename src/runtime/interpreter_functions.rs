@@ -9,7 +9,9 @@ use crate::{
 use super::{
     native::NativeExecutionContext,
     scope::{Scope, Variable},
-    values::{self, FunctionType, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils},
+    values::{
+        self, FunctionType, MspcSenderOptions, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils,
+    },
     Interpreter, R,
 };
 
@@ -73,6 +75,20 @@ impl Interpreter {
 
                 (func.func)(ctx)
             }
+            FunctionType::MspcSender(func) => {
+                func.sender
+                    .send(MspcSenderOptions {
+                        args,
+                        location: location.clone(),
+                    })
+                    .map_err(|_| ZephyrError {
+                        message: format!("Failed to send message through channel"),
+                        code: ErrorCode::ChannelError,
+                        location: Some(location.clone()),
+                    })?;
+
+                Ok(values::Null::new().wrap())
+            }
         }
     }
 
@@ -122,6 +138,9 @@ impl Interpreter {
             }
             RuntimeValue::NativeFunction(func) => {
                 self.run_function(FunctionType::NativeFunction(func), args, expr.location)
+            }
+            RuntimeValue::MspcSender(func) => {
+                self.run_function(FunctionType::MspcSender(func), args, expr.location)
             }
             _ => {
                 return Err(ZephyrError {

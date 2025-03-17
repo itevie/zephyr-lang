@@ -17,6 +17,7 @@ use super::{RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 pub enum FunctionType {
     Function(Function),
     NativeFunction(NativeFunction),
+    MspcSender(MspcSender),
 }
 
 impl FunctionType {
@@ -121,8 +122,8 @@ impl std::fmt::Debug for NativeFunction {
 }
 
 pub struct MspcSenderOptions {
-    args: Vec<RuntimeValue>,
-    location: Location,
+    pub args: Vec<RuntimeValue>,
+    pub location: Location,
 }
 
 #[derive(Clone, Debug)]
@@ -152,5 +153,17 @@ impl RuntimeValueUtils for MspcSender {
 
     fn wrap(&self) -> RuntimeValue {
         RuntimeValue::MspcSender(self.clone())
+    }
+
+    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
+        Ok(match color {
+            true => format!(
+                "{}{}{}",
+                colors::FG_CYAN,
+                "MspcSender<>",
+                colors::COLOR_RESET
+            ),
+            false => "MspcSender<>".to_string(),
+        })
     }
 }

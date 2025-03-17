@@ -92,6 +92,10 @@ impl RuntimeValueUtils for Reference {
     }
 
     fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
-        self.inner()?.to_string(is_display, color, false)
+        Ok(format!(
+            "&{}@{}",
+            self.inner()?.to_string(is_display, color, false)?,
+            self.location.as_basic().unwrap()
+        ))
     }
 }
