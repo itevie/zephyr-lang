@@ -768,6 +768,8 @@ impl Parser {
             // expr = ..(=)expr
             let actual_right = if matches!(self.at().t, TokenType::Symbol)
                 || matches!(self.at().t, TokenType::Number)
+                || matches!(self.at().t, TokenType::Unary(_))
+                || matches!(self.at().t, TokenType::OpenParan)
             {
                 self.additive()?
             } else {

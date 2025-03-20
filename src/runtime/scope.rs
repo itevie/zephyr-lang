@@ -1,6 +1,8 @@
 use std::{
     collections::HashMap,
+    os::unix::raw::time_t,
     sync::{Arc, Mutex, OnceLock},
+    time::Instant,
 };
 
 use crate::{
@@ -8,11 +10,14 @@ use crate::{
     lexer::tokens::Location,
 };
 
-use super::values::{self, RuntimeValue, RuntimeValueUtils};
+use super::{
+    insert_node_timing, time_this,
+    values::{self, RuntimeValue, RuntimeValueUtils},
+};
 
 static PROTOTYPE_STORE: OnceLock<Mutex<HashMap<String, usize>>> = OnceLock::new();
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variable {
     pub is_const: bool,
     pub value: RuntimeValue,
@@ -27,14 +32,14 @@ impl Variable {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ScopeType {
     Normal,
     Global,
     Package,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Scope {
     pub parent: Option<Arc<Mutex<Scope>>>,
     pub variables: HashMap<String, Variable>,
@@ -63,7 +68,7 @@ impl Scope {
                 ),
             ]),
             scope_type: ScopeType::Normal,
-            file_name: file_name,
+            file_name,
         }
     }
 
@@ -87,17 +92,29 @@ impl Scope {
         name: String,
         location: Option<Location>,
     ) -> Result<RuntimeValue, ZephyrError> {
-        if let Some(variable) = self.variables.get(&name) {
-            Ok(variable.value.clone())
-        } else if let Some(ref parent) = self.parent {
-            parent.lock().unwrap().lookup(name, location)
-        } else {
-            Err(ZephyrError {
-                code: ErrorCode::UnknownReference,
-                message: format!("Cannot find variable {} in the current scope", name),
-                location,
-            })
-        }
+        time_this!(
+            "Mini:ScopeLookup".to_string(),
+            (|| {
+                let mut scope = Some(Arc::from(Mutex::from(self.clone())));
+
+                while let Some(s) = scope.clone() {
+                    let lock = s.lock().unwrap();
+                    if let Some(val) = lock.variables.get(&name) {
+                        return Ok(val.value.clone());
+                    }
+
+                    if let Some(ref parent) = lock.parent {
+                        scope = Some(parent.clone());
+                    }
+                }
+
+                Err(ZephyrError {
+                    code: ErrorCode::UnknownReference,
+                    message: format!("Cannot find variable {} in the current scope", name),
+                    location,
+                })
+            })()
+        )
     }
 
     pub fn insert(
@@ -128,26 +145,30 @@ impl Scope {
         value: RuntimeValue,
         location: Option<Location>,
     ) -> Result<(), ZephyrError> {
-        if let Some(variable) = self.variables.get_mut(&name) {
-            if variable.is_const {
-                return Err(ZephyrError {
-                    code: ErrorCode::ConstantAssignment,
-                    message: format!("Variable {} is constant", name),
-                    location,
-                });
-            }
-            variable.value = value;
-        } else if let Some(ref parent) = self.parent {
-            parent.lock().unwrap().modify(name, value, location)?;
-        } else {
-            return Err(ZephyrError {
-                code: ErrorCode::UnknownReference,
-                message: format!("Cannot find variable {} in the current scope", name),
-                location: None,
-            });
-        }
+        time_this!(
+            "Mini:ScopeModify".to_string(),
+            (|| {
+                let mut scope = Some(Arc::from(Mutex::from(self.clone())));
 
-        Ok(())
+                while let Some(s) = scope.clone() {
+                    let mut lock = s.lock().unwrap();
+                    if let Some(val) = lock.variables.get_mut(&name) {
+                        val.value = value;
+                        return Ok(());
+                    }
+
+                    if let Some(ref parent) = lock.parent {
+                        scope = Some(parent.clone());
+                    }
+                }
+
+                Err(ZephyrError {
+                    code: ErrorCode::UnknownReference,
+                    message: format!("Cannot find variable {} in the current scope", name),
+                    location,
+                })
+            })()
+        )
     }
 }
 

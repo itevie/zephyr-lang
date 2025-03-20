@@ -1,7 +1,11 @@
 let proto = __zephyr_native.get_proto_obj("string");
 
 proto.starts_with = func starts_with(value, what) {
-  for i, v in value {
+  if $what > $value {
+    return false;
+  }
+  
+  for i, v in what {
     if value[i] != v {
       return false;
     }

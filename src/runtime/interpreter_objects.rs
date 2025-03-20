@@ -68,7 +68,21 @@ impl Interpreter {
                         }
                     }
 
-                    return Ok(values::Array::new(parts).wrap());
+                    println!("{:?}", left);
+
+                    Ok(match left {
+                        RuntimeValue::ZString(_) => values::ZString::new(
+                            parts
+                                .iter()
+                                .map(|z| match z {
+                                    RuntimeValue::ZString(a) => a.value.clone(),
+                                    _ => unreachable!(),
+                                })
+                                .collect::<String>(),
+                        )
+                        .wrap(),
+                        _ => values::Array::new(parts).wrap(),
+                    })
                 }
                 RuntimeValue::Number(number) => {
                     let iter = left.as_ref_tuple()?.0.iter()?;

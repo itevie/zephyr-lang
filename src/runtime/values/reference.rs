@@ -98,4 +98,8 @@ impl RuntimeValueUtils for Reference {
             self.location.as_basic().unwrap()
         ))
     }
+
+    fn iter(&self) -> Result<Vec<RuntimeValue>, ZephyrError> {
+        (*self.inner()?).iter()
+    }
 }

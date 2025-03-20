@@ -1,9 +1,12 @@
 use std::{
+    cmp::Reverse,
     collections::HashMap,
+    hash::Hash,
     sync::{
         mpsc::{channel, Receiver, Sender, TryRecvError},
-        Arc, Mutex,
+        Arc, LazyLock, Mutex,
     },
+    time::Instant,
 };
 
 use scope::{Scope, Variable};
@@ -95,6 +98,21 @@ pub struct Interpreter {
     pub module_cache: HashMap<String, Arc<Mutex<Module>>>,
     pub mspc: Option<MspcChannel>,
     pub thread_count: usize,
+}
+
+static NODE_TIMINGS: LazyLock<Arc<Mutex<HashMap<String, Vec<u128>>>>> =
+    LazyLock::new(|| Arc::from(Mutex::from(HashMap::new())));
+
+fn format_duration(nanos: u128) -> String {
+    if nanos >= 1_000_000_000 {
+        format!("{:.3} s", nanos as f64 / 1_000_000_000.0) // Convert to seconds
+    } else if nanos >= 1_000_000 {
+        format!("{:.3} ms", nanos as f64 / 1_000_000.0) // Convert to milliseconds
+    } else if nanos >= 1_000 {
+        format!("{:.3} µs", nanos as f64 / 1_000.0) // Convert to microseconds
+    } else {
+        format!("{} ns", nanos) // Keep as nanoseconds
+    }
 }
 
 impl Interpreter {
@@ -211,6 +229,29 @@ impl Interpreter {
             }
         }
 
+        let data = NODE_TIMINGS.lock().unwrap();
+        let mut sorted_vec: Vec<(String, u128)> = data
+            .clone()
+            .into_iter()
+            .map(|(name, values)| {
+                let avg = values.iter().sum::<u128>() / values.len() as u128;
+                (name, avg)
+            })
+            .collect();
+
+        sorted_vec.sort_by_key(|&(_, avg)| Reverse(avg));
+
+        for (key, time) in sorted_vec {
+            println!(
+                "{}: {} ({})",
+                key,
+                format_duration(time),
+                data.get(&key).unwrap().len()
+            );
+        }
+
+        println!("{:?}", data.keys());
+
         return result;
     }
 
@@ -219,7 +260,8 @@ impl Interpreter {
     }
 
     pub fn run(&mut self, node: Node) -> R {
-        match node.clone() {
+        let start = Instant::now();
+        let result = match node.clone() {
             // ----- conditionals -----
             Node::If(expr) => self.run_if(expr),
             Node::Match(expr) => self.run_match(expr),
@@ -419,7 +461,13 @@ impl Interpreter {
                 err.location = Some(node.location().clone())
             }
             err
-        })
+        });
+
+        let done = start.elapsed().as_nanos();
+        let key = format!("Node:{:?}", node).split("(").collect::<Vec<&str>>()[0].to_string();
+        insert_node_timing(key, done);
+
+        result
     }
 
     pub fn member(&mut self, expr: nodes::Member) -> R {
@@ -539,3 +587,26 @@ impl Interpreter {
         }
     }
 }
+
+pub fn insert_node_timing(key: String, time: u128) {
+    let mut lock = NODE_TIMINGS.lock().unwrap();
+    if let Some(val) = lock.get_mut(&key) {
+        val.push(time);
+    } else {
+        lock.insert(key, vec![time]);
+    }
+}
+
+macro_rules! time_this {
+    ($name:expr, $what:expr) => {{
+        let time = Instant::now();
+
+        let result = $what;
+
+        insert_node_timing($name, time.elapsed().as_nanos());
+
+        result
+    }};
+}
+
+pub(crate) use time_this;

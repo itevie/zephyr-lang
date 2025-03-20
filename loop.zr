@@ -1,0 +1,6 @@
+let arr = 0..3000;
+let a = 2;
+for i, v in arr {
+  a = a + i + v;
+}
+a

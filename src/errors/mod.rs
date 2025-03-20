@@ -31,6 +31,8 @@ pub enum ErrorCode {
     CannotIterate,
     RangeError,
     ChannelError,
+    StructMappingError,
+    InvalidArgumentsError,
 
     Break,
     Continue,

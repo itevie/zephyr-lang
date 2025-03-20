@@ -5,16 +5,20 @@ proto.join = func join(what, sep) {
     sep = "";
   }
 
-  let result = "";
+  let value = "";
 
   for i, v in what {
-    result = result + v;
-    if i != $what {
-      result = result + sep;
-    }
+    value = value + v + if i == $what - 1 { "" } else { sep };
   }
 
-  result;
+  value;
+}
+
+proto.reduce = func (what, f, b) {
+  for i, v in what {
+    b = f(b, v, i);
+  }
+  b;
 }
 
 proto.reverse = func reverse(what) {

@@ -35,6 +35,8 @@ pub use details::*;
 pub mod enum_variant;
 pub use enum_variant::*;
 
+pub mod struct_mapping;
+
 use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::{Comparison, Location},

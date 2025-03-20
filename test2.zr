@@ -1,15 +1,16 @@
-let client = __zephyr_native.create_tcp_stream("dawn.rest:80");
-
-let value = "";
-
-client.event.on("receive", func (m) {
-  value = value + m;
-  print(("Receive " + $m) + " bytes")
+let client = __zephyr_native.create_tcp_stream(.{
+  url: "dawn.rest:80",
+  presend: "GET /api/file-list HTTP/1.1\r\nHost: dawn.rest\r\nConnection: close\r\n\r\n",
+  block_till_finished: true,
 });
 
-client.event.on("close", func () {
-  print(("Received " + $value) + " bytes (allegedly)")
-  print(value);
-});
+func read_http(response) {
+  if !response.starts_with("HTTP/") {
+    return Result.Err("Malformed HTTP string");
+  }
 
-client.send("GET / HTTP/1.1\r\nHost: dawn.rest\r\nConnection: close\r\n\r\n");
+  response = response[$"HTTP/"..=(-1)];
+  debug response;
+}
+
+debug (read_http(client));

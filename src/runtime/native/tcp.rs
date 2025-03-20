@@ -1,28 +1,59 @@
+use super::{native_util::handle_thread, NativeExecutionContext};
+use crate::errors::{ErrorCode, ZephyrError};
+use crate::runtime::native::native_util::expect_one_arg;
 use crate::runtime::{
     native::{add_native, make_no_args_error},
-    values::{self, RuntimeValue, RuntimeValueUtils},
+    values::{
+        self, struct_mapping::from_runtime_object, struct_mapping::FromRuntimeValue, RuntimeValue,
+        RuntimeValueUtils,
+    },
     R,
 };
 use std::{
     collections::HashMap,
-    io::{BufRead, BufReader, ErrorKind, Read, Write},
+    io::{ErrorKind, Read, Write},
     net::TcpStream,
     sync::{mpsc, Arc},
     thread,
     time::Duration,
 };
 
-use super::{native_util::handle_thread, NativeExecutionContext};
-
 pub fn all() -> Vec<(String, RuntimeValue)> {
     vec![add_native!("create_tcp_stream", create_tcp_stream)]
 }
 
+from_runtime_object!(TcpStreamOptions {
+    url: String,
+    block_till_finished: bool,
+    presend: Vec<u8>,
+});
+
 pub fn create_tcp_stream(ctx: NativeExecutionContext) -> R {
-    let url = match &ctx.args[..] {
-        [RuntimeValue::ZString(s)] => s.value.clone(),
-        _ => return Err(make_no_args_error(ctx.location)),
-    };
+    let options = TcpStreamOptions::from_runtime_value(expect_one_arg!(ctx.args))?;
+
+    if options.block_till_finished {
+        let mut stream = TcpStream::connect(&options.url).unwrap();
+
+        stream.write_all(&options.presend).unwrap();
+
+        let mut buffer = vec![0; 1024];
+        let mut received_data = Vec::new();
+
+        loop {
+            match stream.read(&mut buffer) {
+                Ok(0) => break, // Connection closed
+                Ok(n) => received_data.extend_from_slice(&buffer[..n]),
+                Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
+                    thread::sleep(Duration::from_millis(10));
+                }
+                Err(_) => break,
+            }
+        }
+
+        return Ok(
+            values::ZString::new(String::from_utf8_lossy(&received_data).to_string()).wrap(),
+        );
+    }
 
     let (send_rx, send_val) = values::MspcSender::new_handled();
 
@@ -31,7 +62,7 @@ pub fn create_tcp_stream(ctx: NativeExecutionContext) -> R {
     let mut channel = ctx.interpreter.mspc.clone().unwrap();
 
     handle_thread!(channel, {
-        let mut stream = TcpStream::connect(&url).unwrap();
+        let mut stream = TcpStream::connect(&options.url).unwrap();
         stream.set_nonblocking(true).unwrap();
 
         let mut buffer = vec![0; 1024]; // Temporary buffer for reading
