@@ -6,7 +6,10 @@ use std::{
 use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::Location,
-    runtime::{scope::PrototypeStore, Job, MspcChannel},
+    runtime::{
+        mspc::{Job, MspcChannel},
+        prototypes::PrototypeStore,
+    },
     util::colors,
 };
 

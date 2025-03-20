@@ -4,7 +4,7 @@
 use errors::ZephyrError;
 use lexer::lexer::lex;
 use parser::Parser;
-use runtime::{memory_store, scope::PrototypeStore, values::RuntimeValue, Interpreter};
+use runtime::{memory_store, prototypes::PrototypeStore, values::RuntimeValue, Interpreter};
 use std::{env, fs};
 
 mod errors;

@@ -31,26 +31,26 @@ impl Interpreter {
         let values = self.run(*expr.iterator)?.iter()?;
 
         for (i, v) in values.iter().enumerate() {
-            let mut scope: Scope;
+            let scope: Scope;
             time_this!("Mini:ForCreateScope".to_string(), {
-                scope = Scope::new_from_parent(self.scope.clone());
+                scope = Scope::new(Some(self.scope), self.scope.file_name());
                 scope.insert(
                     expr.index_symbol.value.clone(),
-                    Variable::from(values::Number::new(i as f64).wrap()),
+                    Variable::new(values::Number::new(i as f64).wrap()),
                     Some(expr.index_symbol.location.clone()),
                 )?;
 
                 if let Some(ref x) = expr.value_symbol {
                     scope.insert(
                         x.value.clone(),
-                        Variable::from(v.clone()),
+                        Variable::new(v.clone()),
                         Some(x.location.clone()),
                     )?;
                 }
             });
 
             time_this!("Mini:ForRun".to_string(), {
-                let old_scope = self.swap_scope(Arc::from(Mutex::from(scope)));
+                let old_scope = self.swap_scope(scope);
                 self.run(*expr.block.clone())?;
                 self.swap_scope(old_scope);
             });

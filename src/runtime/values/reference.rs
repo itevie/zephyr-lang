@@ -10,7 +10,7 @@ use super::{RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 #[derive(Debug, Clone)]
 pub enum ReferenceType {
     Basic(usize),
-    ModuleExport((Arc<Mutex<Scope>>, Option<String>)),
+    ModuleExport((Scope, Option<String>)),
 }
 
 impl ReferenceType {
@@ -36,7 +36,7 @@ impl Reference {
         }
     }
 
-    pub fn new_export(scope: Arc<Mutex<Scope>>, ident: Option<String>) -> Self {
+    pub fn new_export(scope: Scope, ident: Option<String>) -> Self {
         Reference {
             location: ReferenceType::ModuleExport((scope, ident)),
             options: RuntimeValueDetails::default(),
@@ -66,7 +66,7 @@ impl Reference {
             },
             ReferenceType::ModuleExport((ref scope, ref name)) => {
                 if let Some(name) = name {
-                    match scope.lock().unwrap().lookup(name.clone(), None) {
+                    match scope.lookup(name.clone(), None) {
                         Ok(ok) => Ok(Arc::from(ok)),
                         Err(err) => Err(ZephyrError {
                             message: format!("Exported variable {} has not been resolved. Please move this expression to the init block, or fix the cyclic dependency.", name),

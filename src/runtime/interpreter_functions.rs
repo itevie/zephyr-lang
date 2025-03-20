@@ -34,24 +34,24 @@ impl Interpreter {
     ) -> R {
         match func {
             FunctionType::Function(func) => {
-                let mut scope = Scope::new_from_parent(func.scope.clone());
+                let mut scope = Scope::new(Some(func.scope), func.scope.file_name());
                 for (i, v) in func.arguments.iter().enumerate() {
                     if i >= args.len() {
                         scope.insert(
                             v.clone(),
-                            Variable::from(values::Null::new().wrap()),
+                            Variable::new(values::Null::new().wrap()),
                             Some(location.clone()),
                         )?
                     } else {
                         scope.insert(
                             v.clone(),
-                            Variable::from(args[i].clone()),
+                            Variable::new(args[i].clone()),
                             Some(location.clone()),
                         )?
                     }
                 }
 
-                let old = self.swap_scope(Arc::from(Mutex::from(scope)));
+                let old = self.swap_scope(scope);
                 let result = self.run(Node::Block(func.body));
                 self.swap_scope(old);
 
@@ -70,7 +70,7 @@ impl Interpreter {
                     args,
                     interpreter: self.clone(),
                     location: location.clone(),
-                    file_name: self.scope.lock().unwrap().file_name.clone(),
+                    file_name: self.scope.file_name(),
                 };
 
                 (func.func)(ctx)

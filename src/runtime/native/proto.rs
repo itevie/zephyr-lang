@@ -1,6 +1,6 @@
 use crate::runtime::{
     native::add_native,
-    scope::PrototypeStore,
+    prototypes::PrototypeStore,
     values::{self, ReferenceType, RuntimeValue, RuntimeValueUtils},
     R,
 };

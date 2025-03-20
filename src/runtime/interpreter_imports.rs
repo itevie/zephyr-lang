@@ -25,19 +25,15 @@ impl Interpreter {
     pub fn run_export(&mut self, node: nodes::Export) -> R {
         match node.export {
             ExportType::Symbol(symbol) => {
-                self.scope
-                    .lock()
-                    .unwrap()
-                    .exported
-                    .insert(symbol.value, node.export_as);
+                self.scope.insert_exported(symbol.value, node.export_as);
             }
             ExportType::Declaration(dec) => {
                 self.run_declare(dec.clone())?;
 
-                let mut lock = self.scope.lock().unwrap();
-
                 match dec.assignee {
-                    DeclareType::Symbol(s) => lock.exported.insert(s.value.clone(), node.export_as),
+                    DeclareType::Symbol(s) => {
+                        self.scope.insert_exported(s.value.clone(), node.export_as)
+                    }
                     _ => {
                         return Err(ZephyrError {
                             message: "Can only export declarations with symbol".to_string(),
@@ -58,7 +54,7 @@ impl Interpreter {
         let path = &if PathBuf::from(node.import.clone()).is_absolute() {
             PathBuf::from(node.import.clone())
         } else {
-            let _path = &PathBuf::from(self.scope.lock().unwrap().file_name.clone())
+            let _path = &PathBuf::from(self.scope.file_name())
                 .parent()
                 .unwrap()
                 .join(node.import.clone());
@@ -89,9 +85,7 @@ impl Interpreter {
                 }),
                 _ => unreachable!(),
             };
-            let scope = Arc::from(Mutex::from(Scope::new_from_parent(
-                self.global_scope.clone(),
-            )));
+            let scope = Scope::new(Some(self.global_scope), self.global_scope.file_name());
 
             let module = Arc::from(Mutex::from(Module {
                 scope: scope.clone(),
@@ -108,7 +102,7 @@ impl Interpreter {
             // Check all the places that have tried to import from this module
             let wanted = module.lock().unwrap().wanted.clone();
             for i in wanted {
-                if !scope.lock().unwrap().exported.contains_key(&i.0) {
+                if !scope.get_exported_list().contains_key(&i.0) {
                     return Err(ZephyrError {
                         message: format!("Module {} does not export {}", path, i.0.clone()),
                         code: ErrorCode::NotExported,
@@ -132,7 +126,7 @@ impl Interpreter {
             // Check if module actually exports it
             if scope.1 {
                 if let Some(ref name) = t.0 {
-                    if !scope.0.lock().unwrap().variables.contains_key(name) {
+                    if !scope.0.get_exported_list().contains_key(name) {
                         return Err(ZephyrError {
                             message: format!("Module {} does not export {}", path, name.clone()),
                             code: ErrorCode::NotExported,
@@ -152,9 +146,9 @@ impl Interpreter {
                     .push((t.1.clone(), node.location.clone()));
             }
 
-            self.scope.lock().unwrap().insert(
+            self.scope.insert(
                 t.1,
-                Variable::from(Reference::new_export(scope.0.clone(), t.0).wrap()),
+                Variable::new(Reference::new_export(scope.0.clone(), t.0).wrap()),
                 Some(node.location.clone()),
             )?;
         }

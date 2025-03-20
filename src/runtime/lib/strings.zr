@@ -37,7 +37,7 @@ proto.contains = func contains(value, what) {
 }
 
 proto.reverse = func reverse(what) {
-  what[-1..=0].join("");
+  what[-1..=0];
 }
 
 export const String = proto;

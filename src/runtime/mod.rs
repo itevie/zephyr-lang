@@ -1,7 +1,6 @@
 use std::{
     cmp::Reverse,
     collections::HashMap,
-    hash::Hash,
     sync::{
         mpsc::{channel, Receiver, Sender, TryRecvError},
         Arc, LazyLock, Mutex,
@@ -9,6 +8,7 @@ use std::{
     time::Instant,
 };
 
+use mspc::{MspcChannel, MspcSendType};
 use scope::{Scope, Variable};
 use values::{FunctionType, Null, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
@@ -22,6 +22,7 @@ use crate::{
         nodes::{self, InterruptType, Node},
         Parser,
     },
+    util::format_duration,
 };
 
 pub mod interpreter_conditionals;
@@ -35,7 +36,9 @@ pub mod interpreter_operators;
 pub mod interpreter_variables;
 pub mod job_queue;
 pub mod memory_store;
+pub mod mspc;
 pub mod native;
+pub mod prototypes;
 pub mod scope;
 pub mod values;
 
@@ -49,52 +52,14 @@ macro_rules! include_lib {
 
 pub struct Module {
     pub exports: HashMap<String, Option<RuntimeValue>>,
-    pub scope: Arc<Mutex<Scope>>,
+    pub scope: Scope,
     pub wanted: Vec<(String, Location)>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Job {
-    pub func: FunctionType,
-    pub args: Vec<RuntimeValue>,
-}
-
-#[derive(Debug, Clone)]
-pub enum MspcSendType {
-    ThreadCreate,
-    ThreadDestroy,
-    ThreadMessage(Job),
-}
-
-#[derive(Debug, Clone)]
-pub struct MspcChannel {
-    pub mspc: Sender<MspcSendType>,
-}
-
-impl MspcChannel {
-    pub fn thread_start(&mut self) {
-        self.mspc
-            .send(MspcSendType::ThreadCreate)
-            .unwrap_or_else(|e| panic!("Failed to send thread_start {:#?}", e.0))
-    }
-
-    pub fn thread_destroy(&mut self) {
-        self.mspc
-            .send(MspcSendType::ThreadDestroy)
-            .unwrap_or_else(|e| panic!("Failed to send thread_destroy {:#?}", e.0))
-    }
-
-    pub fn thread_message(&mut self, job: Job) {
-        self.mspc
-            .send(MspcSendType::ThreadMessage(job))
-            .unwrap_or_else(|e| panic!("Failed to send thread_message: {:?}", e))
-    }
 }
 
 #[derive(Clone)]
 pub struct Interpreter {
-    pub scope: Arc<Mutex<Scope>>,
-    pub global_scope: Arc<Mutex<Scope>>,
+    pub scope: Scope,
+    pub global_scope: Scope,
     pub module_cache: HashMap<String, Arc<Mutex<Module>>>,
     pub mspc: Option<MspcChannel>,
     pub thread_count: usize,
@@ -103,27 +68,13 @@ pub struct Interpreter {
 static NODE_TIMINGS: LazyLock<Arc<Mutex<HashMap<String, Vec<u128>>>>> =
     LazyLock::new(|| Arc::from(Mutex::from(HashMap::new())));
 
-fn format_duration(nanos: u128) -> String {
-    if nanos >= 1_000_000_000 {
-        format!("{:.3} s", nanos as f64 / 1_000_000_000.0) // Convert to seconds
-    } else if nanos >= 1_000_000 {
-        format!("{:.3} ms", nanos as f64 / 1_000_000.0) // Convert to milliseconds
-    } else if nanos >= 1_000 {
-        format!("{:.3} µs", nanos as f64 / 1_000.0) // Convert to microseconds
-    } else {
-        format!("{} ns", nanos) // Keep as nanoseconds
-    }
-}
-
 impl Interpreter {
     pub fn new(file_name: String) -> Self {
-        let global_scope = Arc::from(Mutex::from(Scope::new(file_name)));
+        let global_scope = Scope::new(None, file_name.clone());
         global_scope
-            .lock()
-            .unwrap()
             .insert(
                 "__zephyr_native".to_string(),
-                Variable::from(
+                Variable::new(
                     values::Object::new(native::all().iter().cloned().collect::<HashMap<_, _>>())
                         .as_ref_val(),
                 ),
@@ -151,7 +102,7 @@ impl Interpreter {
         ];
 
         for lib in library_files {
-            let lib_scope = Arc::new(Mutex::new(Scope::new_from_parent(global_scope.clone())));
+            let lib_scope = Scope::new(Some(global_scope), file_name.clone());
 
             let parsed = Parser::new(
                 lex(lib.0, lib.1.to_string())
@@ -173,13 +124,10 @@ impl Interpreter {
                 .unwrap_or_else(|e| panic!("{}", e._visualise(lib.0.to_string())));
             std::mem::swap(&mut interpreter.scope, &mut lib_scope.clone());
 
-            let finished_scope = lib_scope.lock().unwrap();
-            for (name, _) in &finished_scope.exported {
-                let value = finished_scope.lookup(name.clone(), None).unwrap();
+            for (name, _) in lib_scope.get_exported_list() {
+                let value = lib_scope.lookup(name.clone(), None).unwrap();
                 global_scope
-                    .lock()
-                    .unwrap()
-                    .insert(name.clone(), Variable::from(value), None)
+                    .insert(name.clone(), Variable::new(value), None)
                     .unwrap();
             }
         }
@@ -255,7 +203,7 @@ impl Interpreter {
         return result;
     }
 
-    pub fn swap_scope(&mut self, scope: Arc<Mutex<Scope>>) -> Arc<Mutex<Scope>> {
+    pub fn swap_scope(&mut self, scope: Scope) -> Scope {
         std::mem::replace(&mut self.scope, scope)
     }
 
@@ -434,13 +382,7 @@ impl Interpreter {
             Node::Number(expr) => Ok(values::Number::new(expr.value).wrap()),
             Node::ZString(expr) => Ok(values::ZString::new(expr.value).wrap()),
             Node::Symbol(expr) => Ok(
-                match self
-                    .scope
-                    .lock()
-                    .unwrap()
-                    .lookup(expr.value, Some(expr.location))?
-                    .clone()
-                {
+                match self.scope.lookup(expr.value, Some(expr.location))?.clone() {
                     RuntimeValue::Reference(r) => match r.location {
                         values::ReferenceType::Basic(_) => RuntimeValue::Reference(r.clone()),
                         values::ReferenceType::ModuleExport(_) => (*r.inner()?).clone(),

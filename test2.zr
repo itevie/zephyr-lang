@@ -9,7 +9,7 @@ func read_http(response) {
     return Result.Err("Malformed HTTP string");
   }
 
-  response = response[$"HTTP/"..=(-1)];
+  response = response[$"HTTP/"..=(-1)].join("");
   debug response;
 }
 

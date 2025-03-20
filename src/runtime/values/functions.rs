@@ -40,7 +40,7 @@ pub struct Function {
     pub body: nodes::Block,
     pub name: Option<String>,
     pub arguments: Vec<String>,
-    pub scope: Arc<Mutex<Scope>>,
+    pub scope: Scope,
 }
 
 impl RuntimeValueUtils for Function {

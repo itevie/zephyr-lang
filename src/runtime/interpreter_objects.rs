@@ -7,7 +7,7 @@ use crate::{
 
 use super::{
     memory_store::{self, store_get},
-    scope::PrototypeStore,
+    prototypes::PrototypeStore,
     values::{self, ReferenceType, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils},
     Interpreter, R,
 };
@@ -71,7 +71,7 @@ impl Interpreter {
                     println!("{:?}", left);
 
                     Ok(match left {
-                        RuntimeValue::ZString(_) => values::ZString::new(
+                        RuntimeValue::Function(_) => values::ZString::new(
                             parts
                                 .iter()
                                 .map(|z| match z {

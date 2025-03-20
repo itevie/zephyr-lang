@@ -1,4 +1,4 @@
-use crate::runtime::scope::PrototypeStore;
+use crate::runtime::prototypes::PrototypeStore;
 
 use super::{RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
