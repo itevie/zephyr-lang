@@ -1,6 +1,8 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
     env::var,
+    rc::Rc,
     sync::{
         atomic::{AtomicUsize, Ordering},
         LazyLock, RwLock,
@@ -12,7 +14,10 @@ use crate::{
     lexer::tokens::Location,
 };
 
-use super::values::{self, RuntimeValue, RuntimeValueUtils};
+use super::{
+    values::{self, RuntimeValue, RuntimeValueUtils},
+    R,
+};
 
 type ScopeId = usize;
 
@@ -27,6 +32,104 @@ pub enum ScopeType {
     Package,
 }
 
+pub struct ScopeDataNew {
+    pub parent: Option<Box<ScopeDataNew>>,
+    pub variables: RefCell<HashMap<String, Variable>>,
+}
+
+impl ScopeDataNew {
+    pub fn new(parent: Option<Box<ScopeDataNew>>, file_name: String) -> Self {
+        Self {
+            parent,
+            variables: RefCell::from(HashMap::new()),
+        }
+    }
+
+    pub fn lookup(
+        &self,
+        name: String,
+        location: Option<Location>,
+    ) -> Result<RuntimeValue, ZephyrError> {
+        if let Some(var) = self.variables.borrow().get(&name) {
+            Ok(var.value.clone())
+        } else if let Some(parent) = self.parent.as_ref() {
+            parent.lookup(name, location)
+        } else {
+            Err(ZephyrError {
+                message: format!("Cannot find variable {} in current scope", name),
+                code: ErrorCode::UnknownReference,
+                location,
+            })
+        }
+    }
+
+    pub fn insert(
+        &self,
+        name: String,
+        value: Variable,
+        location: Option<Location>,
+    ) -> Result<(), ZephyrError> {
+        if self.variables.borrow().contains_key(&name) {
+            return Err(ZephyrError {
+                message: format!("Variable {} already defined in current scope", name),
+                code: ErrorCode::AlreadyDefined,
+                location,
+            });
+        }
+
+        self.variables.borrow_mut().insert(name, value);
+
+        Ok(())
+    }
+}
+
+struct IntTest {
+    scope: Box<ScopeDataNew>,
+}
+
+impl IntTest {
+    pub fn new() -> Self {
+        Self {
+            scope: Box::from(ScopeDataNew::new(None, "test".to_string())),
+        }
+    }
+
+    pub fn run(&mut self) -> R {
+        self.scope.insert(
+            "test".to_string(),
+            Variable {
+                value: values::Null::new().wrap(),
+                is_const: false,
+            },
+            None,
+        )?;
+        todo!()
+    }
+
+    pub fn _scope(&self) -> R {
+        let temp = *self.scope;
+        let scope = ScopeDataNew::new(Some(Box::from(temp)), "test".to_string());
+        todo!()
+    }
+}
+
+fn test() {
+    let scope = ScopeDataNew::new(&None, "ur mom".to_string());
+    scope
+        .insert(
+            "test".to_string(),
+            Variable {
+                value: values::Null::new().wrap(),
+                is_const: false,
+            },
+            None,
+        )
+        .unwrap();
+    let wrapped = Some(scope);
+    let new_scope = ScopeDataNew::new(&wrapped, "test".to_string());
+    new_scope.lookup("test".to_string(), None);
+}
+
 pub struct ScopeData {
     pub parent: Option<ScopeId>,
     pub variables: RwLock<HashMap<String, Variable>>,
@@ -37,6 +140,8 @@ pub struct ScopeData {
 
 impl ScopeData {
     pub fn new(parent: Option<ScopeId>, file_name: String) -> ScopeId {
+        let rc = Rc::new(2);
+
         let id = NEXT_SCOPE_ID.fetch_add(1, Ordering::Relaxed);
         let scope = ScopeData {
             parent,
