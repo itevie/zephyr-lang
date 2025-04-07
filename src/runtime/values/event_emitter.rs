@@ -6,34 +6,31 @@ use std::{
 use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::Location,
-    runtime::{scope::PrototypeStore, Job, MspcChannel},
+    runtime::{Job, MspcChannel},
     util::colors,
 };
 
-use super::{FunctionType, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
+use super::{
+    thread_crossing::{ThreadRuntimeFunctionType, ThreadRuntimeValueArray},
+    FunctionType, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils,
+};
 
 #[derive(Debug, Clone)]
-pub struct EventEmitter {
-    pub options: RuntimeValueDetails,
-    pub defined_events: Vec<String>,
-    pub listeners: Arc<Mutex<HashMap<String, Arc<Mutex<Vec<FunctionType>>>>>>,
+pub struct EventEmitterForThreads {
+    pub listeners: Arc<Mutex<HashMap<String, Arc<Mutex<Vec<ThreadRuntimeFunctionType>>>>>>,
 }
 
-impl EventEmitter {
-    pub fn new(events: Vec<&str>) -> Self {
-        EventEmitter {
-            options: RuntimeValueDetails::with_proto(PrototypeStore::get(
-                "event_emitter".to_string(),
-            )),
-            defined_events: events.iter().map(|x| x.to_string()).collect(),
-            listeners: Arc::from(Mutex::from(HashMap::new())),
+impl EventEmitterForThreads {
+    pub fn new() -> Self {
+        Self {
+            listeners: Default::default(),
         }
     }
 
     pub fn emit_from_thread(
         &self,
         message: &str,
-        args: Vec<RuntimeValue>,
+        args: ThreadRuntimeValueArray,
         sender: &mut MspcChannel,
     ) -> () {
         if let Some(listeners) = self.listeners.lock().unwrap().get(&message.to_string()) {
@@ -44,6 +41,23 @@ impl EventEmitter {
                     args: args.clone(),
                 });
             }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EventEmitter {
+    pub options: RuntimeValueDetails,
+    pub defined_events: Vec<String>,
+    pub thread_part: EventEmitterForThreads,
+}
+
+impl EventEmitter {
+    pub fn new(events: Vec<&str>) -> Self {
+        EventEmitter {
+            options: RuntimeValueDetails::with_proto("event_emitter".to_string()),
+            defined_events: events.iter().map(|x| x.to_string()).collect(),
+            thread_part: EventEmitterForThreads::new(),
         }
     }
 
@@ -61,12 +75,16 @@ impl EventEmitter {
             });
         }
 
-        let mut lock = self.listeners.lock().unwrap();
+        let mut lock = self.thread_part.listeners.lock().unwrap();
 
         if !lock.contains_key(&message) {
-            lock.insert(message, Arc::from(Mutex::from(vec![func])));
+            lock.insert(message, Arc::from(Mutex::from(vec![func.into()])));
         } else {
-            lock.get(&message).unwrap().lock().unwrap().push(func);
+            lock.get(&message)
+                .unwrap()
+                .lock()
+                .unwrap()
+                .push(func.into());
         }
 
         Ok(())

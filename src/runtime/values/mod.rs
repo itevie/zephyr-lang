@@ -20,9 +20,6 @@ pub use array::*;
 pub mod event_emitter;
 pub use event_emitter::*;
 
-pub mod reference;
-pub use reference::*;
-
 pub mod range;
 pub use range::*;
 
@@ -36,14 +33,13 @@ pub mod enum_variant;
 pub use enum_variant::*;
 
 pub mod struct_mapping;
+pub mod thread_crossing;
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::{Comparison, Location},
     util::colors,
 };
-
-use super::memory_store;
 
 pub trait RuntimeValueUtils {
     fn wrap(&self) -> RuntimeValue;
@@ -65,13 +61,17 @@ pub trait RuntimeValueUtils {
         });
     }
 
-    fn as_ref(&self) -> usize {
+    fn len(&self) -> Result<usize, ZephyrError> {
+        Ok(self.iter()?.len())
+    }
+
+    /*fn as_ref(&self) -> usize {
         memory_store::allocate(self.wrap())
     }
 
     fn as_ref_val(&self) -> RuntimeValue {
         Reference::new(self.as_ref()).wrap()
-    }
+    }*/
 }
 
 #[derive(Debug, Clone)]
@@ -80,7 +80,6 @@ pub enum RuntimeValue {
     Null(Null),
     ZString(ZString),
     Boolean(Boolean),
-    Reference(Reference),
     Function(Function),
     NativeFunction(NativeFunction),
     MspcSender(MspcSender),
@@ -98,7 +97,6 @@ macro_rules! run_as_any {
             RuntimeValue::Null($i) => $e,
             RuntimeValue::Number($i) => $e,
             RuntimeValue::ZString($i) => $e,
-            RuntimeValue::Reference($i) => $e,
             RuntimeValue::Function($i) => $e,
             RuntimeValue::NativeFunction($i) => $e,
             RuntimeValue::MspcSender($i) => $e,
@@ -120,6 +118,10 @@ impl RuntimeValue {
         run_as_any!(self, v, v.iter())
     }
 
+    pub fn len(&self) -> Result<usize, ZephyrError> {
+        run_as_any!(self, v, v.len())
+    }
+
     /// Gets the options struct no matter what the underlying type is
     pub fn options(&self) -> &RuntimeValueDetails {
         run_as_any!(self, v, &v.options)
@@ -133,8 +135,8 @@ impl RuntimeValue {
         run_as_any!(self, v, Box::from(v.clone()))
     }
 
-    pub fn set_proto(self, id: usize) -> Self {
-        let mut old_options = self.options().proto.lock().unwrap();
+    pub fn set_proto(self, id: String) -> Self {
+        let mut old_options = self.options().proto.borrow_mut();
         *old_options = Some(id);
         self.clone()
     }
@@ -153,10 +155,10 @@ impl RuntimeValue {
                 true => format!(
                     "\n{}# {:?}{}",
                     colors::FG_GRAY,
-                    self.options().tags.lock().unwrap(),
+                    self.options().tags.borrow(),
                     colors::COLOR_RESET
                 ),
-                false => format!("\n# {:?}", self.options().tags.lock().unwrap()),
+                false => format!("\n# {:?}", self.options().tags.borrow()),
             });
         }
 
@@ -173,19 +175,19 @@ impl RuntimeValue {
         }
     }
 
-    /// Simply adds the value to the object store
+    /*/// Simply adds the value to the object store
     pub fn as_ref(&self) -> usize {
         memory_store::allocate(self.clone())
     }
 
-    /// Used for returning a tuple containing the inner reference (or current value), along with the reference ID  
+    /// Used for returning a tuple containing the inner reference (or current value), along with the reference ID
     /// Looks like: (value, ref)
     pub fn as_ref_tuple(&self) -> Result<(RuntimeValue, Option<Reference>), ZephyrError> {
         match self {
             RuntimeValue::Reference(r) => Ok(((*r.inner()?).clone(), Some(r.clone()))),
             _ => Ok((self.clone(), None)),
         }
-    }
+    }*/
 
     pub fn compare_with(
         &self,

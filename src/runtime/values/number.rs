@@ -1,19 +1,43 @@
-use crate::runtime::scope::PrototypeStore;
-
 use super::{RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
-#[derive(Debug, Clone)]
-pub struct Number {
-    pub options: RuntimeValueDetails,
-    pub value: f64,
+macro_rules! define_runtime_value {
+    ($struct_name:ident { $($field:ident : $ty:ty),* $(,)? }, $struct_safe_name:ident) => {
+        #[derive(Debug, Clone)]
+        pub struct $struct_name {
+            pub options: RuntimeValueDetails,
+            $(pub $field: $ty),*
+        }
+
+        #[derive(Debug, Clone)]
+        pub struct $struct_safe_name {
+            $($field: $ty),*
+        }
+
+        impl From<&$struct_name> for $struct_safe_name {
+            fn from(value: &$struct_name) -> $struct_safe_name {
+                $struct_safe_name {
+                    $($field: value.$field),*
+                }
+            }
+        }
+    };
 }
+
+define_runtime_value!(Number { value: f64 }, NumberBase);
 
 impl Number {
     pub fn new(value: f64) -> Self {
-        Number {
+        Self {
             value,
-            options: RuntimeValueDetails::with_proto(PrototypeStore::get("object".to_string())),
+            options: RuntimeValueDetails::with_proto("object".to_string()),
         }
+    }
+
+    pub fn new_wrapped(value: f64) -> RuntimeValue {
+        RuntimeValue::Number(Self {
+            value,
+            options: RuntimeValueDetails::with_proto("object".to_string()),
+        })
     }
 }
 

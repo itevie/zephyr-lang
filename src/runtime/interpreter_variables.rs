@@ -20,7 +20,7 @@ impl Interpreter {
         };
 
         match expr.assignee {
-            DeclareType::Symbol(s) => self.scope.lock().unwrap().insert(
+            DeclareType::Symbol(s) => self.scope.borrow_mut().insert(
                 s.value,
                 Variable {
                     is_const: expr.is_const,
@@ -28,11 +28,11 @@ impl Interpreter {
                 },
                 Some(s.location.clone()),
             )?,
-            DeclareType::Array(a) => match value.as_ref_tuple()? {
-                (RuntimeValue::Array(arr), Some(_)) => {
+            DeclareType::Array(a) => match value {
+                RuntimeValue::Array(ref arr) => {
                     for (i, v) in a.iter().enumerate() {
-                        if let Some(val) = arr.items.get(i) {
-                            self.scope.lock().unwrap().insert(
+                        if let Some(val) = arr.items.borrow().get(i) {
+                            self.scope.borrow_mut().insert(
                                 v.value.clone(),
                                 Variable {
                                     is_const: expr.is_const,
@@ -49,7 +49,7 @@ impl Interpreter {
                         }
                     }
                 }
-                (x, _) => {
+                x => {
                     return Err(ZephyrError {
                         message: format!(
                             "Cannot assign to a array declaration with a {}",
@@ -63,7 +63,7 @@ impl Interpreter {
             _ => panic!(),
         }
 
-        Ok(value)
+        Ok(value.clone())
     }
 
     pub fn run_assign(&mut self, expr: nodes::Assign) -> R {
@@ -71,7 +71,7 @@ impl Interpreter {
 
         match *expr.assignee {
             Node::Symbol(ref symbol) => {
-                self.scope.lock().unwrap().modify(
+                self.scope.borrow_mut().modify(
                     symbol.value.clone(),
                     value.clone(),
                     Some(expr.assignee.location().clone()),
@@ -93,30 +93,23 @@ impl Interpreter {
     pub fn run_enum(&mut self, expr: nodes::Enum) -> R {
         let mut items: HashMap<String, RuntimeValue> = HashMap::new();
 
-        let proto = values::Object::new(HashMap::new())
-            .as_ref_val()
-            .as_ref_tuple()?
-            .1
-            .unwrap()
-            .location
-            .as_basic()
-            .unwrap();
+        let proto = uuid::Uuid::new_v4().to_string();
+        self.prototype_store.set(proto.clone(), Default::default());
 
         for (key, value) in expr.values {
             let val = values::ZString::new("".to_string());
-            val.options.proto.lock().unwrap().replace(proto);
+            val.options.proto.borrow_mut().replace(proto.clone());
             val.options
                 .tags
-                .lock()
-                .unwrap()
+                .borrow_mut()
                 .insert("__enum_base".to_string(), value.clone());
             items.insert(key.value, val.wrap());
         }
 
-        let obj = values::Object::new(items).as_ref_val();
-        obj.options().proto.lock().unwrap().replace(proto);
+        let obj = values::Object::new(items).wrap();
+        obj.options().proto.borrow_mut().replace(proto.clone());
 
-        self.scope.lock().unwrap().insert(
+        self.scope.borrow_mut().insert(
             expr.name.value,
             Variable {
                 is_const: true,

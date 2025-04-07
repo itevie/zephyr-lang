@@ -1,6 +1,7 @@
 use super::{native_util::handle_thread, NativeExecutionContext};
 use crate::errors::{ErrorCode, ZephyrError};
 use crate::runtime::native::native_util::expect_one_arg;
+use crate::runtime::values::thread_crossing::ThreadRuntimeValue;
 use crate::runtime::{
     native::{add_native, make_no_args_error},
     values::{
@@ -29,6 +30,8 @@ from_runtime_object!(TcpStreamOptions {
 });
 
 pub fn create_tcp_stream(ctx: NativeExecutionContext) -> R {
+    Ok(values::Null::new().wrap())
+    /*
     let options = TcpStreamOptions::from_runtime_value(expect_one_arg!(ctx.args))?;
 
     if options.block_till_finished {
@@ -60,8 +63,9 @@ pub fn create_tcp_stream(ctx: NativeExecutionContext) -> R {
     let event = values::EventEmitter::new(vec!["receive", "close"]);
     let event_2 = event.clone();
     let mut channel = ctx.interpreter.mspc.clone().unwrap();
+    let event_part = event.thread_part.clone();
 
-    handle_thread!(channel, {
+    std::thread::spawn(move || {
         let mut stream = TcpStream::connect(&options.url).unwrap();
         stream.set_nonblocking(true).unwrap();
 
@@ -73,16 +77,17 @@ pub fn create_tcp_stream(ctx: NativeExecutionContext) -> R {
             // Check for incoming messages from the client
             match stream.read(&mut buffer) {
                 Ok(0) => {
-                    event_2.emit_from_thread("close", vec![], &mut sender.clone());
+                    event_part.emit_from_thread("close", vec![].into(), &mut sender.clone());
                     break;
                 }
                 Ok(n) => {
                     received_data.extend_from_slice(&buffer[..n]); // Append received bytes
-                    event_2.emit_from_thread(
+                    event_part.emit_from_thread(
                         "receive",
-                        vec![
-                            values::ZString::new(String::from_utf8(buffer.clone()).unwrap()).wrap(),
-                        ],
+                        vec![ThreadRuntimeValue::ZString(
+                            String::from_utf8(buffer.clone()).unwrap(),
+                        )]
+                        .into(),
                         &mut sender.clone(),
                     );
                 }
@@ -98,7 +103,7 @@ pub fn create_tcp_stream(ctx: NativeExecutionContext) -> R {
                 Ok(msg) => {
                     if let Err(e) = stream.write_all(
                         &match msg.args.get(0).unwrap() {
-                            RuntimeValue::ZString(s) => s.value.clone(),
+                            ThreadRuntimeValue::ZString(s) => s.clone(),
                             _ => panic!(),
                         }
                         .as_bytes(),
@@ -123,5 +128,5 @@ pub fn create_tcp_stream(ctx: NativeExecutionContext) -> R {
         ("send".to_string(), send_val.wrap()),
         ("event".to_string(), event.clone().wrap()),
     ]))
-    .as_ref_val())
+    .wrap())*/
 }

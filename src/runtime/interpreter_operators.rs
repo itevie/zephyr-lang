@@ -80,7 +80,7 @@ impl Interpreter {
 
         if !expr.is_right {
             match expr.t {
-                UnaryType::LengthOf => Ok(values::Number::new(left.iter()?.len() as f64).wrap()),
+                UnaryType::LengthOf => Ok(values::Number::new(left.len()? as f64).wrap()),
                 UnaryType::Not => Ok(values::Boolean::new(!left.is_truthy()).wrap()),
                 UnaryType::Minus => match left {
                     RuntimeValue::Number(n) => Ok(values::Number::new(-n.value).wrap()),
@@ -109,7 +109,7 @@ impl Interpreter {
                 let right = self.run(*_right)?;
 
                 // Check for __enum_base
-                let right_tags = right.options().tags.lock().unwrap();
+                let right_tags = right.options().tags.borrow();
                 if let Some(enum_id) = right_tags.get("__enum_base").cloned() {
                     if let RuntimeValue::EnumVariant(e) = left {
                         if e.enum_id == enum_id {

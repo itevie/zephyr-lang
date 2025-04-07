@@ -22,8 +22,7 @@ pub fn add_tag(ctx: NativeExecutionContext) -> R {
             target
                 .options()
                 .tags
-                .lock()
-                .unwrap()
+                .borrow_mut()
                 .insert(key.value.clone(), value.value.clone());
             Ok(values::Null::new().wrap())
         }
@@ -37,8 +36,7 @@ pub fn delete_tag(ctx: NativeExecutionContext) -> R {
             target
                 .options()
                 .tags
-                .lock()
-                .unwrap()
+                .borrow_mut()
                 .remove(&key.value.clone());
             Ok(values::Null::new().wrap())
         }
@@ -49,7 +47,7 @@ pub fn delete_tag(ctx: NativeExecutionContext) -> R {
 pub fn set_tag(ctx: NativeExecutionContext) -> R {
     match &ctx.args[..] {
         [target, RuntimeValue::ZString(key), RuntimeValue::ZString(value)] => {
-            let mut lock = target.options().tags.lock().unwrap();
+            let mut lock = target.options().tags.borrow_mut();
 
             lock.remove(&key.value.clone());
             lock.insert(key.value.clone(), value.value.clone());

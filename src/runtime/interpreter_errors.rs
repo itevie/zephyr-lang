@@ -14,7 +14,7 @@ impl Interpreter {
 
         Ok(match result {
             Ok(val) => {
-                val.options().tags.lock().unwrap().insert(
+                val.options().tags.borrow_mut().insert(
                     "__enum_variant".to_string(),
                     "Result.Ok__Zephyr".to_string(),
                 );
@@ -22,7 +22,7 @@ impl Interpreter {
             }
             Err(err) => {
                 let string = values::ZString::new(err.message);
-                string.options.tags.lock().unwrap().insert(
+                string.options.tags.borrow_mut().insert(
                     "__enum_variant".to_string(),
                     "Result.Err__Zephyr".to_string(),
                 );
@@ -34,7 +34,7 @@ impl Interpreter {
     pub fn run_propogate_error(&mut self, expr: nodes::PropogateError) -> R {
         let result = self.run(*expr.left)?;
 
-        let mut lock = result.options().tags.lock().unwrap();
+        let mut lock = result.options().tags.borrow_mut();
         if let Some(tag) = lock.get("__enum_variant").cloned() {
             if tag == "Result.Err__Zephyr" {
                 return Err(ZephyrError {

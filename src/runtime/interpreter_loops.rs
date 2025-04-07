@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -50,7 +52,7 @@ impl Interpreter {
             });
 
             time_this!("Mini:ForRun".to_string(), {
-                let old_scope = self.swap_scope(Arc::from(Mutex::from(scope)));
+                let old_scope = self.swap_scope(Rc::from(RefCell::from(scope)));
                 self.run(*expr.block.clone())?;
                 self.swap_scope(old_scope);
             });

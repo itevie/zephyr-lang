@@ -7,11 +7,18 @@ use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::Location,
     parser::nodes,
-    runtime::{native::NativeExecutionContext, scope::Scope, R},
+    runtime::{
+        native::NativeExecutionContext,
+        scope::{Scope, ScopeInnerType},
+        R,
+    },
     util::colors,
 };
 
-use super::{RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
+use super::{
+    thread_crossing::{ThreadRuntimeValue, ThreadRuntimeValueArray},
+    RuntimeValue, RuntimeValueDetails, RuntimeValueUtils,
+};
 
 #[derive(Debug, Clone)]
 pub enum FunctionType {
@@ -35,12 +42,17 @@ impl FunctionType {
 }
 
 #[derive(Debug, Clone)]
-pub struct Function {
-    pub options: RuntimeValueDetails,
+pub struct FunctionInner {
     pub body: nodes::Block,
     pub name: Option<String>,
     pub arguments: Vec<String>,
-    pub scope: Arc<Mutex<Scope>>,
+    pub scope: ScopeInnerType,
+}
+
+#[derive(Debug, Clone)]
+pub struct Function {
+    pub options: RuntimeValueDetails,
+    pub inner: FunctionInner,
 }
 
 impl RuntimeValueUtils for Function {
@@ -55,7 +67,8 @@ impl RuntimeValueUtils for Function {
     fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
         let string = format!(
             "{}",
-            self.arguments
+            self.inner
+                .arguments
                 .iter()
                 .map(|x| format!("\"{}\"", x))
                 .collect::<Vec<String>>()
@@ -78,14 +91,16 @@ impl RuntimeValueUtils for Function {
     }
 }
 
+pub type NativeFunctionType = Arc<dyn Fn(NativeExecutionContext) -> R + Send + Sync>;
+
 #[derive(Clone)]
 pub struct NativeFunction {
     pub options: RuntimeValueDetails,
-    pub func: Arc<dyn Fn(NativeExecutionContext) -> R + Send + Sync>,
+    pub func: NativeFunctionType,
 }
 
 impl NativeFunction {
-    pub fn new(f: Arc<dyn Fn(NativeExecutionContext) -> R + Send + Sync>) -> Self {
+    pub fn new(f: NativeFunctionType) -> Self {
         NativeFunction {
             func: f,
             options: RuntimeValueDetails::default(),
@@ -122,18 +137,20 @@ impl std::fmt::Debug for NativeFunction {
 }
 
 pub struct MspcSenderOptions {
-    pub args: Vec<RuntimeValue>,
+    pub args: Vec<ThreadRuntimeValue>,
     pub location: Location,
 }
+
+pub type MspcSenderType = Sender<MspcSenderOptions>;
 
 #[derive(Clone, Debug)]
 pub struct MspcSender {
     pub options: RuntimeValueDetails,
-    pub sender: Sender<MspcSenderOptions>,
+    pub sender: MspcSenderType,
 }
 
 impl MspcSender {
-    pub fn new(sender: Sender<MspcSenderOptions>) -> Self {
+    pub fn new(sender: MspcSenderType) -> Self {
         Self {
             sender,
             options: RuntimeValueDetails::default(),

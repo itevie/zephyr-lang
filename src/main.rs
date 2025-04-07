@@ -4,7 +4,7 @@
 use errors::ZephyrError;
 use lexer::lexer::lex;
 use parser::Parser;
-use runtime::{memory_store, scope::PrototypeStore, values::RuntimeValue, Interpreter};
+use runtime::{memory_store, values::RuntimeValue, Interpreter};
 use std::{env, fs};
 
 mod errors;
@@ -14,9 +14,6 @@ mod runtime;
 mod util;
 
 fn main() {
-    memory_store::initialise_store();
-    PrototypeStore::init();
-
     let args = env::args().collect::<Vec<String>>();
     let file_name = args
         .get(2)
