@@ -1,8 +1,4 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc, Mutex},
-};
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -13,9 +9,7 @@ use crate::{
 use super::{
     native::NativeExecutionContext,
     scope::{Scope, Variable},
-    values::{
-        self, FunctionType, MspcSenderOptions, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils,
-    },
+    values::{self, FunctionType, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils},
     Interpreter, R,
 };
 

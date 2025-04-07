@@ -12,7 +12,6 @@ pub mod module;
 pub mod native_util;
 pub mod proto;
 pub mod tags;
-pub mod tcp;
 pub mod test;
 
 pub fn all() -> Vec<(String, RuntimeValue)> {
@@ -26,7 +25,6 @@ pub fn all() -> Vec<(String, RuntimeValue)> {
         .chain(fs::all().iter().cloned())
         .chain(module::all().iter().cloned())
         .chain(tags::all().iter().cloned())
-        .chain(tcp::all().iter().cloned())
         .collect()
 }
 

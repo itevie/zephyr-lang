@@ -1,23 +1,18 @@
 use std::sync::{
     mpsc::{channel, Receiver, Sender},
-    Arc, Mutex,
+    Arc,
 };
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::Location,
     parser::nodes,
-    runtime::{
-        native::NativeExecutionContext,
-        scope::{Scope, ScopeInnerType},
-        R,
-    },
+    runtime::{native::NativeExecutionContext, scope::ScopeInnerType, R},
     util::colors,
 };
 
 use super::{
-    thread_crossing::{ThreadRuntimeValue, ThreadRuntimeValueArray},
-    RuntimeValue, RuntimeValueDetails, RuntimeValueUtils,
+    thread_crossing::ThreadRuntimeValue, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils,
 };
 
 #[derive(Debug, Clone)]

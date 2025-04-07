@@ -2,7 +2,6 @@ use std::{
     cell::RefCell,
     cmp::Reverse,
     collections::HashMap,
-    hash::Hash,
     rc::Rc,
     sync::{
         mpsc::{channel, Receiver, Sender, TryRecvError},
@@ -14,7 +13,7 @@ use std::{
 use scope::{Scope, ScopeInnerType, Variable};
 use values::{
     thread_crossing::{ThreadRuntimeFunctionType, ThreadRuntimeValueArray},
-    FunctionType, Null, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils,
+    Null, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils,
 };
 
 use crate::{
@@ -39,7 +38,6 @@ pub mod interpreter_objects;
 pub mod interpreter_operators;
 pub mod interpreter_variables;
 pub mod job_queue;
-pub mod memory_store;
 pub mod native;
 pub mod prototype_store;
 pub mod scope;

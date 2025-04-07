@@ -1,22 +1,9 @@
-use std::{
-    collections::HashMap,
-    fs,
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
-
 use crate::{
     errors::{ErrorCode, ZephyrError},
-    lexer::lexer::lex,
-    parser::{
-        nodes::{self, DeclareType, ExportType, ExposeType, Node},
-        Parser,
-    },
-    runtime::{scope::Variable, Module},
+    parser::nodes::{self, DeclareType, ExportType},
 };
 
 use super::{
-    scope::Scope,
     values::{self, RuntimeValueUtils},
     Interpreter, R,
 };

@@ -62,7 +62,7 @@ impl_all_for!(bool, "boolean", RuntimeValue::Boolean(ref s) => s.value);
 impl_all_for!(u8, "u8", RuntimeValue::Number(ref s) => s.value.round() as u8);
 impl_for_vec!(u8, "array of u8", RuntimeValue::ZString(ref s) => s.value.as_bytes().to_vec());
 
-macro_rules! from_runtime_object {
+/*macro_rules! from_runtime_object {
     ($struct_name:ident { $($field:ident : $ty:ty),* $(,)? }) => {
         #[derive(Debug)]
         pub struct $struct_name {
@@ -97,3 +97,4 @@ macro_rules! from_runtime_object {
 }
 
 pub(crate) use from_runtime_object;
+*/
