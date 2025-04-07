@@ -30,18 +30,12 @@ macro_rules! impl_for_vec {
         impl FromRuntimeValue for Vec<$type> {
             fn from_runtime_value(value: &RuntimeValue) -> Result<Self, ZephyrError> {
                 match value {
-                    RuntimeValue::Reference(ref r) => match *r.inner()? {
-                        RuntimeValue::Array(ref a) => Ok(a
-                            .items
-                            .iter()
-                            .map(|v| <$type>::from_runtime_value(v))
-                            .collect::<Result<Vec<$type>, ZephyrError>>()?),
-                        ref v => return Err(ZephyrError {
-                            message: format!("Expected array reference but got {}", v.type_name()),
-                            code: ErrorCode::TypeError,
-                            location: None,
-                        })
-                    },
+                    RuntimeValue::Array(ref a) => Ok(a
+                        .items
+                        .borrow()
+                        .iter()
+                        .map(|v| <$type>::from_runtime_value(v))
+                        .collect::<Result<Vec<$type>, ZephyrError>>()?),
                     $(
                         $pattern => Ok($result),
                     )*
@@ -77,10 +71,10 @@ macro_rules! from_runtime_object {
 
         impl FromRuntimeValue for $struct_name {
             fn from_runtime_value(value: &RuntimeValue) -> Result<Self, ZephyrError> {
-                if let (RuntimeValue::Object(obj), _) = value.as_ref_tuple()? {
+                if let RuntimeValue::Object(obj) = value {
                     Ok($struct_name {
                         $(
-                            $field: match obj.items.get(stringify!($field)) {
+                            $field: match obj.items.borrow().get(stringify!($field)) {
                                 Some(val) => match <$ty as FromRuntimeValue>::from_runtime_value(val) {
                                     Ok(v) => v,
                                     Err(e) => return Err(e)

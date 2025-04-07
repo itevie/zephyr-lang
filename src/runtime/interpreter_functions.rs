@@ -1,4 +1,8 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -19,10 +23,12 @@ impl Interpreter {
     pub fn run_make_function(&mut self, expr: nodes::Function) -> R {
         Ok(RuntimeValue::Function(values::Function {
             options: RuntimeValueDetails::default(),
-            body: expr.body,
-            name: expr.name.map(|x| x.value),
-            scope: self.scope.clone(),
-            arguments: expr.args.iter().map(|x| x.value.clone()).collect(),
+            inner: values::FunctionInner {
+                body: expr.body,
+                name: expr.name.map(|x| x.value),
+                scope: self.scope.clone(),
+                arguments: expr.args.iter().map(|x| x.value.clone()).collect(),
+            },
         }))
     }
 
@@ -34,8 +40,8 @@ impl Interpreter {
     ) -> R {
         match func {
             FunctionType::Function(func) => {
-                let mut scope = Scope::new_from_parent(func.scope.clone());
-                for (i, v) in func.arguments.iter().enumerate() {
+                let mut scope = Scope::new_from_parent(func.inner.scope.clone());
+                for (i, v) in func.inner.arguments.iter().enumerate() {
                     if i >= args.len() {
                         scope.insert(
                             v.clone(),
@@ -51,8 +57,8 @@ impl Interpreter {
                     }
                 }
 
-                let old = self.swap_scope(Arc::from(Mutex::from(scope)));
-                let result = self.run(Node::Block(func.body));
+                let old = self.swap_scope(Rc::from(RefCell::from(scope)));
+                let result = self.run(Node::Block(func.inner.body));
                 self.swap_scope(old);
 
                 if let Err(err) = &result {
@@ -70,13 +76,14 @@ impl Interpreter {
                     args,
                     interpreter: self.clone(),
                     location: location.clone(),
-                    file_name: self.scope.lock().unwrap().file_name.clone(),
+                    file_name: self.scope.borrow().file_name.clone(),
                 };
 
                 (func.func)(ctx)
             }
             FunctionType::MspcSender(func) => {
-                func.sender
+                panic!();
+                /*func.sender
                     .send(MspcSenderOptions {
                         args,
                         location: location.clone(),
@@ -87,7 +94,7 @@ impl Interpreter {
                         location: Some(location.clone()),
                     })?;
 
-                Ok(values::Null::new().wrap())
+                Ok(values::Null::new().wrap())*/
             }
         }
     }
@@ -105,7 +112,7 @@ impl Interpreter {
         }
 
         let left_clone = left.clone();
-        let tag_lock = left_clone.options().tags.lock().unwrap();
+        let tag_lock = left_clone.options().tags.borrow_mut();
         if let Some(enum_id) = tag_lock.get("__enum_base").cloned() {
             if args.len() > 1 {
                 return Err(ZephyrError {
@@ -116,7 +123,7 @@ impl Interpreter {
             }
 
             let null_value = values::Null::new().wrap();
-            if let Some(proto) = left_clone.options().proto.lock().unwrap().clone() {
+            if let Some(proto) = left_clone.options().proto.borrow_mut().clone() {
                 return Ok(values::EnumVariant::new(
                     args.get(0).unwrap_or(&null_value).clone(),
                     enum_id.clone(),

@@ -1,7 +1,9 @@
 use std::{
+    cell::RefCell,
     cmp::Reverse,
     collections::HashMap,
     hash::Hash,
+    rc::Rc,
     sync::{
         mpsc::{channel, Receiver, Sender, TryRecvError},
         Arc, LazyLock, Mutex,
@@ -9,8 +11,11 @@ use std::{
     time::Instant,
 };
 
-use scope::{Scope, Variable};
-use values::{FunctionType, Null, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
+use scope::{Scope, ScopeInnerType, Variable};
+use values::{
+    thread_crossing::{ThreadRuntimeFunctionType, ThreadRuntimeValueArray},
+    FunctionType, Null, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils,
+};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -36,6 +41,7 @@ pub mod interpreter_variables;
 pub mod job_queue;
 pub mod memory_store;
 pub mod native;
+pub mod prototype_store;
 pub mod scope;
 pub mod values;
 
@@ -55,8 +61,8 @@ pub struct Module {
 
 #[derive(Debug, Clone)]
 pub struct Job {
-    pub func: FunctionType,
-    pub args: Vec<RuntimeValue>,
+    pub func: ThreadRuntimeFunctionType,
+    pub args: ThreadRuntimeValueArray,
 }
 
 #[derive(Debug, Clone)]
@@ -93,11 +99,12 @@ impl MspcChannel {
 
 #[derive(Clone)]
 pub struct Interpreter {
-    pub scope: Arc<Mutex<Scope>>,
-    pub global_scope: Arc<Mutex<Scope>>,
+    pub scope: ScopeInnerType,
+    pub global_scope: ScopeInnerType,
     pub module_cache: HashMap<String, Arc<Mutex<Module>>>,
     pub mspc: Option<MspcChannel>,
     pub thread_count: usize,
+    pub prototype_store: prototype_store::PrototypeStore,
 }
 
 static NODE_TIMINGS: LazyLock<Arc<Mutex<HashMap<String, Vec<u128>>>>> =
@@ -117,15 +124,14 @@ fn format_duration(nanos: u128) -> String {
 
 impl Interpreter {
     pub fn new(file_name: String) -> Self {
-        let global_scope = Arc::from(Mutex::from(Scope::new(file_name)));
+        let global_scope = Rc::from(RefCell::from(Scope::new(file_name)));
         global_scope
-            .lock()
-            .unwrap()
+            .borrow_mut()
             .insert(
                 "__zephyr_native".to_string(),
                 Variable::from(
                     values::Object::new(native::all().iter().cloned().collect::<HashMap<_, _>>())
-                        .as_ref_val(),
+                        .wrap(),
                 ),
                 None,
             )
@@ -137,6 +143,7 @@ impl Interpreter {
             module_cache: HashMap::new(),
             thread_count: 0,
             mspc: None,
+            prototype_store: prototype_store::PrototypeStore::new(),
         };
 
         let library_files: Vec<(&str, &str)> = vec![
@@ -151,7 +158,7 @@ impl Interpreter {
         ];
 
         for lib in library_files {
-            let lib_scope = Arc::new(Mutex::new(Scope::new_from_parent(global_scope.clone())));
+            let lib_scope = Rc::new(RefCell::new(Scope::new_from_parent(global_scope.clone())));
 
             let parsed = Parser::new(
                 lex(lib.0, lib.1.to_string())
@@ -173,12 +180,11 @@ impl Interpreter {
                 .unwrap_or_else(|e| panic!("{}", e._visualise(lib.0.to_string())));
             std::mem::swap(&mut interpreter.scope, &mut lib_scope.clone());
 
-            let finished_scope = lib_scope.lock().unwrap();
+            let finished_scope = lib_scope.borrow();
             for (name, _) in &finished_scope.exported {
                 let value = finished_scope.lookup(name.clone(), None).unwrap();
                 global_scope
-                    .lock()
-                    .unwrap()
+                    .borrow_mut()
                     .insert(name.clone(), Variable::from(value), None)
                     .unwrap();
             }
@@ -214,7 +220,7 @@ impl Interpreter {
                     MspcSendType::ThreadCreate => self.thread_count += 1,
                     MspcSendType::ThreadDestroy => self.thread_count -= 1,
                     MspcSendType::ThreadMessage(job) => {
-                        self.run_function(job.func, job.args, NO_LOCATION.clone())?;
+                        self.run_function(job.func.into(), job.args.into(), NO_LOCATION.clone())?;
                     }
                 },
                 Err(TryRecvError::Empty) => {
@@ -255,7 +261,7 @@ impl Interpreter {
         return result;
     }
 
-    pub fn swap_scope(&mut self, scope: Arc<Mutex<Scope>>) -> Arc<Mutex<Scope>> {
+    pub fn swap_scope(&mut self, scope: ScopeInnerType) -> ScopeInnerType {
         std::mem::replace(&mut self.scope, scope)
     }
 
@@ -417,7 +423,7 @@ impl Interpreter {
                 for i in expr.items {
                     items.push(self.run(*i)?);
                 }
-                Ok(values::Array::new(items).as_ref_val())
+                Ok(values::Array::new(items).wrap())
             }
             Node::Object(expr) => {
                 let mut items: HashMap<String, RuntimeValue> = HashMap::new();
@@ -426,28 +432,37 @@ impl Interpreter {
                     items.insert(k, self.run(*v.value)?);
                 }
 
-                Ok(values::Object::new(items).as_ref_val())
+                Ok(values::Object::new(items).wrap())
             }
 
             Node::Member(expr) => self.run_member(expr, None),
 
             Node::Number(expr) => Ok(values::Number::new(expr.value).wrap()),
             Node::ZString(expr) => Ok(values::ZString::new(expr.value).wrap()),
-            Node::Symbol(expr) => Ok(
-                match self
-                    .scope
-                    .lock()
-                    .unwrap()
-                    .lookup(expr.value, Some(expr.location))?
-                    .clone()
-                {
+            Node::Symbol(expr) => {
+                Ok(
+                    match self
+                        .scope
+                        .borrow()
+                        .lookup(expr.value, Some(expr.location))?
+                    {
+                        /*RuntimeValue::Reference(r)
+                            if matches!(r.location, values::ReferenceType::ModuleExport(_)) =>
+                        {
+                            (*r.inner()?).clone()
+                        }*/
+                        v => v,
+                    },
+                )
+
+                /*Ok(match value {
                     RuntimeValue::Reference(r) => match r.location {
-                        values::ReferenceType::Basic(_) => RuntimeValue::Reference(r.clone()),
+                        values::ReferenceType::Basic(_) => value,
                         values::ReferenceType::ModuleExport(_) => (*r.inner()?).clone(),
                     },
-                    x => x,
-                },
-            ),
+                    _ => value,
+                })*/
+            }
 
             Node::DebugNode(expr) => {
                 let result = self.run(*expr.node)?;
@@ -471,7 +486,7 @@ impl Interpreter {
     }
 
     pub fn member(&mut self, expr: nodes::Member) -> R {
-        let left = self.run(*expr.left.clone())?.as_ref_tuple()?;
+        let left = self.run(*expr.left.clone())?;
 
         if !expr.computed {
             let key = match *expr.right {
@@ -481,14 +496,14 @@ impl Interpreter {
 
             todo!();
         } else {
-            let right = self.run(*expr.right.clone())?.as_ref_tuple()?;
+            let right = self.run(*expr.right.clone())?;
 
             match left {
                 // object[_]
-                (RuntimeValue::Object(obj), Some(_)) => match right {
+                RuntimeValue::Object(obj) => match right {
                     // object[string]
-                    (RuntimeValue::ZString(string), None) => {
-                        if !obj.items.contains_key(&string.value) {
+                    RuntimeValue::ZString(string) => {
+                        if !obj.items.borrow().contains_key(&string.value) {
                             return Err(ZephyrError {
                                 code: ErrorCode::InvalidKey,
                                 message: format!("Object does not contain key {}", string.value),
@@ -496,52 +511,52 @@ impl Interpreter {
                             });
                         }
 
-                        Ok(obj.items.get(&string.value).unwrap().clone())
+                        Ok(obj.items.borrow().get(&string.value).unwrap().clone())
                     }
                     _ => {
                         return Err(ZephyrError {
                             code: ErrorCode::InvalidOperation,
                             message: format!(
                                 "Cannot access an object with a {}",
-                                right.0.type_name()
+                                right.type_name()
                             ),
                             location: Some(expr.right.location().clone()),
                         })
                     }
                 },
                 // array[_]
-                (RuntimeValue::Array(arr), Some(_)) => match right {
+                RuntimeValue::Array(arr) => match right {
                     // array[number]
-                    (RuntimeValue::Number(num), None) => {
+                    RuntimeValue::Number(num) => {
                         // Check out of bounds
-                        if num.value as usize >= arr.items.len() {
+                        if num.value as usize >= arr.items.borrow().len() {
                             return Err(ZephyrError {
                                 code: ErrorCode::OutOfBounds,
                                 message: format!(
                                     "Array length is {}, but index wanted was {}",
-                                    arr.items.len(),
+                                    arr.items.borrow().len(),
                                     num.value
                                 ),
                                 location: Some(expr.location),
                             });
                         }
 
-                        Ok(arr.items[num.value as usize].clone())
+                        Ok(arr.items.borrow()[num.value as usize].clone())
                     }
                     // array[array]
-                    (RuntimeValue::Array(key_arr), Some(_)) => {
+                    RuntimeValue::Array(key_arr) => {
                         let mut items: Vec<RuntimeValue> = vec![];
 
-                        for (index, i) in key_arr.items.iter().enumerate() {
+                        for (index, i) in key_arr.items.borrow().iter().enumerate() {
                             match i {
                                 RuntimeValue::Number(num) => items.push({
                                     // Check out of bounds
-                                    if num.value as usize >= arr.items.len() {
+                                    if num.value as usize >= arr.items.borrow().len() {
                                         return Err(ZephyrError {
                                             code: ErrorCode::OutOfBounds,
                                             message: format!(
                                                 "Array length is {}, but index wanted was {} at index {}",
-                                                arr.items.len(),
+                                                arr.items.borrow().len(),
                                                 num.value,
                                                 index
                                             ),
@@ -549,12 +564,12 @@ impl Interpreter {
                                         });
                                     }
 
-                                    arr.items[num.value as usize].clone()
+                                    arr.items.borrow()[num.value as usize].clone()
                                 }),
                                 _ => return Err(ZephyrError {
                                     code: ErrorCode::InvalidOperation,
                                     message: format!(
-                                        "All elements in array key must be a number, but got {} at index {}", 
+                                        "All elements in array key must be a number, but got {} at index {}",
                                         i.type_name(),
                                         index
                                     ),
@@ -563,15 +578,12 @@ impl Interpreter {
                             }
                         }
 
-                        Ok(values::Array::new(items).as_ref_val())
+                        Ok(values::Array::new(items).wrap())
                     }
                     _ => {
                         return Err(ZephyrError {
                             code: ErrorCode::InvalidOperation,
-                            message: format!(
-                                "Cannot access an array with a {}",
-                                right.0.type_name()
-                            ),
+                            message: format!("Cannot access an array with a {}", right.type_name()),
                             location: Some(expr.right.location().clone()),
                         })
                     }
@@ -579,7 +591,7 @@ impl Interpreter {
                 _ => {
                     return Err(ZephyrError {
                         code: ErrorCode::InvalidOperation,
-                        message: format!("Cannot access a {}", left.0.type_name()),
+                        message: format!("Cannot access a {}", left.type_name()),
                         location: Some(expr.left.location().clone()),
                     })
                 }

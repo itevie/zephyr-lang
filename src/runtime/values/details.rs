@@ -1,21 +1,18 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use super::RuntimeValue;
 
 #[derive(Debug, Clone)]
 pub struct RuntimeValueDetails {
-    pub tags: Arc<Mutex<HashMap<String, String>>>,
-    pub proto: Arc<Mutex<Option<usize>>>,
+    pub tags: Rc<RefCell<HashMap<String, String>>>,
+    pub proto: Rc<RefCell<Option<String>>>,
     pub proto_value: Option<Box<RuntimeValue>>,
 }
 
 impl RuntimeValueDetails {
-    pub fn with_proto(id: usize) -> Self {
+    pub fn with_proto(id: String) -> Self {
         Self {
-            proto: Arc::from(Mutex::from(Some(id))),
+            proto: Rc::from(RefCell::from(Some(id))),
             ..Default::default()
         }
     }
@@ -24,8 +21,8 @@ impl RuntimeValueDetails {
 impl Default for RuntimeValueDetails {
     fn default() -> Self {
         Self {
-            tags: Arc::from(Mutex::from(HashMap::default())),
-            proto: Arc::from(Mutex::from(None)),
+            tags: Rc::from(RefCell::from(HashMap::default())),
+            proto: Rc::from(RefCell::from(None)),
             proto_value: None,
         }
     }

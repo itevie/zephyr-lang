@@ -1,4 +1,8 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 use crate::parser::nodes;
 
@@ -10,8 +14,8 @@ use super::{
 
 impl Interpreter {
     pub fn run_block(&mut self, expr: nodes::Block) -> R {
-        let old_scope = self.swap_scope(Arc::from(Mutex::from(Scope::new_from_parent(
-            Arc::clone(&self.scope),
+        let old_scope = self.swap_scope(Rc::from(RefCell::from(Scope::new_from_parent(
+            self.scope.clone(),
         ))));
 
         let mut last_executed = values::Null::new().wrap();

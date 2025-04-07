@@ -1,6 +1,7 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
-    os::unix::raw::time_t,
+    rc::Rc,
     sync::{Arc, Mutex, OnceLock},
     time::Instant,
 };
@@ -39,9 +40,11 @@ pub enum ScopeType {
     Package,
 }
 
+pub type ScopeInnerType = Rc<RefCell<Scope>>;
+
 #[derive(Debug, Clone)]
 pub struct Scope {
-    pub parent: Option<Arc<Mutex<Scope>>>,
+    pub parent: Option<ScopeInnerType>,
     pub variables: HashMap<String, Variable>,
     pub exported: HashMap<String, Option<String>>,
     pub scope_type: ScopeType,
@@ -72,12 +75,12 @@ impl Scope {
         }
     }
 
-    pub fn new_from_parent(parent: Arc<Mutex<Scope>>) -> Self {
-        let file_name = parent.lock().unwrap().file_name.clone();
+    pub fn new_from_parent(parent: ScopeInnerType) -> Self {
+        let file_name = parent.borrow().file_name.clone();
         Self::new_from_parent_new_file_name(parent, file_name)
     }
 
-    pub fn new_from_parent_new_file_name(parent: Arc<Mutex<Scope>>, file_name: String) -> Self {
+    pub fn new_from_parent_new_file_name(parent: ScopeInnerType, file_name: String) -> Self {
         Scope {
             parent: Some(parent.clone()),
             variables: HashMap::new(),
@@ -95,10 +98,10 @@ impl Scope {
         time_this!(
             "Mini:ScopeLookup".to_string(),
             (|| {
-                let mut scope = Some(Arc::from(Mutex::from(self.clone())));
+                let mut scope = Some(Rc::from(RefCell::from(self.clone())));
 
                 while let Some(s) = scope.clone() {
-                    let lock = s.lock().unwrap();
+                    let lock = s.borrow();
                     if let Some(val) = lock.variables.get(&name) {
                         return Ok(val.value.clone());
                     }
@@ -148,10 +151,10 @@ impl Scope {
         time_this!(
             "Mini:ScopeModify".to_string(),
             (|| {
-                let mut scope = Some(Arc::from(Mutex::from(self.clone())));
+                let mut scope = Some(Rc::from(RefCell::from(self.clone())));
 
                 while let Some(s) = scope.clone() {
-                    let mut lock = s.lock().unwrap();
+                    let mut lock = s.borrow_mut();
                     if let Some(val) = lock.variables.get_mut(&name) {
                         val.value = value;
                         return Ok(());
@@ -171,14 +174,14 @@ impl Scope {
         )
     }
 }
-
+/*
 pub struct PrototypeStore {}
 
 macro_rules! make_proto {
     ($name:expr) => {
         (
             $name.to_string(),
-            values::Object::new(HashMap::from([])).as_ref(),
+            values::Object::new(HashMap::from([])).wrap(),
         )
     };
 }
@@ -204,3 +207,4 @@ impl PrototypeStore {
         }
     }
 }
+*/

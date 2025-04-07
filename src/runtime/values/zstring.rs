@@ -1,5 +1,3 @@
-use crate::runtime::scope::PrototypeStore;
-
 use super::{RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
 #[derive(Debug, Clone)]
@@ -12,7 +10,7 @@ impl ZString {
     pub fn new(value: String) -> Self {
         ZString {
             value,
-            options: RuntimeValueDetails::with_proto(PrototypeStore::get("string".to_string())),
+            options: RuntimeValueDetails::with_proto("string".to_string()),
         }
     }
 }
