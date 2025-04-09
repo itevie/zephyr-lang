@@ -20,7 +20,7 @@ pub enum Node {
     Arithmetic(Arithmetic),
     Call(Call),
     Comp(Comp),
-    DebugNode(DebugNode),
+    Debug(DebugNode),
     EncapsulateError(EncapsulateError),
     PropogateError(PropogateError),
     Enum(Enum),
@@ -56,7 +56,7 @@ impl Node {
             Node::Arithmetic(v) => &v.location,
             Node::Call(v) => &v.location,
             Node::Comp(v) => &v.location,
-            Node::DebugNode(v) => &v.location,
+            Node::Debug(v) => &v.location,
             Node::EncapsulateError(v) => &v.location,
             Node::PropogateError(v) => &v.location,
             Node::Enum(v) => &v.location,
@@ -77,13 +77,13 @@ impl Node {
 
 #[derive(Debug, Clone)]
 pub struct Block {
-    pub nodes: Vec<Box<Node>>,
+    pub nodes: Vec<Node>,
     pub location: Location,
 }
 
 #[derive(Debug, Clone)]
 pub struct ExportedBlock {
-    pub nodes: Vec<Box<Node>>,
+    pub nodes: Vec<Node>,
     pub location: Location,
 }
 
@@ -101,7 +101,7 @@ pub struct ZString {
 
 #[derive(Debug, Clone)]
 pub struct Array {
-    pub items: Vec<Box<Node>>,
+    pub items: Vec<Node>,
     pub location: Location,
 }
 
@@ -150,7 +150,7 @@ pub struct Comp {
 #[derive(Debug, Clone)]
 pub struct Call {
     pub left: Box<Node>,
-    pub args: Vec<Box<Node>>,
+    pub args: Vec<Node>,
     pub location: Location,
 }
 

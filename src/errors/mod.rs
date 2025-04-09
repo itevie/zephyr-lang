@@ -85,7 +85,7 @@ impl ZephyrError {
             ));
         }
 
-        return string;
+        string
     }
 
     pub fn visualise(&self) -> String {
@@ -102,6 +102,6 @@ impl ZephyrError {
             return self._visualise(file_contents.unwrap_or("<no file provided>".to_string()));
         }
 
-        return self._visualise("<no location>".to_string());
+        self._visualise("<no location>".to_string())
     }
 }

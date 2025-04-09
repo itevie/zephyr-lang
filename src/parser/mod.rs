@@ -24,7 +24,7 @@ pub struct Parser {
 impl Parser {
     pub fn at(&self) -> &Token {
         self.tokens
-            .get(0)
+            .first()
             .unwrap_or_else(|| panic!("Tokens is empty, but it is not supposed to be"))
     }
 
@@ -63,7 +63,7 @@ impl Parser {
     }
 
     pub fn block(&mut self, no_brace: bool) -> NR {
-        let mut nodes: Vec<Box<Node>> = vec![];
+        let mut nodes: Vec<Node> = vec![];
 
         let mut uses_arrow = false;
         let open_token = if !no_brace {
@@ -87,13 +87,13 @@ impl Parser {
         };
 
         if uses_arrow {
-            nodes.push(Box::from(self.statement()?));
+            nodes.push(self.statement()?);
         } else {
-            while self.tokens.len() > 0
+            while !self.tokens.is_empty()
                 && !matches!(self.at().t, TokenType::CloseBrace)
-                && !matches!(self.at().t, TokenType::EOF)
+                && !matches!(self.at().t, TokenType::Eof)
             {
-                nodes.push(Box::from(self.statement()?));
+                nodes.push(self.statement()?);
 
                 if discriminant(&TokenType::Semicolon) == discriminant(&self.at().t) {
                     self.eat();
@@ -101,23 +101,21 @@ impl Parser {
             }
         }
 
-        if !no_brace {
-            if !uses_arrow {
-                self.expect(
-                    discriminant(&TokenType::CloseBrace),
-                    ZephyrError {
-                        code: ErrorCode::UnexpectedToken,
-                        message: format!("Expected }}, but got {}", self.at().value),
-                        location: Some(self.at().location.clone()),
-                    },
-                )?;
-            }
+        if !no_brace && !uses_arrow {
+            self.expect(
+                discriminant(&TokenType::CloseBrace),
+                ZephyrError {
+                    code: ErrorCode::UnexpectedToken,
+                    message: format!("Expected }}, but got {}", self.at().value),
+                    location: Some(self.at().location.clone()),
+                },
+            )?;
         }
 
         Ok(Node::Block(nodes::Block {
             location: if let Some(t) = open_token {
                 t.location
-            } else if let Some(t) = nodes.get(0) {
+            } else if let Some(t) = nodes.first() {
                 t.location().clone()
             } else {
                 NO_LOCATION.clone()
@@ -131,7 +129,7 @@ impl Parser {
             TokenType::Let | TokenType::Const => self.declare(),
             TokenType::Enum => self.enum_stmt(),
             TokenType::Function => self.function(true),
-            TokenType::Debug => Ok(Node::DebugNode(nodes::DebugNode {
+            TokenType::Debug => Ok(Node::Debug(nodes::DebugNode {
                 location: self.eat().location.clone(),
                 node: Box::from(self.expression()?),
             })),
@@ -486,9 +484,9 @@ impl Parser {
         let block = self.block(false)?;
 
         Ok(Node::For(nodes::For {
+            value_symbol,
+            index_symbol,
             location: token.location,
-            value_symbol: value_symbol,
-            index_symbol: index_symbol,
             block: Box::from(block),
             iterator: Box::from(iterator),
         }))
@@ -500,16 +498,14 @@ impl Parser {
         let name = {
             if let TokenType::Symbol = self.at().t {
                 Some(self.eat())
+            } else if is_statement {
+                return Err(ZephyrError {
+                    code: ErrorCode::UnexpectedToken,
+                    message: "Expected name for function".to_string(),
+                    location: Some(self.at().location.clone()),
+                });
             } else {
-                if is_statement {
-                    return Err(ZephyrError {
-                        code: ErrorCode::UnexpectedToken,
-                        message: "Expected name for function".to_string(),
-                        location: Some(self.at().location.clone()),
-                    });
-                } else {
-                    None
-                }
+                None
             }
         };
 
@@ -797,7 +793,7 @@ impl Parser {
                     TokenType::RangeInclusive => true,
                     _ => unreachable!(),
                 },
-                step: step.map(|x| Box::from(x)),
+                step: step.map(Box::from),
                 location: range_token.location.clone(),
             }));
         }
@@ -885,7 +881,7 @@ impl Parser {
             }));
         }
 
-        return Ok(value);
+        Ok(value)
     }
 
     // Possiblities:
@@ -916,13 +912,13 @@ impl Parser {
             // Check for left()
             if matches!(self.at().t, TokenType::OpenParan) {
                 let token = self.eat();
-                let mut arguments: Vec<Box<Node>> = vec![];
+                let mut arguments: Vec<Node> = vec![];
 
                 // Collect arguments
                 while !matches!(self.at().t, TokenType::CloseParan)
-                    && !matches!(self.at().t, TokenType::EOF)
+                    && !matches!(self.at().t, TokenType::Eof)
                 {
-                    arguments.push(Box::from(self.expression()?));
+                    arguments.push(self.expression()?);
                     if let TokenType::Comma = self.at().t {
                         self.eat();
                     } else {
@@ -1062,12 +1058,12 @@ impl Parser {
             TokenType::Match => self.match_stmt(),
             TokenType::OpenSquare => {
                 let token = self.eat();
-                let mut items: Vec<Box<Node>> = vec![];
+                let mut items: Vec<Node> = vec![];
 
-                while !matches!(self.at().t, TokenType::EOF)
+                while !matches!(self.at().t, TokenType::Eof)
                     && !matches!(self.at().t, TokenType::CloseSquare)
                 {
-                    items.push(Box::from(self.expression()?));
+                    items.push(self.expression()?);
                     if let TokenType::Comma = self.at().t {
                         self.eat();
                         continue;
@@ -1103,7 +1099,7 @@ impl Parser {
 
                 let mut items: HashMap<String, TaggedSymbol> = HashMap::new();
 
-                while !matches!(self.at().t, TokenType::EOF)
+                while !matches!(self.at().t, TokenType::Eof)
                     && !matches!(self.at().t, TokenType::CloseBrace)
                 {
                     let identifier = Parser::make_symbol(self.expect(

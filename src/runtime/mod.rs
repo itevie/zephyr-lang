@@ -11,10 +11,7 @@ use std::{
 };
 
 use scope::{Scope, ScopeInnerType, Variable};
-use values::{
-    thread_crossing::{ThreadRuntimeFunctionType, ThreadRuntimeValueArray},
-    Null, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils,
-};
+use values::{Null, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -37,11 +34,11 @@ pub mod interpreter_loops;
 pub mod interpreter_objects;
 pub mod interpreter_operators;
 pub mod interpreter_variables;
-pub mod job_queue;
 pub mod native;
 pub mod prototype_store;
 pub mod scope;
 pub mod values;
+pub mod zephyr_mspc;
 
 type R = Result<RuntimeValue, ZephyrError>;
 
@@ -53,54 +50,16 @@ macro_rules! include_lib {
 
 pub struct Module {
     pub exports: HashMap<String, Option<RuntimeValue>>,
-    pub scope: Arc<Mutex<Scope>>,
+    pub scope: ScopeInnerType,
     pub wanted: Vec<(String, Location)>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Job {
-    pub func: ThreadRuntimeFunctionType,
-    pub args: ThreadRuntimeValueArray,
-}
-
-#[derive(Debug, Clone)]
-pub enum MspcSendType {
-    ThreadCreate,
-    ThreadDestroy,
-    ThreadMessage(Job),
-}
-
-#[derive(Debug, Clone)]
-pub struct MspcChannel {
-    pub mspc: Sender<MspcSendType>,
-}
-
-impl MspcChannel {
-    pub fn thread_start(&mut self) {
-        self.mspc
-            .send(MspcSendType::ThreadCreate)
-            .unwrap_or_else(|e| panic!("Failed to send thread_start {:#?}", e.0))
-    }
-
-    pub fn thread_destroy(&mut self) {
-        self.mspc
-            .send(MspcSendType::ThreadDestroy)
-            .unwrap_or_else(|e| panic!("Failed to send thread_destroy {:#?}", e.0))
-    }
-
-    pub fn thread_message(&mut self, job: Job) {
-        self.mspc
-            .send(MspcSendType::ThreadMessage(job))
-            .unwrap_or_else(|e| panic!("Failed to send thread_message: {:?}", e))
-    }
 }
 
 #[derive(Clone)]
 pub struct Interpreter {
     pub scope: ScopeInnerType,
     pub global_scope: ScopeInnerType,
-    pub module_cache: HashMap<String, Arc<Mutex<Module>>>,
-    pub mspc: Option<MspcChannel>,
+    pub module_cache: HashMap<String, Rc<RefCell<Module>>>,
+    pub mspc: Option<zephyr_mspc::MspcChannel>,
     pub thread_count: usize,
     pub prototype_store: prototype_store::PrototypeStore,
 }
@@ -192,8 +151,11 @@ impl Interpreter {
     }
 
     pub fn base_run(&mut self, node: Node) -> R {
-        let (tx, rx): (Sender<MspcSendType>, Receiver<MspcSendType>) = channel();
-        self.mspc = Some(MspcChannel { mspc: tx });
+        let (tx, rx): (
+            Sender<zephyr_mspc::MspcSendType>,
+            Receiver<zephyr_mspc::MspcSendType>,
+        ) = channel();
+        self.mspc = Some(zephyr_mspc::MspcChannel { mspc: tx });
 
         let result = self.run(node);
 
@@ -215,9 +177,9 @@ impl Interpreter {
         loop {
             match rx.try_recv() {
                 Ok(value) => match value {
-                    MspcSendType::ThreadCreate => self.thread_count += 1,
-                    MspcSendType::ThreadDestroy => self.thread_count -= 1,
-                    MspcSendType::ThreadMessage(job) => {
+                    zephyr_mspc::MspcSendType::ThreadCreate => self.thread_count += 1,
+                    zephyr_mspc::MspcSendType::ThreadDestroy => self.thread_count -= 1,
+                    zephyr_mspc::MspcSendType::ThreadMessage(job) => {
                         self.run_function(job.func.into(), job.args.into(), NO_LOCATION.clone())?;
                     }
                 },
@@ -245,16 +207,16 @@ impl Interpreter {
 
         sorted_vec.sort_by_key(|&(_, avg)| Reverse(avg));
 
-        for (key, time) in sorted_vec {
-            println!(
-                "{}: {} ({})",
-                key,
-                format_duration(time),
-                data.get(&key).unwrap().len()
-            );
-        }
+        // for (key, time) in sorted_vec {
+        //     println!(
+        //         "{}: {} ({})",
+        //         key,
+        //         format_duration(time),
+        //         data.get(&key).unwrap().len()
+        //     );
+        // }
 
-        println!("{:?}", data.keys());
+        // println!("{:?}", data.keys());
 
         return result;
     }
@@ -419,7 +381,7 @@ impl Interpreter {
             Node::Array(expr) => {
                 let mut items: Vec<RuntimeValue> = vec![];
                 for i in expr.items {
-                    items.push(self.run(*i)?);
+                    items.push(self.run(i)?);
                 }
                 Ok(values::Array::new(items).wrap())
             }
@@ -444,11 +406,7 @@ impl Interpreter {
                         .borrow()
                         .lookup(expr.value, Some(expr.location))?
                     {
-                        /*RuntimeValue::Reference(r)
-                            if matches!(r.location, values::ReferenceType::ModuleExport(_)) =>
-                        {
-                            (*r.inner()?).clone()
-                        }*/
+                        RuntimeValue::Export(r) => r.inner()?,
                         v => v,
                     },
                 )
@@ -462,7 +420,7 @@ impl Interpreter {
                 })*/
             }
 
-            Node::DebugNode(expr) => {
+            Node::Debug(expr) => {
                 let result = self.run(*expr.node)?;
                 println!("{}", result.to_string(true, true, true).unwrap());
                 return Ok(Null::new().wrap());

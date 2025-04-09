@@ -1,0 +1,5 @@
+func b() {
+    return 2;
+}
+
+print(Module.filename());

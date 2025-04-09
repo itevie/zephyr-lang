@@ -17,7 +17,7 @@ impl Interpreter {
         let mut last_executed = values::Null::new().wrap();
 
         for i in expr.nodes {
-            last_executed = self.run(*i)?;
+            last_executed = self.run(i)?;
         }
 
         self.swap_scope(old_scope);
@@ -28,7 +28,7 @@ impl Interpreter {
         let mut last_executed = values::Null::new().wrap();
 
         for i in expr.nodes {
-            last_executed = self.run(*i)?;
+            last_executed = self.run(i)?;
         }
 
         Ok(last_executed)

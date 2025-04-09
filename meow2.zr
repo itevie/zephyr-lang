@@ -1,0 +1,6 @@
+import "./meow.zr" expose b;
+let result = b();
+
+if result is Result.Ok {
+    print(v);
+}

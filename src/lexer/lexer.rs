@@ -124,7 +124,7 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                     value.push(chars.next().unwrap());
                 }
 
-                if let None = chars.next() {
+                if chars.next().is_none() {
                     return Err(ZephyrError {
                         code: ErrorCode::UnterminatedString,
                         message: String::from("String not closed"),
@@ -349,7 +349,7 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
     }
 
     tokens.push(Token {
-        t: TokenType::EOF,
+        t: TokenType::Eof,
         value: String::new(),
         location: Location {
             start: current_char,

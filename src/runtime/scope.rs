@@ -90,42 +90,42 @@ impl Scope {
         }
     }
 
-    pub fn lookup(
+    pub fn lookup<T: Into<String>>(
         &self,
-        name: String,
+        name: T,
         location: Option<Location>,
     ) -> Result<RuntimeValue, ZephyrError> {
-        time_this!(
-            "Mini:ScopeLookup".to_string(),
-            (|| {
-                let mut scope = Some(Rc::from(RefCell::from(self.clone())));
+        let name = name.into();
 
-                while let Some(s) = scope.clone() {
-                    let lock = s.borrow();
-                    if let Some(val) = lock.variables.get(&name) {
-                        return Ok(val.value.clone());
-                    }
+        let mut scope = Some(Rc::from(RefCell::from(self.clone())));
 
-                    if let Some(ref parent) = lock.parent {
-                        scope = Some(parent.clone());
-                    }
-                }
+        while let Some(s) = scope.clone() {
+            let lock = s.borrow();
+            if let Some(val) = lock.variables.get(&name) {
+                return Ok(val.value.clone());
+            }
 
-                Err(ZephyrError {
-                    code: ErrorCode::UnknownReference,
-                    message: format!("Cannot find variable {} in the current scope", name),
-                    location,
-                })
-            })()
-        )
+            if let Some(ref parent) = lock.parent {
+                scope = Some(parent.clone());
+            } else {
+                break;
+            }
+        }
+
+        Err(ZephyrError {
+            code: ErrorCode::UnknownReference,
+            message: format!("Cannot find variable {} in the current scope", name),
+            location,
+        })
     }
 
-    pub fn insert(
+    pub fn insert<T: Into<String>>(
         &mut self,
-        name: String,
+        name: T,
         variable: Variable,
         location: Option<Location>,
     ) -> Result<(), ZephyrError> {
+        let name = name.into();
         if name == "_" {
             return Ok(());
         }
@@ -142,12 +142,13 @@ impl Scope {
         Ok(())
     }
 
-    pub fn modify(
+    pub fn modify<T: Into<String>>(
         &mut self,
-        name: String,
+        name: T,
         value: RuntimeValue,
         location: Option<Location>,
     ) -> Result<(), ZephyrError> {
+        let name = name.into();
         time_this!(
             "Mini:ScopeModify".to_string(),
             (|| {

@@ -98,7 +98,7 @@ impl Interpreter {
 
         let mut args: Vec<RuntimeValue> = vec![];
         for arg in expr.args {
-            args.push(self.run(*arg)?);
+            args.push(self.run(arg)?);
         }
 
         if let Some(val) = &left.options().proto_value {

@@ -32,6 +32,9 @@ pub use details::*;
 pub mod enum_variant;
 pub use enum_variant::*;
 
+pub mod export;
+pub use export::*;
+
 pub mod struct_mapping;
 pub mod thread_crossing;
 
@@ -88,6 +91,7 @@ pub enum RuntimeValue {
     EventEmitter(EventEmitter),
     RangeValue(RangeValue),
     EnumVariant(EnumVariant),
+    Export(Export),
 }
 
 macro_rules! run_as_any {
@@ -105,6 +109,7 @@ macro_rules! run_as_any {
             RuntimeValue::EventEmitter($i) => $e,
             RuntimeValue::RangeValue($i) => $e,
             RuntimeValue::EnumVariant($i) => $e,
+            RuntimeValue::Export($i) => $e,
         }
     };
 }
@@ -127,7 +132,7 @@ impl RuntimeValue {
         run_as_any!(self, v, &v.options)
     }
 
-    pub fn set_options(&mut self, new: RuntimeValueDetails) -> () {
+    pub fn set_options(&mut self, new: RuntimeValueDetails) {
         run_as_any!(self, v, v.options = new);
     }
 

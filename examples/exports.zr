@@ -1,0 +1,3 @@
+import "./resources/exports.zr" expose b;
+
+print(b());

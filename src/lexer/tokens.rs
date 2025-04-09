@@ -26,7 +26,7 @@ pub enum TokenType {
     RangeInclusive,
     ShortCircuit,
 
-    EOF,
+    Eof,
 
     Number,
     String,

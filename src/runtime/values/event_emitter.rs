@@ -6,7 +6,7 @@ use std::{
 use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::Location,
-    runtime::{Job, MspcChannel},
+    runtime::zephyr_mspc::{Job, MspcChannel},
     util::colors,
 };
 
@@ -32,7 +32,7 @@ impl EventEmitterForThreads {
         message: &str,
         args: ThreadRuntimeValueArray,
         sender: &mut MspcChannel,
-    ) -> () {
+    ) {
         if let Some(listeners) = self.listeners.lock().unwrap().get(&message.to_string()) {
             let parts = listeners.lock().unwrap();
             for part in parts.iter() {
