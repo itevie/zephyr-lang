@@ -30,6 +30,7 @@ pub mod interpreter_errors;
 pub mod interpreter_functions;
 pub mod interpreter_helper;
 pub mod interpreter_imports;
+pub mod interpreter_literals;
 pub mod interpreter_loops;
 pub mod interpreter_objects;
 pub mod interpreter_operators;
@@ -249,49 +250,7 @@ impl Interpreter {
             Node::Is(expr) => self.run_is(expr),
             Node::Comp(expr) => self.run_comp(expr),
             Node::Unary(expr) => self.run_unary(expr),
-            Node::Range(expr) => {
-                let start = match self.run(*expr.start.clone())? {
-                    RuntimeValue::Number(n) => n.value,
-                    _ => {
-                        return Err(ZephyrError {
-                            message: "Expected number for start of range".to_string(),
-                            code: ErrorCode::TypeError,
-                            location: Some(expr.start.location().clone()),
-                        })
-                    }
-                };
-                let end = match self.run(*expr.end.clone())? {
-                    RuntimeValue::Number(n) => n.value,
-                    _ => {
-                        return Err(ZephyrError {
-                            message: "Expected number for end of range".to_string(),
-                            code: ErrorCode::TypeError,
-                            location: Some(expr.end.location().clone()),
-                        })
-                    }
-                };
-                let step = match expr.step {
-                    Some(v) => match self.run(*v.clone())? {
-                        RuntimeValue::Number(n) => Some(n.value),
-                        _ => {
-                            return Err(ZephyrError {
-                                message: "Expected number for step of range".to_string(),
-                                code: ErrorCode::TypeError,
-                                location: Some(v.location().clone()),
-                            })
-                        }
-                    },
-                    None => None,
-                };
-
-                Ok(RuntimeValue::RangeValue(values::RangeValue {
-                    options: RuntimeValueDetails::default(),
-                    start,
-                    end,
-                    step,
-                    inclusive_end: expr.inclusive_end,
-                }))
-            }
+            Node::Range(expr) => self.run_range(expr),
 
             // ----- variables -----
             Node::Declare(expr) => self.run_declare(expr),
@@ -302,52 +261,6 @@ impl Interpreter {
             Node::Import(expr) => self.run_import(expr),
             Node::Export(expr) => self.run_export(expr),
 
-            // ----- others -----
-            /*Node::WhenClause(expr) => {
-                let emitter = match self.run(*expr.emitter.clone())? {
-                    RuntimeValue::EventEmitter(e) => e,
-                    e => {
-                        return Err(ZephyrError {
-                            message: format!("Cannot listen to a {} for events", e.type_name()),
-                            code: ErrorCode::TypeError,
-                            location: Some(expr.emitter.location().clone()),
-                        })
-                    }
-                };
-
-                let message = match self.run(*expr.message.clone())? {
-                    RuntimeValue::ZString(s) => s,
-                    e => {
-                        return Err(ZephyrError {
-                            message: format!(
-                                "Expected string for message, but got {}",
-                                e.type_name()
-                            ),
-                            code: ErrorCode::TypeError,
-                            location: Some(expr.emitter.location().clone()),
-                        })
-                    }
-                };
-
-                let func = match self.run(*expr.func.clone())? {
-                    RuntimeValue::Function(f) => FunctionType::Function(f),
-                    RuntimeValue::NativeFunction(f) => FunctionType::NativeFunction(f),
-                    e => {
-                        return Err(ZephyrError {
-                            message: format!(
-                                "Expected function for listener, but got {}",
-                                e.type_name()
-                            ),
-                            code: ErrorCode::TypeError,
-                            location: Some(expr.emitter.location().clone()),
-                        })
-                    }
-                };
-
-                emitter.add_listener(message.value, func, expr.location)?;
-
-                Ok(values::Null::new())
-            }*/
             Node::Interrupt(expr) => match expr.t {
                 InterruptType::Continue => Err(ZephyrError {
                     message: "Cannot continue here".to_string(),
@@ -374,22 +287,8 @@ impl Interpreter {
                 }
             },
 
-            Node::Array(expr) => {
-                let mut items: Vec<RuntimeValue> = vec![];
-                for i in expr.items {
-                    items.push(self.run(i)?);
-                }
-                Ok(values::Array::new(items).wrap())
-            }
-            Node::Object(expr) => {
-                let mut items: HashMap<String, RuntimeValue> = HashMap::new();
-
-                for (k, v) in expr.items {
-                    items.insert(k, self.run(*v.value)?);
-                }
-
-                Ok(values::Object::new(items).wrap())
-            }
+            Node::Array(expr) => self.run_array(expr),
+            Node::Object(expr) => self.run_object(expr),
 
             Node::Member(expr) => self.run_member(expr, None),
 
@@ -435,120 +334,6 @@ impl Interpreter {
         insert_node_timing(key, done);
 
         result
-    }
-
-    pub fn member(&mut self, expr: nodes::Member) -> R {
-        let left = self.run(*expr.left.clone())?;
-
-        if !expr.computed {
-            let _key = match *expr.right {
-                Node::Symbol(sym) => sym.value,
-                _ => unreachable!(),
-            };
-
-            todo!();
-        } else {
-            let right = self.run(*expr.right.clone())?;
-
-            match left {
-                // object[_]
-                RuntimeValue::Object(obj) => match right {
-                    // object[string]
-                    RuntimeValue::ZString(string) => {
-                        if !obj.items.borrow().contains_key(&string.value) {
-                            return Err(ZephyrError {
-                                code: ErrorCode::InvalidKey,
-                                message: format!("Object does not contain key {}", string.value),
-                                location: Some(expr.right.location().clone()),
-                            });
-                        }
-
-                        Ok(obj.items.borrow().get(&string.value).unwrap().clone())
-                    }
-                    _ => {
-                        return Err(ZephyrError {
-                            code: ErrorCode::InvalidOperation,
-                            message: format!(
-                                "Cannot access an object with a {}",
-                                right.type_name()
-                            ),
-                            location: Some(expr.right.location().clone()),
-                        })
-                    }
-                },
-                // array[_]
-                RuntimeValue::Array(arr) => match right {
-                    // array[number]
-                    RuntimeValue::Number(num) => {
-                        // Check out of bounds
-                        if num.value as usize >= arr.items.borrow().len() {
-                            return Err(ZephyrError {
-                                code: ErrorCode::OutOfBounds,
-                                message: format!(
-                                    "Array length is {}, but index wanted was {}",
-                                    arr.items.borrow().len(),
-                                    num.value
-                                ),
-                                location: Some(expr.location),
-                            });
-                        }
-
-                        Ok(arr.items.borrow()[num.value as usize].clone())
-                    }
-                    // array[array]
-                    RuntimeValue::Array(key_arr) => {
-                        let mut items: Vec<RuntimeValue> = vec![];
-
-                        for (index, i) in key_arr.items.borrow().iter().enumerate() {
-                            match i {
-                                RuntimeValue::Number(num) => items.push({
-                                    // Check out of bounds
-                                    if num.value as usize >= arr.items.borrow().len() {
-                                        return Err(ZephyrError {
-                                            code: ErrorCode::OutOfBounds,
-                                            message: format!(
-                                                "Array length is {}, but index wanted was {} at index {}",
-                                                arr.items.borrow().len(),
-                                                num.value,
-                                                index
-                                            ),
-                                            location: Some(expr.location),
-                                        });
-                                    }
-
-                                    arr.items.borrow()[num.value as usize].clone()
-                                }),
-                                _ => return Err(ZephyrError {
-                                    code: ErrorCode::InvalidOperation,
-                                    message: format!(
-                                        "All elements in array key must be a number, but got {} at index {}",
-                                        i.type_name(),
-                                        index
-                                    ),
-                                    location: None,
-                                })
-                            }
-                        }
-
-                        Ok(values::Array::new(items).wrap())
-                    }
-                    _ => {
-                        return Err(ZephyrError {
-                            code: ErrorCode::InvalidOperation,
-                            message: format!("Cannot access an array with a {}", right.type_name()),
-                            location: Some(expr.right.location().clone()),
-                        })
-                    }
-                },
-                _ => {
-                    return Err(ZephyrError {
-                        code: ErrorCode::InvalidOperation,
-                        message: format!("Cannot access a {}", left.type_name()),
-                        location: Some(expr.left.location().clone()),
-                    })
-                }
-            }
-        }
     }
 }
 
