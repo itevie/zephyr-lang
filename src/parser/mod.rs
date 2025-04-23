@@ -146,7 +146,7 @@ impl Parser {
                 t: InterruptType::Break,
             })),
             TokenType::Return => {
-                let token = self.eat();
+                let _ = self.eat();
                 let value = if let TokenType::Semicolon = self.at().t {
                     None
                 } else {
@@ -382,7 +382,7 @@ impl Parser {
         let symbol = match self.at().t {
             TokenType::Symbol => DeclareType::Symbol(Parser::make_symbol(self.eat())),
             TokenType::OpenSquare => {
-                let start = self.eat();
+                let _ = self.eat();
                 let mut names: Vec<nodes::Symbol> = vec![];
 
                 loop {
@@ -622,12 +622,12 @@ impl Parser {
 
         while !matches!(self.at().t, TokenType::CloseBrace) {
             let case: MatchCaseType = if let TokenType::Else = self.at().t.clone() {
-                let token = self.eat();
+                let _ = self.eat();
                 let block = self.block(false)?;
 
                 MatchCaseType::Else(Box::from(block))
             } else if let TokenType::Comparison(c) = self.at().t.clone() {
-                let token = self.eat();
+                let _ = self.eat();
 
                 let value = self.expression()?;
                 let block = self.block(false)?;

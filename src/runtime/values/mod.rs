@@ -48,7 +48,7 @@ pub trait RuntimeValueUtils {
     fn wrap(&self) -> RuntimeValue;
     fn type_name(&self) -> &str;
 
-    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
+    fn to_string(&self, _is_display: bool, _color: bool) -> Result<String, ZephyrError> {
         return Err(ZephyrError {
             message: format!("Cannot stringify {}", self.type_name()),
             code: ErrorCode::TypeError,

@@ -59,7 +59,7 @@ impl RuntimeValueUtils for Function {
         RuntimeValue::Function(self.clone())
     }
 
-    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
+    fn to_string(&self, _is_display: bool, color: bool) -> Result<String, ZephyrError> {
         let string = format!(
             "{}",
             self.inner
@@ -112,7 +112,7 @@ impl RuntimeValueUtils for NativeFunction {
         RuntimeValue::NativeFunction(self.clone())
     }
 
-    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
+    fn to_string(&self, _is_display: bool, color: bool) -> Result<String, ZephyrError> {
         Ok(match color {
             true => format!(
                 "{}{}{}",
@@ -167,7 +167,7 @@ impl RuntimeValueUtils for MspcSender {
         RuntimeValue::MspcSender(self.clone())
     }
 
-    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
+    fn to_string(&self, _is_display: bool, color: bool) -> Result<String, ZephyrError> {
         Ok(match color {
             true => format!(
                 "{}{}{}",

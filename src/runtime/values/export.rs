@@ -26,7 +26,7 @@ impl Export {
 
         match self.scope.borrow().lookup(name, None) {
             Ok(ok) => Ok(ok),
-            Err(err) => Err(ZephyrError {
+            Err(_) => Err(ZephyrError {
                 message: format!("Exported variable {} has not been resolved. Please move this expression to the init block, or fix the cyclic dependency.", name),
                 code: ErrorCode::Unresolved,
                 location: None,

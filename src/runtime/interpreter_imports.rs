@@ -54,7 +54,7 @@ impl Interpreter {
                 .parent()
                 .unwrap()
                 .join(node.import.clone());
-            fs::canonicalize(_path).map_err(|err| ZephyrError {
+            fs::canonicalize(_path).map_err(|_| ZephyrError {
                 message: format!("Cannot resolve {}", _path.display().to_string()),
                 code: ErrorCode::CannotResolve,
                 location: Some(node.location.clone()),

@@ -75,7 +75,7 @@ impl Interpreter {
 
                 (func.func)(ctx)
             }
-            FunctionType::MspcSender(func) => {
+            FunctionType::MspcSender(_) => {
                 panic!();
                 /*func.sender
                     .send(MspcSenderOptions {

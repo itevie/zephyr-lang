@@ -445,7 +445,7 @@ impl Interpreter {
         let left = self.run(*expr.left.clone())?;
 
         if !expr.computed {
-            let key = match *expr.right {
+            let _key = match *expr.right {
                 Node::Symbol(sym) => sym.value,
                 _ => unreachable!(),
             };

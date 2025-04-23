@@ -60,7 +60,7 @@ impl RuntimeValueUtils for RangeValue {
             .collect())
     }
 
-    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
+    fn to_string(&self, _is_display: bool, color: bool) -> Result<String, ZephyrError> {
         let string = format!(
             "({}{}{}{})",
             self.start,

@@ -28,7 +28,7 @@ impl RuntimeValueUtils for Boolean {
 
     fn to_string(
         &self,
-        is_display: bool,
+        _is_display: bool,
         color: bool,
     ) -> Result<String, crate::errors::ZephyrError> {
         Ok(match color {

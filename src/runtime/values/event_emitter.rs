@@ -100,7 +100,7 @@ impl RuntimeValueUtils for EventEmitter {
         RuntimeValue::EventEmitter(self.clone())
     }
 
-    fn to_string(&self, is_display: bool, color: bool) -> Result<String, ZephyrError> {
+    fn to_string(&self, _is_display: bool, color: bool) -> Result<String, ZephyrError> {
         let keys = self
             .defined_events
             .iter()
