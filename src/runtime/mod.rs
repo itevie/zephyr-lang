@@ -244,10 +244,6 @@ impl Interpreter {
             Node::WhileLoop(expr) => self.run_while(expr),
             Node::For(expr) => self.run_for(expr),
 
-            // ----- errors -----
-            Node::PropogateError(expr) => self.run_propogate_error(expr),
-            Node::EncapsulateError(expr) => self.run_encapsulate_error(expr),
-
             // ----- operators -----
             Node::Arithmetic(expr) => self.run_arithmetic(expr),
             Node::Is(expr) => self.run_is(expr),

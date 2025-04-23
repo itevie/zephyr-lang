@@ -105,9 +105,7 @@ impl Interpreter {
             args.insert(0, *val.clone());
         }
 
-        let left_clone = left.clone();
-        let tag_lock = left_clone.options().tags.borrow_mut();
-        if let Some(enum_id) = tag_lock.get("__enum_base").cloned() {
+        if let Some(enum_id) = left.options().tags.borrow_mut().get("__enum_base").cloned() {
             if args.len() > 1 {
                 return Err(ZephyrError {
                     code: ErrorCode::TypeError,
@@ -117,13 +115,13 @@ impl Interpreter {
             }
 
             let null_value = values::Null::new().wrap();
-            if let Some(proto) = left_clone.options().proto.borrow_mut().clone() {
+            if let Some(proto) = left.options().proto.borrow().as_ref() {
                 return Ok(values::EnumVariant::new(
                     args.get(0).unwrap_or(&null_value).clone(),
                     enum_id.clone(),
                 )
                 .wrap()
-                .set_proto(proto));
+                .set_proto(proto.clone()));
             } else {
                 return Ok(values::EnumVariant::new(
                     args.get(0).unwrap_or(&null_value).clone(),

@@ -1,0 +1,9 @@
+func fib(n) {
+    match n {
+        < 1 -> 0,
+        <= 2 -> 1,
+        else -> fib(n - 1) + fib(n - 2)
+    }
+}
+
+print(fib(3));

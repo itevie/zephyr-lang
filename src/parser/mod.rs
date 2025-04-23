@@ -997,24 +997,6 @@ impl Parser {
                     location: token.location,
                 });
             }
-
-            // Check for !
-            if matches!(self.at().t, TokenType::Unary(Unary::Not)) {
-                let token = self.eat();
-                left = Node::EncapsulateError(nodes::EncapsulateError {
-                    left: Box::from(left),
-                    location: token.location,
-                });
-            }
-
-            // Check for .^
-            if matches!(self.at().t, TokenType::ShortCircuit) {
-                let token = self.eat();
-                left = Node::PropogateError(nodes::PropogateError {
-                    left: Box::from(left),
-                    location: token.location,
-                });
-            }
         }
 
         Ok(left)

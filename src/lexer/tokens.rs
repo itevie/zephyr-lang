@@ -24,7 +24,6 @@ pub enum TokenType {
     Arrow,
     Range,
     RangeInclusive,
-    ShortCircuit,
 
     Eof,
 

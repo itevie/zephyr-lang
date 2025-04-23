@@ -205,10 +205,6 @@ pub fn lex(contents: &str, file_name: String) -> Result<Vec<Token>, ZephyrError>
                                 actual_value = Some(String::from(".."));
                                 TokenType::Range
                             }
-                        } else if next_char == '^' {
-                            chars.next();
-                            actual_value = Some(String::from(".^"));
-                            TokenType::ShortCircuit
                         } else {
                             TokenType::Dot
                         }

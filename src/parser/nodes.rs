@@ -21,8 +21,6 @@ pub enum Node {
     Call(Call),
     Comp(Comp),
     Debug(DebugNode),
-    EncapsulateError(EncapsulateError),
-    PropogateError(PropogateError),
     Enum(Enum),
     Function(Function),
     Is(Is),
@@ -57,8 +55,6 @@ impl Node {
             Node::Call(v) => &v.location,
             Node::Comp(v) => &v.location,
             Node::Debug(v) => &v.location,
-            Node::EncapsulateError(v) => &v.location,
-            Node::PropogateError(v) => &v.location,
             Node::Enum(v) => &v.location,
             Node::Function(v) => &v.location,
             Node::Is(v) => &v.location,
@@ -321,17 +317,5 @@ pub struct Is {
 pub struct Enum {
     pub name: Symbol,
     pub values: Vec<(Symbol, String)>,
-    pub location: Location,
-}
-
-#[derive(Debug, Clone)]
-pub struct EncapsulateError {
-    pub left: Box<Node>,
-    pub location: Location,
-}
-
-#[derive(Debug, Clone)]
-pub struct PropogateError {
-    pub left: Box<Node>,
     pub location: Location,
 }
