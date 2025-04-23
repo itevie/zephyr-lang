@@ -1,3 +1,0 @@
-func b() {
-    Result.Ok(2);
-}
