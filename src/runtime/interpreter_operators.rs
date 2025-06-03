@@ -1,7 +1,7 @@
 use crate::{
     errors::{ErrorCode, ZephyrError},
-    lexer::tokens::{self, TokenType},
-    parser::nodes::{self, UnaryType},
+    lexer::tokens::{self, Logical, TokenType},
+    parser::nodes::{self, IsType, UnaryType},
 };
 
 use super::{
@@ -75,6 +75,19 @@ impl Interpreter {
         Ok(values::Boolean::new(left.compare_with(right, expr.t, Some(expr.location))?).wrap())
     }
 
+    pub fn run_logical(&mut self, expr: nodes::Logical) -> R {
+        let left = self.run(*expr.left)?;
+
+        let result = match expr.t {
+            Logical::And if !left.is_truthy() => false,
+            Logical::And => self.run(*expr.right)?.is_truthy(),
+            Logical::Or if left.is_truthy() => true,
+            Logical::Or => self.run(*expr.right)?.is_truthy(),
+        };
+
+        Ok(values::Boolean::new(result).wrap())
+    }
+
     pub fn run_unary(&mut self, expr: nodes::Unary) -> R {
         let left = self.run(*expr.value)?;
 
@@ -101,10 +114,8 @@ impl Interpreter {
         }
     }
 
-    pub fn run_is(&mut self, expr: nodes::Is) -> R {
-        let left = self.run(*expr.left)?;
-
-        Ok(values::Boolean::new(match expr.right {
+    pub fn run_inner_is(&mut self, left: RuntimeValue, right: IsType) -> R {
+        Ok(values::Boolean::new(match right {
             nodes::IsType::Basic(_right) => {
                 let right = self.run(*_right)?;
 
@@ -127,5 +138,10 @@ impl Interpreter {
             _ => todo!(),
         })
         .wrap())
+    }
+
+    pub fn run_is(&mut self, expr: nodes::Is) -> R {
+        let left = self.run(*expr.left)?;
+        self.run_inner_is(left, expr.right)
     }
 }

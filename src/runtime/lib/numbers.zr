@@ -1,0 +1,9 @@
+let proto = __zephyr_native.get_proto_obj("number");
+
+proto.parse_int = func parse_int(value) {
+    if !value.is_digit() {
+        return null;
+    }
+}
+
+export const Number = proto;

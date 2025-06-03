@@ -1,0 +1,25 @@
+export const Math = .{
+    PI: 3141592653589793 / 10,
+    E: 2718281828459045 / 10,
+
+    // min: __zephyr_native.math_min,
+    // max: __zephyr_native.math_max,
+
+    sin: __zephyr_native.math_sin,
+    cos: __zephyr_native.math_cos,
+    tan: __zephyr_native.math_tan,
+    asin: __zephyr_native.math_asin,
+    acos: __zephyr_native.math_acos,
+    atan: __zephyr_native.math_atan,
+
+    sinh: __zephyr_native.math_sinh,
+    cosh: __zephyr_native.math_cosh,
+    tanh: __zephyr_native.math_tanh,
+    asinh: __zephyr_native.math_asinh,
+    acosh: __zephyr_native.math_acosh,
+    atanh: __zephyr_native.math_atanh,
+
+    exp: __zephyr_native.math_exp,
+    sqrt: __zephyr_native.math_sqrt,
+    cbrt: __zephyr_native.math_cbrt
+};

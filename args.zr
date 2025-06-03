@@ -1,0 +1,7 @@
+syntax: (positional args[, %, named args])
+
+func test(a, b, c)
+func test(a, b, c, ...x)
+func test(a, b, c, %, x, y, z)
+
+func tet(a, b, c = 4, ...spreadA, %, x, y, z = 3, ...spreadB)

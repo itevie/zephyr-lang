@@ -146,7 +146,7 @@ impl Parser {
                 t: InterruptType::Break,
             })),
             TokenType::Return => {
-                let _ = self.eat();
+                let token = self.eat();
                 let value = if let TokenType::Semicolon = self.at().t {
                     None
                 } else {
@@ -154,7 +154,7 @@ impl Parser {
                 };
 
                 Ok(Node::Interrupt(nodes::Interrupt {
-                    location: self.eat().location,
+                    location: token.location,
                     t: InterruptType::Return(value),
                 }))
             }
@@ -637,6 +637,14 @@ impl Parser {
                     value: Box::from(value),
                     success: Box::from(block),
                 })
+            } else if let TokenType::Is = self.at().t {
+                let result = match self.is(Some(test.clone()))? {
+                    Node::Is(is) => is,
+                    _ => unreachable!(),
+                };
+                let block = self.block(false)?;
+
+                MatchCaseType::Is(Box::from(result.left), result.right, Box::from(block))
             } else {
                 MatchCaseType::MatchCase(MatchCase {
                     op: tokens::Comparison::Eq,
@@ -675,7 +683,7 @@ impl Parser {
     }
 
     pub fn assign(&mut self) -> NR {
-        let left = self.is()?;
+        let left = self.logical()?;
 
         if let TokenType::Assign = self.at().t {
             let token = self.eat();
@@ -691,12 +699,37 @@ impl Parser {
         Ok(left)
     }
 
-    pub fn is(&mut self) -> NR {
-        let left = self.comparison()?;
+    pub fn logical(&mut self) -> NR {
+        let left = self.is(None)?;
+
+        if matches!(self.at().t, TokenType::Logical(_)) {
+            let token = self.eat();
+            let right = self.expression()?;
+
+            return Ok(Node::Logical(nodes::Logical {
+                t: match token.t {
+                    TokenType::Logical(l) => l,
+                    _ => unreachable!(),
+                },
+                left: Box::from(left),
+                right: Box::from(right),
+                location: token.location,
+            }));
+        }
+
+        return Ok(left);
+    }
+
+    pub fn is(&mut self, base: Option<Node>) -> NR {
+        let left = if let Some(base) = base {
+            base
+        } else {
+            self.comparison()?
+        };
 
         if matches!(self.at().t, TokenType::Is) {
             let token = self.eat();
-            let right = self.expression()?;
+            let right = self.comparison()?;
 
             return Ok(Node::Is(nodes::Is {
                 left: Box::from(left),
@@ -714,7 +747,7 @@ impl Parser {
 
         while let TokenType::Comparison(v) = self.at().t.clone() {
             let token = self.eat();
-            let right = self.expression()?;
+            let right = self.range()?;
             left = Node::Comp(nodes::Comp {
                 left: Box::from(left),
                 right: Box::from(right),

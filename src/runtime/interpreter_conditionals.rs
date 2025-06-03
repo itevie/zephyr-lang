@@ -31,6 +31,12 @@ impl Interpreter {
                 MatchCaseType::Else(r) => {
                     return self.run(*r);
                 }
+                MatchCaseType::Is(val, is, success) => {
+                    let left = self.run(*val)?;
+                    if self.run_inner_is(left, is)?.is_truthy() {
+                        return self.run(*success);
+                    }
+                }
             }
         }
 

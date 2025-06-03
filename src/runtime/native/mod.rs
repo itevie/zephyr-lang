@@ -6,11 +6,14 @@ use crate::{
 use super::{values::RuntimeValue, Interpreter};
 
 pub mod basics;
+pub mod enums;
 pub mod events;
 pub mod fs;
+pub mod math;
 pub mod module;
 pub mod native_util;
 pub mod proto;
+pub mod strings;
 pub mod tags;
 pub mod test;
 
@@ -25,6 +28,9 @@ pub fn all() -> Vec<(String, RuntimeValue)> {
         .chain(fs::all().iter().cloned())
         .chain(module::all().iter().cloned())
         .chain(tags::all().iter().cloned())
+        .chain(strings::all().iter().cloned())
+        .chain(math::all().iter().cloned())
+        .chain(enums::all().iter().cloned())
         .collect()
 }
 

@@ -24,6 +24,7 @@ pub enum Node {
     Enum(Enum),
     Function(Function),
     Is(Is),
+    Logical(Logical),
     Member(Member),
     Range(Range),
     Unary(Unary),
@@ -58,6 +59,7 @@ impl Node {
             Node::Enum(v) => &v.location,
             Node::Function(v) => &v.location,
             Node::Is(v) => &v.location,
+            Node::Logical(v) => &v.location,
             Node::Member(v) => &v.location,
             Node::Range(v) => &v.location,
             Node::Unary(v) => &v.location,
@@ -144,6 +146,14 @@ pub struct Comp {
 }
 
 #[derive(Debug, Clone)]
+pub struct Logical {
+    pub left: Box<Node>,
+    pub right: Box<Node>,
+    pub t: tokens::Logical,
+    pub location: Location,
+}
+
+#[derive(Debug, Clone)]
 pub struct Call {
     pub left: Box<Node>,
     pub args: Vec<Node>,
@@ -200,6 +210,7 @@ pub struct WhileLoop {
 pub enum MatchCaseType {
     MatchCase(MatchCase),
     Else(Box<Node>),
+    Is(Box<Node>, IsType, Box<Node>),
 }
 
 #[derive(Debug, Clone)]
@@ -221,6 +232,7 @@ pub struct DebugNode {
     pub node: Box<Node>,
     pub location: Location,
 }
+
 #[derive(Debug, Clone)]
 pub enum ExportType {
     Symbol(Symbol),

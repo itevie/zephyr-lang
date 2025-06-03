@@ -7,7 +7,7 @@ use crate::{
 
 use super::{
     scope::Variable,
-    values::{self, RuntimeValue, RuntimeValueUtils},
+    values::{self, Object, RuntimeValue, RuntimeValueUtils},
     Interpreter, R,
 };
 
@@ -94,7 +94,9 @@ impl Interpreter {
         let mut items: HashMap<String, RuntimeValue> = HashMap::new();
 
         let proto = uuid::Uuid::new_v4().to_string();
-        self.prototype_store.set(proto.clone(), Default::default());
+        let obj = Object::new_empty();
+        obj.options.proto.borrow_mut().replace("enum".to_string());
+        self.prototype_store.set(proto.clone(), obj);
 
         for (key, value) in expr.values {
             let val = values::ZString::new("".to_string());

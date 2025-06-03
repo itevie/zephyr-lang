@@ -1,0 +1,16 @@
+import "./lexer.zr" expose lex;
+import "./parser.zr" expose parse;
+import "./runner.zr" expose run;
+
+
+let expr = "2 + 3 * 4";
+let lexed = lex(expr);
+let parsed = parse(lexed);
+
+//print(parsed);
+
+if parsed is Result.Err {
+    print("Failed to run: " + parsed.inner());
+} else {
+    run(parsed.inner());
+}

@@ -11,7 +11,7 @@ use std::{
 };
 
 use scope::{Scope, ScopeInnerType, Variable};
-use values::{Null, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils};
+use values::{Null, RuntimeValue, RuntimeValueUtils};
 
 use crate::{
     errors::{ErrorCode, ZephyrError},
@@ -113,6 +113,9 @@ impl Interpreter {
             include_lib!("./lib/fs.zr"),
             include_lib!("./lib/module.zr"),
             include_lib!("./lib/result.zr"),
+            include_lib!("./lib/math.zr"),
+            include_lib!("./lib/numbers.zr"),
+            include_lib!("./lib/enums.zr"),
         ];
 
         for lib in library_files {
@@ -251,6 +254,7 @@ impl Interpreter {
             Node::Comp(expr) => self.run_comp(expr),
             Node::Unary(expr) => self.run_unary(expr),
             Node::Range(expr) => self.run_range(expr),
+            Node::Logical(expr) => self.run_logical(expr),
 
             // ----- variables -----
             Node::Declare(expr) => self.run_declare(expr),
@@ -322,6 +326,7 @@ impl Interpreter {
             }
         }
         .map_err(|ref x| {
+            // If there is no location provided, just set it to the current node
             let mut err = x.clone();
             if let None = x.location {
                 err.location = Some(node.location().clone())

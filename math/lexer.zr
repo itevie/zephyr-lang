@@ -1,0 +1,43 @@
+enum Token {
+    Number,
+    Plus,
+    Minus,
+    Multiply,
+    Divide
+}
+
+export Token;
+
+func parse_int(value) {
+    value.char_code() - 48;
+}
+
+export func lex(expr) {
+    let Tokens = [];
+    let index = 0;
+
+    while index != $expr {
+        let Token = match expr[index] {
+            "+" -> Token.Plus(null),
+            "-" -> Token.Minus(null),
+            "*" -> Token.Multiply(null),
+            "/" -> Token.Divide(null),
+
+            else -> {
+                if expr[index] == " " {
+                    null;
+                } else if expr[index].is_digit() {
+                    Token.Number(parse_int(expr[index]));
+                }
+            }
+        }
+
+        if Token != null {
+            Tokens[$Tokens] = Token;
+        }
+
+        index = index + 1;
+    }
+
+    Tokens;
+}

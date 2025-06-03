@@ -11,6 +11,10 @@ pub struct Object {
 }
 
 impl Object {
+    pub fn new_empty() -> Self {
+        Self::new(HashMap::new())
+    }
+
     pub fn new(items: HashMap<String, RuntimeValue>) -> Self {
         Object {
             items: Rc::from(RefCell::from(items)),

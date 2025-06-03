@@ -14,7 +14,7 @@ impl EnumVariant {
         Self {
             inner: Box::new(inner),
             enum_id,
-            options: RuntimeValueDetails::default(),
+            options: RuntimeValueDetails::with_proto("enum".to_string()),
         }
     }
 }

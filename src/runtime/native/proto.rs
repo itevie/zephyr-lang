@@ -18,22 +18,20 @@ pub fn all() -> Vec<(String, RuntimeValue)> {
 
 pub fn get_proto_obj(ctx: NativeExecutionContext) -> R {
     match &ctx.args[..] {
-        [RuntimeValue::ZString(s)] => Ok(values::Object::new_from_rc(
-            ctx.interpreter.prototype_store.get(s.value.clone()),
-        )
-        .wrap()),
+        [RuntimeValue::ZString(s)] => {
+            Ok(ctx.interpreter.prototype_store.get(s.value.clone()).wrap())
+        }
         _ => Err(make_no_args_error(ctx.location)),
     }
 }
 
 pub fn get_proto_obj_of(ctx: NativeExecutionContext) -> R {
     match &ctx.args[..] {
-        [s] => Ok(values::Object::new_from_rc(
-            ctx.interpreter
-                .prototype_store
-                .get(s.options().proto.borrow().as_ref().unwrap()),
-        )
-        .wrap()),
+        [s] => Ok(ctx
+            .interpreter
+            .prototype_store
+            .get(s.options().proto.borrow().as_ref().unwrap())
+            .wrap()),
         _ => Err(make_no_args_error(ctx.location)),
     }
 }
@@ -42,9 +40,7 @@ pub fn set_proto_ref(ctx: NativeExecutionContext) -> R {
     match &ctx.args[..] {
         [val, RuntimeValue::Object(r)] => {
             let key = format!("user::{}", uuid::Uuid::new_v4());
-            ctx.interpreter
-                .prototype_store
-                .set(key.clone(), r.items.clone());
+            ctx.interpreter.prototype_store.set(key.clone(), r.clone());
             *val.options().proto.borrow_mut() = Some(key.clone());
 
             Ok(values::Null::new().wrap())

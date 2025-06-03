@@ -1,0 +1,79 @@
+import "./lexer.zr" expose Token;
+
+enum Node {
+    Additive,
+    Multiplicative,
+    Number,
+}
+
+export func parse(tokens) {
+    let currentIndex = 0;
+
+    func eat() {
+        let value = tokens[currentIndex];
+        currentIndex = currentIndex + 1;
+        return value;
+    }
+
+    func additive() {
+        let _left = multiplicative();
+        let left = match _left {
+            is Result.Err -> return _left,
+            is Result.Ok -> _left.inner()
+        };
+
+        while currentIndex != $tokens && tokens[currentIndex] is Token.Plus || tokens[currentIndex] is Token.Minus {
+            let token = eat();
+            let _right = multiplicative();
+            let right = match _right {
+                is Result.Err -> return _right,
+                is Result.Ok -> _right.inner()
+            };
+
+            left = Node.Additive(.{
+                left,
+                right,
+                op: token
+            });
+        }
+
+        Result.Ok(left);
+    }
+
+    func multiplicative() {
+        let _left = literal();
+        let left = match _left {
+            is Result.Err -> return _left,
+            is Result.Ok -> _left.inner()
+        };
+
+        while currentIndex != $tokens && tokens[currentIndex] is Token.Multiply || tokens[currentIndex] is Token.Divide {
+            let token = eat();
+            let _right = additive();
+            let right = match _right {
+                is Result.Err -> return _right,
+                is Result.Ok -> _right.inner()
+            };
+
+            left = Node.Multiplicative(.{
+                left,
+                right,
+                op: token
+            });
+        }
+
+        Result.Ok(left);
+    }
+
+    func literal() {
+        if tokens[currentIndex] is Token.Number {
+            let value = tokens[currentIndex].inner();
+            currentIndex = currentIndex + 1;
+            Result.Ok(Node.Number(value));
+        } else {
+            Result.Err("Invalid token!");
+        }
+    }
+
+    additive();
+}

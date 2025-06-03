@@ -1,0 +1,28 @@
+import "./lexer.zr" expose Token;
+import "./parser.zr" expose Node;
+
+export func run(ast) {
+    if ast is Node.Additive {
+        return run_arithmetic(ast.inner());
+    } else if ast is Node.Multiplicative {
+        return run_arithmetic(ast.inner());
+    } else if ast is Node.Number {
+        return run_number(ast.inner());
+    }
+}
+
+func run_arithmetic(expr) {
+    let left = run(expr.left);
+    let right = run(expr.right);
+
+    match expr.op {
+        is Token.Multiply -> left * right,
+        is Token.Divide -> left / right,
+        is Token.Plus -> left + right,
+        is Token.Minus -> left - right,
+    }
+}
+
+func run_number(expr) {
+    return expr;
+}

@@ -1,0 +1,14 @@
+func f(num) {
+	let result = num;
+	if num < 2 {
+		return 1;
+	}
+	while (num > 1) {
+		num = num - 1;
+		print(num);
+		result = result * num;	
+	}
+	result;
+}
+
+f(f(f(10)));

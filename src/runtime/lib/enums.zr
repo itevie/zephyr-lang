@@ -1,0 +1,7 @@
+let proto = __zephyr_native.get_proto_obj("enum");
+
+proto.inner = func inner(value) {
+    __zephyr_native.get_enum_varient_inner(value);
+}
+
+export const Enum = proto;

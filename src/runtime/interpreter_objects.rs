@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{
     errors::{ErrorCode, ZephyrError},
     parser::nodes::{self, Node},
+    runtime::prototype_store::PrototypeStore,
 };
 
 use super::{
@@ -83,6 +84,32 @@ impl Interpreter {
                     })
                 }
                 RuntimeValue::Number(number) => {
+                    if let Some(set) = set {
+                        match left {
+                            RuntimeValue::Array(ref arr) => {
+                                let mut borrow = arr.items.borrow_mut();
+                                if number.value as usize > borrow.len() {
+                                    return Err(ZephyrError { code: ErrorCode::OutOfBounds, message: format!("Trying to assign at index {} but array is only {} items long", number.value, borrow.len()), location: Some(expr.location) });
+                                } else {
+                                    if number.value as usize == borrow.len() {
+                                        borrow.push(set);
+                                    } else {
+                                        borrow[number.value as usize] = set;
+                                    }
+
+                                    return Ok(values::Null::new().wrap());
+                                }
+                            }
+                            _ => {
+                                return Err(ZephyrError {
+                                    code: ErrorCode::InvalidOperation,
+                                    message: format!("Cannot assign to a {}", left.type_name()),
+                                    location: Some(expr.location),
+                                })
+                            }
+                        }
+                    }
+
                     let iter = left.iter()?;
 
                     if let Some(val) = iter.get(number.value as usize) {
@@ -118,9 +145,7 @@ impl Interpreter {
 
         if &key == "__proto" {
             return match value.options().proto.borrow().as_ref() {
-                Some(proto) => {
-                    Ok(values::Object::new_from_rc(self.prototype_store.get(proto)).wrap())
-                }
+                Some(proto) => Ok(self.prototype_store.get(proto).wrap()),
                 None => Err(ZephyrError {
                     message: "The value does not have a prototype".to_string(),
                     code: ErrorCode::UnknownReference,
@@ -168,21 +193,32 @@ impl Interpreter {
         }
 
         if let Some(proto_ref) = value.options().proto.borrow().as_ref() {
-            let prototype = self.prototype_store.get(proto_ref.clone());
+            let mut proto_ref = Some(proto_ref.clone());
 
-            let borrow = prototype.borrow_mut();
-            if let Some(proto_value) = borrow.get(&key) {
-                let mut new_value = proto_value.clone();
-                new_value.set_options(RuntimeValueDetails {
-                    proto_value: Some(Box::from(value.clone())),
-                    ..proto_value.options().clone()
-                });
+            while let Some(ref proto) = proto_ref {
+                let prototype = self.prototype_store.get(proto.clone());
 
-                return Ok(new_value.clone());
+                let borrow = prototype.items.borrow_mut();
+                if let Some(proto_value) = borrow.get(&key) {
+                    let mut new_value = proto_value.clone();
+                    new_value.set_options(RuntimeValueDetails {
+                        proto_value: Some(Box::from(value.clone())),
+                        ..proto_value.options().clone()
+                    });
+
+                    return Ok(new_value.clone());
+                } else if let Some(new_proto) = prototype.options.proto.borrow().clone() {
+                    if new_proto == proto_ref.unwrap() {
+                        break;
+                    }
+                    proto_ref = Some(new_proto)
+                } else {
+                    break;
+                }
             }
         }
 
-        if let Some(val) = self.prototype_store.get("any").borrow().get(&key) {
+        if let Some(val) = self.prototype_store.get("any").items.borrow().get(&key) {
             return Ok(val.clone());
         }
 

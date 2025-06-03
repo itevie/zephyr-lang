@@ -14,22 +14,48 @@ mod util;
 
 fn main() {
     let args = env::args().collect::<Vec<String>>();
-    let file_name = args
-        .get(2)
-        .ok_or_else(|| panic!("Failed to read file path"))
-        .unwrap();
 
-    println!(
-        "{}",
-        match run(&file_name) {
-            Ok(ok) => match ok.to_string(true, true, true) {
-                Ok(ok) => ok,
+    if let Some(file_name) = args.get(2) {
+        println!(
+            "{}",
+            match run(&file_name) {
+                Ok(ok) => match ok.to_string(true, true, true) {
+                    Ok(ok) => ok,
+                    Err(err) => err.visualise(),
+                },
+
                 Err(err) => err.visualise(),
-            },
+            }
+        );
+    } else {
+        let mut interpreter = Interpreter::new("<REPL>".to_string());
+        loop {
+            let mut line = String::new();
+            std::io::stdin().read_line(&mut line).unwrap();
 
-            Err(err) => err.visualise(),
+            let mut parser = Parser::new(
+                match lex(&line, "<REPL>".to_string()) {
+                    Ok(ok) => ok,
+                    Err(err) => {
+                        eprintln!("{}", err.visualise());
+                        continue;
+                    }
+                },
+                "<REPL>".to_string(),
+            );
+            let parsed = match parser.produce_ast() {
+                Ok(ok) => ok,
+                Err(err) => {
+                    eprintln!("{}", err.visualise());
+                    continue;
+                }
+            };
+            match interpreter.run(parsed) {
+                Ok(ok) => println!("{}", ok.to_string(true, true, true).unwrap()),
+                Err(err) => eprintln!("{}", err.visualise()),
+            }
         }
-    );
+    }
 }
 
 fn run(file_name: &str) -> Result<RuntimeValue, ZephyrError> {

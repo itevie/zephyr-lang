@@ -228,6 +228,7 @@ impl RuntimeValue {
                 l.value != r.value
             }
             (RuntimeValue::Null(_), RuntimeValue::Null(_), Comparison::Eq) => true,
+            (RuntimeValue::Null(_), RuntimeValue::Null(_), Comparison::Neq) => false,
             (_, ref r, ref t) => {
                 return Err(ZephyrError {
                     code: ErrorCode::InvalidOperation,
