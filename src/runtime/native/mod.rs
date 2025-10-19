@@ -16,6 +16,7 @@ pub mod proto;
 pub mod strings;
 pub mod tags;
 pub mod test;
+pub mod tcp;
 
 pub fn all() -> Vec<(String, RuntimeValue)> {
     vec![]
@@ -31,6 +32,7 @@ pub fn all() -> Vec<(String, RuntimeValue)> {
         .chain(strings::all().iter().cloned())
         .chain(math::all().iter().cloned())
         .chain(enums::all().iter().cloned())
+        .chain(tcp::all().iter().cloned())
         .collect()
 }
 

@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use crate::{
     errors::{ErrorCode, ZephyrError},
     parser::nodes::{self, Node},
-    runtime::prototype_store::PrototypeStore,
 };
 
 use super::{
@@ -66,8 +65,6 @@ impl Interpreter {
                             });
                         }
                     }
-
-                    println!("{:?}", left);
 
                     Ok(match left {
                         /*RuntimeValue::ZString(_) => values::ZString::new(

@@ -1,4 +1,4 @@
-/*macro_rules! handle_thread {
+macro_rules! handle_thread {
     ($channel: ident, $expr: expr) => {
         $channel.thread_start();
         std::thread::spawn(move || {
@@ -27,4 +27,4 @@ macro_rules! expect_one_arg {
 }
 
 pub(crate) use expect_one_arg;
-*/
+

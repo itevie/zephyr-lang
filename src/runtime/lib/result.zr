@@ -9,10 +9,8 @@ __zephyr_native.set_tag(Result.Err, "__enum_base", "Result.Err__Zephyr");
 let result_proto = __zephyr_native.get_proto_obj_of(Result);
 
 result_proto.unwrap = func unwrap(value) {
-  debug value;
-  debug Result.Ok;
   if value is Result.Ok {
-    return value;
+    return __zephyr_native.get_enum_varient_inner(value);
   } else {
     return "PANIC!";
   }

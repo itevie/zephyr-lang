@@ -2,22 +2,23 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
-
+use uuid::Uuid;
 use crate::{
     errors::{ErrorCode, ZephyrError},
     lexer::tokens::Location,
     runtime::zephyr_mspc::{Job, MspcChannel},
     util::colors,
 };
-
+use crate::runtime::native::NativeExecutionContext;
+use crate::runtime::values::thread_crossing::ThreadRuntimeValueArray;
 use super::{
-    thread_crossing::{ThreadRuntimeFunctionType, ThreadRuntimeValueArray},
+    // thread_crossing::{ThreadRuntimeFunctionType, ThreadRuntimeValueArray},
     FunctionType, RuntimeValue, RuntimeValueDetails, RuntimeValueUtils,
 };
 
 #[derive(Debug, Clone)]
 pub struct EventEmitterForThreads {
-    pub listeners: Arc<Mutex<HashMap<String, Arc<Mutex<Vec<ThreadRuntimeFunctionType>>>>>>,
+    pub listeners: Arc<Mutex<HashMap<String, Arc<Mutex<Vec<Uuid>>>>>>,
 }
 
 impl EventEmitterForThreads {
@@ -65,26 +66,27 @@ impl EventEmitter {
         &self,
         message: String,
         func: FunctionType,
-        location: Location,
+        ctx: NativeExecutionContext
     ) -> Result<(), ZephyrError> {
         if !self.defined_events.contains(&message) {
             return Err(ZephyrError {
                 message: format!("Event emitter does not have a {} event", message),
                 code: ErrorCode::UndefinedEventMessage,
-                location: Some(location),
+                location: Some(ctx.location.clone()),
             });
         }
 
+        let func_uuid = ctx.interpreter.insert_function(func);
         let mut lock = self.thread_part.listeners.lock().unwrap();
 
         if !lock.contains_key(&message) {
-            lock.insert(message, Arc::from(Mutex::from(vec![func.into()])));
+            lock.insert(message, Arc::from(Mutex::from(vec![func_uuid])));
         } else {
             lock.get(&message)
                 .unwrap()
                 .lock()
                 .unwrap()
-                .push(func.into());
+                .push(func_uuid);
         }
 
         Ok(())

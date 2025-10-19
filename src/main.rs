@@ -4,7 +4,12 @@ use errors::ZephyrError;
 use lexer::lexer::lex;
 use parser::Parser;
 use runtime::{values::RuntimeValue, Interpreter};
-use std::{env, fs};
+use std::{env, fs, thread};
+use std::io::{ErrorKind, Read, Write};
+use std::net::TcpStream;
+use std::sync::mpsc;
+use std::time::Duration;
+use crate::runtime::values::thread_crossing::{ThreadInnerValue, ThreadRuntimeValue};
 
 mod errors;
 mod lexer;
@@ -19,10 +24,7 @@ fn main() {
         println!(
             "{}",
             match run(&file_name) {
-                Ok(ok) => match ok.to_string(true, true, true) {
-                    Ok(ok) => ok,
-                    Err(err) => err.visualise(),
-                },
+                Ok(ok) => ok.to_string(true, true, true).unwrap_or_else(|err| err.visualise()),
 
                 Err(err) => err.visualise(),
             }

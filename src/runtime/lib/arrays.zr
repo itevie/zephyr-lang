@@ -25,4 +25,20 @@ proto.reverse = func reverse(what) {
   what[-1..=0];
 }
 
+proto.first = func first(what) {
+    if $what == 0 {
+        null
+    } else {
+        what[0]
+    }
+}
+
+proto.last = func last(what) {
+    if $what == 0 {
+        null
+    } else {
+        what[-1]
+    }
+}
+
 export const Array = proto;

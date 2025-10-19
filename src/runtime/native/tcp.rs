@@ -1,7 +1,6 @@
 use super::{native_util::handle_thread, NativeExecutionContext};
 use crate::errors::{ErrorCode, ZephyrError};
-use crate::runtime::native::native_util::expect_one_arg;
-use crate::runtime::values::thread_crossing::ThreadRuntimeValue;
+use crate::runtime::values::thread_crossing::{ThreadInnerValue, ThreadRuntimeValue};
 use crate::runtime::{
     native::{add_native, make_no_args_error},
     values::{
@@ -18,6 +17,7 @@ use std::{
     thread,
     time::Duration,
 };
+use crate::runtime::native::native_util::expect_one_arg;
 
 pub fn all() -> Vec<(String, RuntimeValue)> {
     vec![add_native!("create_tcp_stream", create_tcp_stream)]
@@ -30,8 +30,6 @@ from_runtime_object!(TcpStreamOptions {
 });
 
 pub fn create_tcp_stream(ctx: NativeExecutionContext) -> R {
-    Ok(values::Null::new().wrap())
-    /*
     let options = TcpStreamOptions::from_runtime_value(expect_one_arg!(ctx.args))?;
 
     if options.block_till_finished {
@@ -65,30 +63,32 @@ pub fn create_tcp_stream(ctx: NativeExecutionContext) -> R {
     let mut channel = ctx.interpreter.mspc.clone().unwrap();
     let event_part = event.thread_part.clone();
 
-    std::thread::spawn(move || {
+
+    handle_thread!(channel, {
         let mut stream = TcpStream::connect(&options.url).unwrap();
         stream.set_nonblocking(true).unwrap();
 
-        let mut buffer = vec![0; 1024]; // Temporary buffer for reading
-        let mut received_data = Vec::new(); // Store all received bytes
-        let sender = ctx.interpreter.mspc.unwrap();
+        if !options.presend.is_empty() {
+            stream.write_all(&options.presend).unwrap();
+        }
+
+        let mut buffer = vec![0; 1024];
+        let mut received_data = Vec::new();
 
         loop {
             // Check for incoming messages from the client
             match stream.read(&mut buffer) {
                 Ok(0) => {
-                    event_part.emit_from_thread("close", vec![].into(), &mut sender.clone());
+                    event_part.emit_from_thread("close", vec![].into(), &mut channel.clone());
                     break;
                 }
                 Ok(n) => {
                     received_data.extend_from_slice(&buffer[..n]); // Append received bytes
                     event_part.emit_from_thread(
                         "receive",
-                        vec![ThreadRuntimeValue::ZString(
-                            String::from_utf8(buffer.clone()).unwrap(),
-                        )]
+                        vec![ThreadRuntimeValue::new(ThreadInnerValue::ZString(String::from_utf8(buffer.clone()).unwrap()))]
                         .into(),
-                        &mut sender.clone(),
+                        &mut channel.clone(),
                     );
                 }
                 Err(ref e) if e.kind() == ErrorKind::WouldBlock => {} // No data available yet
@@ -102,8 +102,8 @@ pub fn create_tcp_stream(ctx: NativeExecutionContext) -> R {
             match send_rx.try_recv() {
                 Ok(msg) => {
                     if let Err(e) = stream.write_all(
-                        &match msg.args.get(0).unwrap() {
-                            ThreadRuntimeValue::ZString(s) => s.clone(),
+                        &match &msg.args.get(0).unwrap().value {
+                            ThreadInnerValue::ZString(s) => s.clone(),
                             _ => panic!(),
                         }
                         .as_bytes(),
@@ -112,9 +112,8 @@ pub fn create_tcp_stream(ctx: NativeExecutionContext) -> R {
                         break;
                     }
                 }
-                Err(mpsc::TryRecvError::Empty) => {} // No messages to send
+                Err(mpsc::TryRecvError::Empty) => {}
                 Err(mpsc::TryRecvError::Disconnected) => {
-                    println!("Message sender dropped, stopping.");
                     break;
                 }
             }
@@ -128,5 +127,5 @@ pub fn create_tcp_stream(ctx: NativeExecutionContext) -> R {
         ("send".to_string(), send_val.wrap()),
         ("event".to_string(), event.clone().wrap()),
     ]))
-    .wrap())*/
+    .wrap())
 }

@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use super::values::{Object, ObjectItemsType};
+use super::values::Object;
 
 #[derive(Debug, Clone)]
 pub struct PrototypeStore {

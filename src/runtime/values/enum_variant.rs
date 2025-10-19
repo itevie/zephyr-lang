@@ -35,10 +35,11 @@ impl RuntimeValueUtils for EnumVariant {
     ) -> Result<String, crate::errors::ZephyrError> {
         Ok(match color {
             true => format!(
-                "{}EnumVariant<{}{}({}{}){}>{}",
+                "{}EnumVariant<{}{}({}{}{}){}>{}",
                 colors::FG_CYAN,
                 colors::FG_GRAY,
                 self.enum_id,
+                colors::COLOR_RESET,
                 self.inner.to_string(is_display, color, false)?,
                 colors::FG_GRAY,
                 colors::FG_CYAN,

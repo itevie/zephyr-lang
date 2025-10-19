@@ -48,4 +48,6 @@ proto.is_digit = func is_digit(what) {
     return what.char_code() >= 48 && what.char_code() <= 57;
 }
 
+proto.split = __zephyr_native.str_split;
+
 export const String = proto;

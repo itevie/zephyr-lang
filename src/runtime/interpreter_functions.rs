@@ -5,7 +5,7 @@ use crate::{
     lexer::tokens::Location,
     parser::nodes::{self, Node},
 };
-
+use crate::runtime::values::MspcSenderOptions;
 use super::{
     native::NativeExecutionContext,
     scope::{Scope, Variable},
@@ -75,20 +75,20 @@ impl Interpreter {
 
                 (func.func)(ctx)
             }
-            FunctionType::MspcSender(_) => {
-                panic!();
-                /*func.sender
-                    .send(MspcSenderOptions {
-                        args,
-                        location: location.clone(),
-                    })
-                    .map_err(|_| ZephyrError {
-                        message: format!("Failed to send message through channel"),
-                        code: ErrorCode::ChannelError,
-                        location: Some(location.clone()),
-                    })?;
-
-                Ok(values::Null::new().wrap())*/
+            FunctionType::MspcSender(func) => {
+                panic!()
+                // func.sender
+                //     .send(MspcSenderOptions {
+                //         args,
+                //         location: location.clone(),
+                //     })
+                //     .map_err(|_| ZephyrError {
+                //         message: format!("Failed to send message through channel"),
+                //         code: ErrorCode::ChannelError,
+                //         location: Some(location.clone()),
+                //     })?;
+                //
+                // Ok(values::Null::new().wrap())
             }
         }
     }

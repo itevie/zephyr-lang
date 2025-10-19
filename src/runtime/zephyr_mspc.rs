@@ -1,10 +1,10 @@
 use std::sync::mpsc::Sender;
-
-use super::values::thread_crossing::{ThreadRuntimeFunctionType, ThreadRuntimeValueArray};
+use uuid::Uuid;
+use super::values::thread_crossing::{ThreadRuntimeValueArray};
 
 #[derive(Debug, Clone)]
 pub struct Job {
-    pub func: ThreadRuntimeFunctionType,
+    pub func: Uuid,
     pub args: ThreadRuntimeValueArray,
 }
 

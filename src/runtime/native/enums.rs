@@ -4,7 +4,7 @@ use crate::runtime::{
     R,
 };
 
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use super::{make_no_args_error, NativeExecutionContext};
 

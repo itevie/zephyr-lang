@@ -9,7 +9,7 @@ use std::{
     },
     time::Instant,
 };
-
+use uuid::Uuid;
 use scope::{Scope, ScopeInnerType, Variable};
 use values::{Null, RuntimeValue, RuntimeValueUtils};
 
@@ -63,6 +63,7 @@ pub struct Interpreter {
     pub mspc: Option<zephyr_mspc::MspcChannel>,
     pub thread_count: usize,
     pub prototype_store: prototype_store::PrototypeStore,
+    pub function_ids: Rc<RefCell<HashMap<Uuid, FunctionType>>>,
 }
 
 static NODE_TIMINGS: LazyLock<Arc<Mutex<HashMap<String, Vec<u128>>>>> =
@@ -102,6 +103,7 @@ impl Interpreter {
             thread_count: 0,
             mspc: None,
             prototype_store: prototype_store::PrototypeStore::new(),
+            function_ids: Rc::default()
         };
 
         let library_files: Vec<(&str, &str)> = vec![
@@ -184,7 +186,11 @@ impl Interpreter {
                     zephyr_mspc::MspcSendType::ThreadCreate => self.thread_count += 1,
                     zephyr_mspc::MspcSendType::ThreadDestroy => self.thread_count -= 1,
                     zephyr_mspc::MspcSendType::ThreadMessage(job) => {
-                        self.run_function(job.func.into(), job.args.into(), NO_LOCATION.clone())?;
+                        let Some(func) = self.function_ids.borrow().get(&job.func).cloned() else {
+                            panic!("Function id was not found in the hash map {}", job.func)
+                        };
+
+                        self.run_function(func.clone(), job.args.into(), NO_LOCATION.clone())?;
                     }
                 },
                 Err(TryRecvError::Empty) => {
@@ -222,11 +228,17 @@ impl Interpreter {
 
         // println!("{:?}", data.keys());
 
-        return result;
+        result
     }
 
     pub fn swap_scope(&mut self, scope: ScopeInnerType) -> ScopeInnerType {
         std::mem::replace(&mut self.scope, scope)
+    }
+
+    pub fn insert_function(&self, f: FunctionType) -> Uuid {
+        let uuid = Uuid::new_v4();
+        self.function_ids.borrow_mut().insert(uuid, f);
+        uuid
     }
 
     pub fn run(&mut self, node: Node) -> R {
@@ -364,3 +376,4 @@ macro_rules! time_this {
 }
 
 pub(crate) use time_this;
+use crate::runtime::values::FunctionType;
